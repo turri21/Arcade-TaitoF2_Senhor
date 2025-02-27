@@ -1,0 +1,6 @@
+[submodule "rtl/fx68k"]
+	path = rtl/fx68k
+	url = https://github.com/JTFPGA/fx68k.git
+[submodule "sim/imgui"]
+	path = sim/imgui
+	url = https://github.com/ocornut/imgui.git

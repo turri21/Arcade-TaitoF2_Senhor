@@ -1,0 +1,61 @@
+OBJ_DIR = obj
+VERILATED_DIR = verilated
+
+VERILATOR = verilator
+VERILATOR_ARGS = --cc --make gmake -j 8 --trace --Mdir $(VERILATED_DIR) -Ihdl --MMD --MP $(VERILATOR_DEFINES)
+PYTHON = python3
+
+VERILATOR_INC = $(shell pkg-config --variable=includedir verilator)
+VERILATOR_CPP = verilated.cpp verilated_vcd_c.cpp verilated_threads.cpp
+VERILATOR_OBJS = $(patsubst %.cpp, $(OBJ_DIR)/verilator/%.o, $(VERILATOR_CPP))
+
+IMGUI_CPP = imgui/imgui.cpp \
+			imgui/imgui_draw.cpp \
+			imgui/imgui_tables.cpp \
+			imgui/imgui_widgets.cpp \
+			imgui/backends/imgui_impl_sdl2.cpp \
+			imgui/backends/imgui_impl_sdlrenderer2.cpp
+
+IMGUI_OBJS = $(patsubst %.cpp, $(OBJ_DIR)/%.o, $(IMGUI_CPP))
+
+CC=cc
+CXX=c++
+CPPFLAGS= --std=gnu++17 -g
+CPPFLAGS+=-I$(VERILATED_DIR) $(shell pkg-config --cflags verilator)
+CPPFLAGS+=$(shell pkg-config --cflags sdl2)
+CPPFLAGS+=-Iimgui/ -Iimgui/backends/
+
+LDFLAGS=-g -Wl,-U,__Z15vl_time_stamp64v,-U,__Z13sc_time_stampv
+
+LDLIBS=$(shell pkg-config --libs sdl2)
+
+VERILATOR_DEFINES =
+
+HDL_SRC = ../rtl/fx68k/hdl/verilator/fx68k.sv ../rtl/fx68k/hdl/verilator/fx68kAlu.sv ../rtl/fx68k/hdl/verilator/uaddrPla.sv ../rtl/F2.sv
+
+HDL_GEN =
+
+$(VERILATED_DIR)/F2.mk: $(HDL_SRC) $(HDL_GEN)
+	$(VERILATOR) $(VERILATOR_ARGS) -o F2 --prefix F2 --top F2 $(HDL_SRC)
+
+$(VERILATED_DIR)/F2__ALL.a: $(VERILATED_DIR)/F2.mk $(HDL_SRC) $(HDL_GEN)
+	$(MAKE) -C $(VERILATED_DIR) -f F2.mk
+
+$(OBJ_DIR)/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) -o $@ -c $< $(CPPFLAGS)
+
+$(OBJ_DIR)/verilator/%.o: $(VERILATOR_INC)/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) -o $@ -c $< $(CPPFLAGS)
+
+$(OBJ_DIR)/sim.o: $(VERILATED_DIR)/F2__ALL.a
+
+sim: $(OBJ_DIR)/sim.o $(OBJ_DIR)/imgui_wrap.o $(IMGUI_OBJS) $(VERILATOR_OBJS) $(VERILATED_DIR)/F2__ALL.a 
+	$(CXX) -o $@ $^ $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -lpthread
+	
+.PHONY: clean
+
+clean:
+	rm -r $(OBJ_DIR) $(VERILATED_DIR)
+

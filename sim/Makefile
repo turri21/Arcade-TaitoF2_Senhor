@@ -35,6 +35,8 @@ HDL_SRC = ../rtl/fx68k/hdl/verilator/fx68k.sv ../rtl/fx68k/hdl/verilator/fx68kAl
 
 HDL_GEN =
 
+all: sim
+
 $(VERILATED_DIR)/F2.mk: $(HDL_SRC) $(HDL_GEN)
 	$(VERILATOR) $(VERILATOR_ARGS) -o F2 --prefix F2 --top F2 $(HDL_SRC)
 
@@ -53,8 +55,11 @@ $(OBJ_DIR)/sim.o: $(VERILATED_DIR)/F2__ALL.a
 
 sim: $(OBJ_DIR)/sim.o $(OBJ_DIR)/imgui_wrap.o $(IMGUI_OBJS) $(VERILATOR_OBJS) $(VERILATED_DIR)/F2__ALL.a 
 	$(CXX) -o $@ $^ $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -lpthread
-	
-.PHONY: clean
+
+run: sim
+	./sim
+
+.PHONY: clean all run
 
 clean:
 	rm -r $(OBJ_DIR) $(VERILATED_DIR)

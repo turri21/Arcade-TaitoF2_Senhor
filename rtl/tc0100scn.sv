@@ -40,8 +40,8 @@ module TC0100SCN(
     input IVLD
 );
 
-reg dtack = 0;
-reg prev_cs_n = 0;
+reg dtack_n;
+reg prev_cs_n;
 
 reg ram_pending = 0;
 reg ram_access = 0;
@@ -67,10 +67,10 @@ wire wide = ctrl[6][4];
 wire flip = ctrl[7][0];
 
 
-assign DACKn = SCCSn & ~dtack;
+assign DACKn = SCCSn ? 0 : dtack_n;
 assign SA = ram_addr[14:0];
-assign SCE0n = ~ram_addr[15];
-assign SCE1n = ram_addr[15];
+assign SCE0n = ram_addr[15];
+assign SCE1n = ~ram_addr[15];
 assign SDout = Din;
 assign ce_pixel = ce_13m & full_hcnt[0];
 
@@ -107,13 +107,19 @@ end
 wire [3:0] access_cycle = full_hcnt[3:0];
 wire line_start = ~&full_hcnt[9:4];
 
+reg [15:0] bg0_rowscroll, bg1_rowscroll;
+reg [15:0] bg1_colscroll;
+reg [15:0] bg0_code, bg1_code;
+reg [15:0] bg0_attrib, bg1_attrib;
+reg [15:0] fg0_code, fg0_gfx;
+
 always @(posedge clk) begin
     bit [8:0] h, v;
     if (reset) begin
-        dtack <= 0;
+        dtack_n <= 1;
         ram_pending <= 0;
         ram_access <= 0;
-    end else if (ce) begin
+    end else if (ce_13m) begin
         WEUPn <= 1;
         WELOn <= 1;
         // CPu interface handling
@@ -126,18 +132,18 @@ always @(posedge clk) begin
                     if (~UDSn) ctrl[VA[3:1]][15:8] <= Din[15:8];
                     if (~LDSn) ctrl[VA[3:1]][7:0]  <= Din[7:0];
                 end
-                dtack <= 1;
+                dtack_n <= 0;
             end else begin // ram access
                 ram_pending <= 1;
             end
         end else begin
-            dtack <= 0;
+            dtack_n <= 1;
         end
 
         case(access_cycle)
             0: begin
-                h = hcnt + bg0_x + bg0_rowscroll;
-                v = vcnt + bg0_y;
+                h = hcnt + bg0_x[8:0] + bg0_rowscroll[8:0];
+                v = vcnt + bg0_y[8:0];
                 ram_addr <= { 3'b0_00, v[8:3], h[8:3], 1'b0 };
             end
             1: bg0_code <= SDin;
@@ -149,22 +155,22 @@ always @(posedge clk) begin
             end
             5: bg1_colscroll <= SDin;
             6: begin
-                h = hcnt + fg0_x;
-                v = vcnt + fg0_y;
+                h = hcnt + fg0_x[8:0];
+                v = vcnt + fg0_y[8:0];
                 ram_addr <= { 4'b0_011, v[8:3], h[8:3] };
             end
             7: fg0_gfx <= SDin;
             8: begin
-                h = hcnt + bg1_x + bg1_rowscroll;
-                v = vcnt + bg1_y + bg1_colscroll;
+                h = hcnt + bg1_x[8:0] + bg1_rowscroll[8:0];
+                v = vcnt + bg1_y[8:0] + bg1_colscroll[8:0];
                 ram_addr <= { 3'b0_10, v[8:3], h[8:3], 1'b0 };
             end
             9: bg1_code <= SDin;
             10: ram_addr[0] <= 1;
             11: bg1_attrib <= SDin;
             12: begin
-                h = hcnt + fg0_x;
-                v = vcnt + fg0_y;
+                h = hcnt + fg0_x[8:0];
+                v = vcnt + fg0_y[8:0];
                 ram_addr <= { 4'b0_010, v[8:3], h[8:3] };
             end
             13: begin
@@ -179,7 +185,7 @@ always @(posedge clk) begin
             15: if (ram_access) begin
                 ram_access <= 0;
                 ram_pending <= 0;
-                dtack <= 0;
+                dtack_n <= 0;
                 Dout <= SDin;
             end
             default: begin

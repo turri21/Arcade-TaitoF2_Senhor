@@ -1,9 +1,11 @@
 #include "F2.h"
 #include "F2___024root.h"
+#include "imgui.h"
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
 #include "imgui_wrap.h"
+#include "sim_sdram.h"
 
 #include <stdio.h>
 #include <SDL.h>
@@ -84,7 +86,18 @@ void write_mem(uint32_t addr, bool ube, uint16_t dout)
     }
 }
 
-uint32_t total_ticks = 0;
+SimSDRAM sdram(128 * 1024 * 1024);
+
+uint64_t total_ticks = 0;
+
+bool trace_active = false;
+char trace_filename[64];
+int trace_depth = 1;
+
+bool simulation_run = false;
+bool simulation_step = false;
+int simulation_step_size = 1000;
+uint64_t simulation_reset_until = 100;
 
 void tick(int count = 1)
 {
@@ -92,18 +105,29 @@ void tick(int count = 1)
     {
         total_ticks++;
 
+        if (total_ticks < simulation_reset_until)
+        {
+            top->reset = 1;
+        }
+        else
+        {
+            top->reset = 0;
+        }
+
+        sdram.update_channel(top->sdr_cpu_addr, top->sdr_cpu_req, top->sdr_cpu_rw, top->sdr_cpu_be, top->sdr_cpu_data, &top->sdr_cpu_q, &top->sdr_cpu_ack);
+
         contextp->timeInc(1);
         top->clk = 0;
 
         top->eval();
-        tfp->dump(contextp->time());
+        if (trace_active) tfp->dump(contextp->time());
         //print_trace(top->rootp->V33);
 
         contextp->timeInc(1);
         top->clk = 1;
 
         top->eval();
-        tfp->dump(contextp->time());
+        if (trace_active) tfp->dump(contextp->time());
     }
 }
 
@@ -114,29 +138,79 @@ int main(int argc, char **argv)
         return -1;
     }
 
+    FILE *fp = fopen("cpu.bin", "rb");
+    fread(sdram.data, 1, 128 * 1024, fp);
+    fclose(fp);
+
+    strcpy(trace_filename, "sim.vcd");
+
     contextp = new VerilatedContext;
     top = new F2{contextp};
     tfp = new VerilatedVcdC;
 
     Verilated::traceEverOn(true);
-    top->trace(tfp, 1);
 
-    tfp->open("sim.vcd");
-
-    top->reset = 1;
-    tick(10);
-    top->reset = 0;
-    tick(100);
-
-    if (tfp->isOpen()) tfp->close();
-    top->final();
 
     while( imgui_begin_frame() )
     {
-        ImGui::Begin("Hello there");
+        if (simulation_run || simulation_step)
+        {
+            tick(simulation_step_size);
+        }
+        simulation_step = false;
+
+        ImGui::Begin("Simulation Control");
+
+        ImGui::LabelText("Ticks", "%llu", total_ticks);
+        ImGui::Checkbox("Run", &simulation_run);
+        if (ImGui::Button("Step"))
+        {
+            simulation_step = true;
+            simulation_run = false;
+        }
+        ImGui::InputInt("Step Size", &simulation_step_size);
+       
+        if (ImGui::Button("Reset"))
+        {
+            simulation_reset_until = total_ticks + 100;
+        }
+
+        ImGui::Separator();
+
+        ImGui::PushItemWidth(100);
+        if(ImGui::InputInt("Trace Depth", &trace_depth, 1, 10,
+                           trace_active ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None))
+        {
+            trace_depth = std::min(std::max(trace_depth, 1), 99);
+        }
+        ImGui::PopItemWidth();
+        ImGui::InputText("Filename", trace_filename, sizeof(trace_filename),
+                         trace_active ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None);
+        if(ImGui::Button(trace_active ? "Stop Tracing###TraceBtn" : "Start Tracing###TraceBtn"))
+        {
+            if (trace_active)
+            {
+                tfp->close();
+                trace_active = false;
+            }
+            else
+            {
+                if (strlen(trace_filename) > 0)
+                {
+                    top->trace(tfp, trace_depth);
+                    tfp->open(trace_filename);
+                    trace_active = tfp->isOpen();
+                }
+            }
+        }
+
         ImGui::End();
         imgui_end_frame();
     }
+    
+    if (trace_active) tfp->close();
+
+    top->final();
 
     delete top;
     delete contextp;

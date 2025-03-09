@@ -9,18 +9,22 @@ VERILATOR_INC = $(shell pkg-config --variable=includedir verilator)
 VERILATOR_CPP = verilated.cpp verilated_vcd_c.cpp verilated_threads.cpp
 VERILATOR_OBJS = $(patsubst %.cpp, $(OBJ_DIR)/verilator/%.o, $(VERILATOR_CPP))
 
-IMGUI_CPP = imgui/imgui.cpp \
-			imgui/imgui_draw.cpp \
-			imgui/imgui_tables.cpp \
-			imgui/imgui_widgets.cpp \
-			imgui/backends/imgui_impl_sdl2.cpp \
-			imgui/backends/imgui_impl_sdlrenderer2.cpp
+SRCS = imgui/imgui.cpp \
+		imgui/imgui_draw.cpp \
+		imgui/imgui_tables.cpp \
+		imgui/imgui_widgets.cpp \
+		imgui/backends/imgui_impl_sdl2.cpp \
+		imgui/backends/imgui_impl_sdlrenderer2.cpp \
+		sim.cpp \
+		imgui_wrap.cpp
 
-IMGUI_OBJS = $(patsubst %.cpp, $(OBJ_DIR)/%.o, $(IMGUI_CPP))
+OBJS = $(patsubst %.cpp, $(OBJ_DIR)/%.o, $(SRCS))
+
+DEPFLAGS = -MT $@ -MMD -MP -MF $(OBJ_DIR)/$*.d
 
 CC=cc
 CXX=c++
-CPPFLAGS= --std=gnu++17 -g
+CPPFLAGS= --std=gnu++17 -g $(DEPFLAGS)
 CPPFLAGS+=-I$(VERILATED_DIR) $(shell pkg-config --cflags verilator)
 CPPFLAGS+=$(shell pkg-config --cflags sdl2)
 CPPFLAGS+=-Iimgui/ -Iimgui/backends/
@@ -55,7 +59,7 @@ $(OBJ_DIR)/verilator/%.o: $(VERILATOR_INC)/%.cpp
 
 $(OBJ_DIR)/sim.o: $(VERILATED_DIR)/F2__ALL.a
 
-sim: $(OBJ_DIR)/sim.o $(OBJ_DIR)/imgui_wrap.o $(IMGUI_OBJS) $(VERILATOR_OBJS) $(VERILATED_DIR)/F2__ALL.a 
+sim: $(OBJS) $(VERILATOR_OBJS) $(VERILATED_DIR)/F2__ALL.a 
 	$(CXX) -o $@ $^ $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -lpthread
 
 run: sim
@@ -66,3 +70,6 @@ run: sim
 clean:
 	rm -r $(OBJ_DIR) $(VERILATED_DIR)
 
+DEPFILES := $(SRCS:%.cpp=$(OBJ_DIR)/%.d)
+$(DEPFILES):
+-include $(wildcard $(DEPFILES))

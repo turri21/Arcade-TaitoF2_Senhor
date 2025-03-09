@@ -74,11 +74,18 @@ assign SCE1n = ~ram_addr[15];
 assign SDout = Din;
 assign ce_pixel = ce_13m & full_hcnt[0];
 
+assign HSYNn = full_hcnt < (320 * 2);
+assign HBLOn = full_hcnt < (320 * 2);
+assign VSYNn = vcnt < 200;
+assign VBLOn = vcnt < 200;
+
+
+assign SC = {fg_shift[31:30], 13'b0};
+
 wire [5:0] col_count = full_hcnt[9:4];
 reg [3:0] state;
 
 always @(posedge clk) begin
-    bit [8:0] hcnt;
     bit [8:0] h, v;
     if (reset) begin
         full_hcnt <= 0;
@@ -86,8 +93,8 @@ always @(posedge clk) begin
         vcnt <= 0;
     end else if (ce_13m) begin
         full_hcnt <= full_hcnt + 1;
+        if (ce_pixel) hcnt <= hcnt + 1;
         if (~|full_hcnt[3:0]) begin
-            hcnt <= hcnt + 1;
             if (hcnt == 7 && col_count < 2) begin
                 hcnt <= 0;
             end
@@ -113,8 +120,15 @@ reg [15:0] bg0_code, bg1_code;
 reg [15:0] bg0_attrib, bg1_attrib;
 reg [15:0] fg0_code, fg0_gfx;
 
+reg [47:0] fg_shift;
+
 always @(posedge clk) begin
     bit [8:0] h, v;
+
+    if (ce_pixel) begin
+        fg_shift[47:2] <= fg_shift[45:0];
+    end
+
     if (reset) begin
         dtack_n <= 1;
         ram_pending <= 0;
@@ -155,9 +169,8 @@ always @(posedge clk) begin
             end
             5: bg1_colscroll <= SDin;
             6: begin
-                h = hcnt + fg0_x[8:0];
                 v = vcnt + fg0_y[8:0];
-                ram_addr <= { 4'b0_011, v[8:3], h[8:3] };
+                ram_addr <= { 5'b0_0110, fg0_code[7:0], v[2:0] };
             end
             7: fg0_gfx <= SDin;
             8: begin
@@ -181,6 +194,15 @@ always @(posedge clk) begin
                 ram_addr <= VA[16:1];
                 WEUPn <= ~ram_access | UDSn | RW;
                 WELOn <= ~ram_access | LDSn | RW;
+
+                fg_shift[15:0] <= { fg0_gfx[15], fg0_gfx[7],
+                                    fg0_gfx[14], fg0_gfx[6],
+                                    fg0_gfx[13], fg0_gfx[5],
+                                    fg0_gfx[12], fg0_gfx[4],
+                                    fg0_gfx[11], fg0_gfx[3],
+                                    fg0_gfx[10], fg0_gfx[2],
+                                    fg0_gfx[ 9], fg0_gfx[1],
+                                    fg0_gfx[ 8], fg0_gfx[0] };
             end
             15: if (ram_access) begin
                 ram_access <= 0;

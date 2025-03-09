@@ -2,6 +2,15 @@ module F2(
     input clk,
     input reset,
 
+    output            ce_pixel,
+    output            hsync,
+    output            hblank,
+    output            vsync,
+    output            vblank,
+    output      [7:0] red,
+    output      [7:0] green,
+    output      [7:0] blue,
+
     output reg [26:1] sdr_cpu_addr,
     input      [15:0] sdr_cpu_q,
     output reg [15:0] sdr_cpu_data,
@@ -92,6 +101,8 @@ wire [15:0] scn_main_ram_dout;
 wire scn_main_ram_we_up_n, scn_main_ram_we_lo_n;
 wire scn_main_ram_ce_0_n, scn_main_ram_ce_1_n;
 
+wire [14:0] scn_main_dot_color;
+
 singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(15), .NAME("SC0L")) scn_ram_0_lo(
     .clock(clk),
     .address(scn_main_ram_addr),
@@ -108,11 +119,24 @@ singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(15), .NAME("SC0U")) scn_ram_0_up(
     .q(scn_main_ram_din[15:8])
 );
 
+wire HSYNn;
+wire HBLOn;
+wire VSYNn;
+wire VBLOn;
+
+assign hsync = ~HSYNn;
+assign vsync = ~VSYNn;
+assign hblank = ~HBLOn;
+assign vblank = ~VBLOn;
+
+assign blue = 0;
+assign green = scn_main_dot_color[14:7];
+assign red = scn_main_dot_color[7:0];
 
 TC0100SCN scn_main(
     .clk(clk),
     .ce_13m(ce_13m),
-    .ce_pixel(),
+    .ce_pixel,
 
     .reset,
 
@@ -140,11 +164,11 @@ TC0100SCN scn_main(
     .RD(0),
 
     // Video interface
-    .SC(),
-    .HSYNn(),
-    .HBLOn(),
-    .VSYNn(),
-    .VBLOn(),
+    .SC(scn_main_dot_color),
+    .HSYNn,
+    .HBLOn,
+    .VSYNn,
+    .VBLOn,
     .OLDH(),
     .OLDV(),
     .IHLD(0), // FIXME - confirm inputs

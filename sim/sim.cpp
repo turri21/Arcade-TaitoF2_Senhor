@@ -7,89 +7,19 @@
 #include "imgui_wrap.h"
 #include "imgui_memory_editor.h"
 #include "sim_sdram.h"
+#include "sim_video.h"
 
 #include <stdio.h>
 #include <SDL.h>
 
 // TODO
-// rom and ram regions - done
-// rom loading - done
-// vblank - done, rough
-// comms
-// display vram
 
 VerilatedContext *contextp;
 F2 *top;
 VerilatedVcdC *tfp;
 
-constexpr size_t MEM_SIZE = 0x100000;
-
-uint8_t memory[MEM_SIZE];
-uint32_t rom_mask;
-
-constexpr uint32_t MT_ROM =       0x00000001;
-constexpr uint32_t MT_WRITEABLE = 0x00000002;
-constexpr uint32_t MT_WORKRAM =   0x00000004;
-constexpr uint32_t MT_VRAM =      0x00000008;
-constexpr uint32_t MT_PALRAM =    0x00000010;
-
-uint32_t map_addr(uint32_t logical_addr, uint32_t *memtype)
-{
-    logical_addr = logical_addr & 0xfffff;
-    if ((logical_addr & 0xf0000) == 0xa0000)
-    {
-        *memtype = MT_WRITEABLE | MT_WORKRAM;
-        return logical_addr;
-    }
-
-    if ((logical_addr & 0xf0000) == 0xd0000)
-    {
-        *memtype = MT_WRITEABLE | MT_VRAM;
-        return logical_addr;
-    }
-
-    if ((logical_addr & 0xf0000) == 0xe0000)
-    {
-        *memtype = MT_WRITEABLE | MT_PALRAM;
-        return logical_addr & 0xe03ff;
-    }
-
-    *memtype = MT_ROM;
-    return logical_addr & rom_mask;
-}
-
-uint16_t read_mem(uint32_t addr, bool ube)
-{
-    uint32_t memtype;
-    uint32_t aligned_addr = map_addr(addr & ~1, &memtype);
-    return memory[aligned_addr] | (memory[aligned_addr + 1] << 8);
-}
-
-void write_mem(uint32_t addr, bool ube, uint16_t dout)
-{
-    uint32_t memtype;
-    addr = map_addr(addr, &memtype);
-    if (memtype & MT_WRITEABLE)
-    {
-        if ((addr & 1) && ube)
-        {
-            memory[addr] = dout >> 8;
-        }
-        else if (((addr & 1) == 0) && !ube)
-        {
-            memory[addr] = dout & 0xff;
-        }
-        else
-        {
-            memory[addr] = dout & 0xff;
-            memory[addr + 1] = dout >> 8;
-        }
-    }
-}
-
-MemoryEditor scn_main_mem;
-
 SimSDRAM sdram(128 * 1024 * 1024);
+SimVideo video;
 
 uint64_t total_ticks = 0;
 
@@ -118,7 +48,7 @@ void tick(int count = 1)
         }
 
         sdram.update_channel(top->sdr_cpu_addr, top->sdr_cpu_req, top->sdr_cpu_rw, top->sdr_cpu_be, top->sdr_cpu_data, &top->sdr_cpu_q, &top->sdr_cpu_ack);
-
+        video.clock(top->ce_pixel != 0, top->hsync != 0, top->vsync != 0, top->red, top->green, top->blue);
         contextp->timeInc(1);
         top->clk = 0;
 
@@ -161,7 +91,10 @@ int main(int argc, char **argv)
     top = new F2{contextp};
     tfp = new VerilatedVcdC;
 
+    MemoryEditor scn_main_mem;
     scn_main_mem.ReadFn = scn_mem_read;
+
+    video.init(320, 200, imgui_get_renderer());
 
     Verilated::traceEverOn(true);
 
@@ -170,6 +103,7 @@ int main(int argc, char **argv)
         if (simulation_run || simulation_step)
         {
             tick(simulation_step_size);
+            video.update_texture();
         }
         simulation_step = false;
 
@@ -221,6 +155,7 @@ int main(int argc, char **argv)
         ImGui::End();
 
         scn_main_mem.DrawWindow("Screen Mem", nullptr, 64 * 1024);
+        video.draw();
 
         imgui_end_frame();
     }
@@ -228,6 +163,8 @@ int main(int argc, char **argv)
     if (trace_active) tfp->close();
 
     top->final();
+
+    video.deinit();
 
     delete top;
     delete contextp;

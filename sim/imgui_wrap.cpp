@@ -82,3 +82,9 @@ void imgui_end_frame()
     ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), sdl_renderer);
     SDL_RenderPresent(sdl_renderer);
 }
+
+SDL_Renderer *imgui_get_renderer()
+{
+    return sdl_renderer;
+}
+

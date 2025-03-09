@@ -136,7 +136,7 @@ always @(posedge clk) begin
             end else begin // ram access
                 ram_pending <= 1;
             end
-        end else begin
+        end else if (SCCSn) begin
             dtack_n <= 1;
         end
 

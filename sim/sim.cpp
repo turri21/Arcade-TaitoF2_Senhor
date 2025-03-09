@@ -5,6 +5,7 @@
 #include "verilated_vcd_c.h"
 
 #include "imgui_wrap.h"
+#include "imgui_memory_editor.h"
 #include "sim_sdram.h"
 
 #include <stdio.h>
@@ -86,6 +87,8 @@ void write_mem(uint32_t addr, bool ube, uint16_t dout)
     }
 }
 
+MemoryEditor scn_main_mem;
+
 SimSDRAM sdram(128 * 1024 * 1024);
 
 uint64_t total_ticks = 0;
@@ -131,6 +134,16 @@ void tick(int count = 1)
     }
 }
 
+ImU8 scn_mem_read(const ImU8* , size_t off, void*)
+{
+    size_t word_off = off >> 1;
+
+    if (off & 1)
+        return top->rootp->F2__DOT__scn_ram_0_lo__DOT__ram[word_off];
+    else
+        return top->rootp->F2__DOT__scn_ram_0_up__DOT__ram[word_off];
+}
+
 int main(int argc, char **argv)
 {
     if( !imgui_init() )
@@ -148,8 +161,9 @@ int main(int argc, char **argv)
     top = new F2{contextp};
     tfp = new VerilatedVcdC;
 
-    Verilated::traceEverOn(true);
+    scn_main_mem.ReadFn = scn_mem_read;
 
+    Verilated::traceEverOn(true);
 
     while( imgui_begin_frame() )
     {
@@ -205,6 +219,9 @@ int main(int argc, char **argv)
         }
 
         ImGui::End();
+
+        scn_main_mem.DrawWindow("Screen Mem", nullptr, 64 * 1024);
+
         imgui_end_frame();
     }
     

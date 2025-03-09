@@ -157,7 +157,7 @@ always_comb begin
     ROMn = 1;
     SCREENn = 1;
 
-    if (~cpu_as_n) begin
+    if (~&cpu_ds_n) begin
         casex(cpu_word_addr)
             24'h0xxxxx: ROMn = 0;
             24'h1xxxxx: WORKn = 0;
@@ -169,10 +169,10 @@ end
 
 assign cpu_data_in = sdr_cpu_q;
 
-reg prev_as_n;
+reg prev_ds_n;
 always_ff @(posedge clk) begin
-    prev_as_n <= cpu_as_n;
-    if (~(ROMn & WORKn) & prev_as_n) begin
+    prev_ds_n <= &cpu_ds_n;
+    if (~(ROMn & WORKn) & prev_ds_n) begin
         sdr_cpu_addr <= { 2'b0, cpu_word_addr };
         sdr_cpu_data <= cpu_data_out;
         sdr_cpu_be <= ~cpu_ds_n;

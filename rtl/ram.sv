@@ -39,7 +39,7 @@ module dualport_ram #(
 );
 
 // Shared ramory
-reg [WIDTH-1:0] ram[2**WIDTHAD];
+reg [WIDTH-1:0] ram[2**WIDTHAD] /* verilator public_flat */;
 
 // Port A
 always @(posedge clock_a) begin
@@ -84,7 +84,7 @@ module dualport_ram_unreg #(
 );
 
 // Shared ramory
-reg [WIDTH-1:0] ram[2**WIDTHAD];
+reg [WIDTH-1:0] ram[2**WIDTHAD] /* verilator public_flat */;
 
 // Port A
 assign q_a = ram[address_a];
@@ -120,7 +120,7 @@ module singleport_ram #(
 );
 
 // Shared ramory
-reg [WIDTH-1:0] ram[2**WIDTHAD];
+reg [WIDTH-1:0] ram[2**WIDTHAD] /* verilator public_flat */;
 
 always @(posedge clock) begin
     if (wren) begin
@@ -146,7 +146,7 @@ module singleport_ram_unreg #(
 );
 
 // Shared ramory
-reg [WIDTH-1:0] ram[2**WIDTHAD];
+reg [WIDTH-1:0] ram[2**WIDTHAD] /* verilator public_flat */;
 
 assign q = ram[address];
 always @(posedge clock) begin

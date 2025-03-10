@@ -75,6 +75,17 @@ ImU8 scn_mem_read(const ImU8* , size_t off, void*)
         return top->rootp->F2__DOT__scn_ram_0_up__DOT__ram[word_off];
 }
 
+ImU8 color_ram_read(const ImU8* , size_t off, void*)
+{
+    size_t word_off = off >> 1;
+
+    if (off & 1)
+        return top->rootp->F2__DOT__pri_ram_l__DOT__ram[word_off];
+    else
+        return top->rootp->F2__DOT__pri_ram_h__DOT__ram[word_off];
+}
+
+
 int main(int argc, char **argv)
 {
     if( !imgui_init() )
@@ -85,6 +96,9 @@ int main(int argc, char **argv)
     FILE *fp = fopen("cpu.bin", "rb");
     fread(cpu_sdram.data, 1, 128 * 1024, fp);
     fclose(fp);
+
+    //cpu_sdram.load_data("b82-09.10", 0, 2);
+    //cpu_sdram.load_data("b82-17.11", 1, 2);
 
     scn_main_sdram.load_data("b82-07.18", 0, 2);
     scn_main_sdram.load_data("b82-06.19", 1, 2);
@@ -97,7 +111,9 @@ int main(int argc, char **argv)
 
     MemoryEditor scn_main_mem;
     MemoryEditor scn_main_rom;
+    MemoryEditor color_ram;
     scn_main_mem.ReadFn = scn_mem_read;
+    color_ram.ReadFn = color_ram_read;
 
     video.init(320, 200, imgui_get_renderer());
 
@@ -161,6 +177,7 @@ int main(int argc, char **argv)
 
         scn_main_mem.DrawWindow("Screen Mem", nullptr, 64 * 1024);
         scn_main_rom.DrawWindow("Screen ROM", scn_main_sdram.data, 256 * 1024);
+        color_ram.DrawWindow("Color RAM", nullptr, 8 * 1024);
         video.draw();
 
         imgui_end_frame();

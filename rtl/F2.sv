@@ -33,12 +33,13 @@ module F2(
 logic ROMn; // CPU ROM
 logic WORKn; // CPU RAM
 logic SCREENn;
+logic COLORn;
 
-wire SDTACKn;
+wire SDTACKn, CDTACKn;
 
 wire sdr_dtack_n = sdr_cpu_req != sdr_cpu_ack;
 
-wire DTACKn = sdr_dtack_n | SDTACKn;
+wire DTACKn = sdr_dtack_n | SDTACKn | CDTACKn;
 
 //////////////////////////////////
 //// CLOCK ENABLES
@@ -136,9 +137,9 @@ assign vsync = ~VSYNn;
 assign hblank = ~HBLOn;
 assign vblank = ~VBLOn;
 
-assign blue = 0;
-assign green = scn_main_dot_color[14:7];
-assign red = scn_main_dot_color[7:0];
+assign blue = {pri_ram_din[14:10], pri_ram_din[14:12]};
+assign green = {pri_ram_din[9:5], pri_ram_din[9:7]};
+assign red = {pri_ram_din[4:0], pri_ram_din[4:2]};
 
 wire [20:0] scn_main_rom_address;
 assign sdr_scn_main_addr = { 5'b0, scn_main_rom_address[20:0] };
@@ -187,17 +188,75 @@ TC0100SCN scn_main(
     .IVLD(0)
 );
 
+wire [15:0] pri_data_out;
+wire [12:0] pri_ram_addr;
+wire [15:0] pri_ram_din, pri_ram_dout;
+wire pri_ram_we_l_n, pri_ram_we_h_n;
+
+singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(12), .NAME("PRIL")) pri_ram_l(
+    .clock(clk),
+    .address(pri_ram_addr[12:1]),
+    .wren(~pri_ram_we_l_n),
+    .data(pri_ram_dout[7:0]),
+    .q(pri_ram_din[7:0])
+);
+
+singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(12), .NAME("PRIH")) pri_ram_h(
+    .clock(clk),
+    .address(pri_ram_addr[12:1]),
+    .wren(~pri_ram_we_h_n),
+    .data(pri_ram_dout[15:8]),
+    .q(pri_ram_din[15:8])
+);
+
+
+TC0110PR tc0110pr(
+    .clk,
+    .ce_pixel,
+
+    // CPU Interface
+    .Din(cpu_data_out),
+    .Dout(pri_data_out),
+
+    .VA(cpu_addr[1:0]),
+    .RWn(cpu_rw),
+    .UDSn(cpu_ds_n[1]),
+    .LDSn(cpu_ds_n[0]),
+
+    .SCEn(COLORn),
+    .DACKn(CDTACKn),
+
+    // Video Input
+    .HSYn(HSYNn),
+    .VSYn(VSYNn),
+
+    .SC(scn_main_dot_color),
+    .OB(0),
+
+    // RAM Interface
+    .CA(pri_ram_addr),
+    .CDin(pri_ram_din),
+    .CDout(pri_ram_dout),
+    .WELn(pri_ram_we_l_n),
+    .WEHn(pri_ram_we_h_n)
+);
+
+
+
+
 /* verilator lint_off CASEX */
 always_comb begin
     WORKn = 1;
     ROMn = 1;
     SCREENn = 1;
+    COLORn = 1;
 
     if (~&cpu_ds_n) begin
         casex(cpu_word_addr)
             24'h0xxxxx: ROMn = 0;
             24'h1xxxxx: WORKn = 0;
             24'h8xxxxx: SCREENn = 0;
+            24'h2xxxxx: COLORn = 0;
         endcase
     end
 end

@@ -1,22 +1,32 @@
-module tc0100scn_shifter(
+module tc0100scn_shifter #(
+    parameter PALETTE_WIDTH=8,
+    parameter PIXEL_WIDTH=4)
+(
     input clk,
     input ce_pixel,
     input load,
 
     input [2:0] tap,
-    input [31:0] data_in,
-    output [3:0] data_out
+    input [(PIXEL_WIDTH * 8) - 1:0] gfx_in,
+    input [PALETTE_WIDTH - 1:0] palette_in,
+    output [PIXEL_WIDTH + PALETTE_WIDTH - 1:0] dot_out
 );
 
-reg [63:0] shift;
+localparam DOT_WIDTH = (PALETTE_WIDTH + PIXEL_WIDTH);
+localparam SHIFT_END = (DOT_WIDTH * 16) - 1;
 
-assign data_out = shift[(63 - (4 * tap)) -: 4];
+reg [SHIFT_END:0] shift;
+
+assign dot_out = shift[(SHIFT_END - (DOT_WIDTH * tap)) -: DOT_WIDTH];
 
 always_ff @(posedge clk) begin
     if (ce_pixel) begin
-        shift[63:4] <= shift[59:0];
+        shift[SHIFT_END:DOT_WIDTH] <= shift[SHIFT_END-DOT_WIDTH:0];
         if (load) begin
-            shift[31:0] <= data_in;
+            int i;
+            for( i = 0; i < 8; i = i + 1 ) begin
+                shift[(DOT_WIDTH * i) +: DOT_WIDTH] <= { palette_in, gfx_in[(PIXEL_WIDTH * i) +: PIXEL_WIDTH] };
+            end
         end
     end
 end
@@ -108,7 +118,7 @@ assign VSYNn = vcnt < 200;
 assign VBLOn = vcnt < 200;
 
 
-assign SC = {|{fg_shift[31:30], bg0_dot, bg1_dot}, 14'b0};
+assign SC = |bg0_dot[3:0] ? { 3'd0, bg0_dot } : ( |bg1_dot[3:0] ? { 3'd0, bg1_dot } : { 15'd0 } );
 
 wire [5:0] col_count = full_hcnt[9:4];
 reg [3:0] state;
@@ -146,7 +156,7 @@ wire [8:0] bg0_hofs = bg0_x[8:0] + bg0_rowscroll[8:0];
 wire [8:0] bg1_hofs = bg1_x[8:0] + bg1_rowscroll[8:0];
 reg [31:0] bg0_gfx;
 wire [31:0] bg1_gfx = rom_data;
-wire [3:0] bg0_dot, bg1_dot;
+wire [11:0] bg0_dot, bg1_dot;
 reg [15:0] bg0_rowscroll, bg1_rowscroll;
 reg [15:0] bg1_colscroll;
 reg [15:0] bg0_code, bg1_code;
@@ -168,16 +178,18 @@ wire [31:0] bg0_gfx_swizzle = { bg0_gfx[31], bg0_gfx[23], bg0_gfx[15], bg0_gfx[7
 tc0100scn_shifter bg0_shift(
     .clk, .ce_pixel,
     .tap(bg0_hofs[2:0]),
-    .data_in(bg0_gfx),
-    .data_out(bg0_dot),
+    .gfx_in(bg0_gfx),
+    .palette_in(bg0_attrib[7:0]),
+    .dot_out(bg0_dot),
     .load(access_cycle == 15)
 );
 
 tc0100scn_shifter bg1_shift(
     .clk, .ce_pixel,
     .tap(bg1_hofs[2:0]),
-    .data_in(bg1_gfx),
-    .data_out(bg1_dot),
+    .gfx_in(bg1_gfx),
+    .palette_in(bg1_attrib[7:0]),
+    .dot_out(bg1_dot),
     .load(access_cycle == 15)
 );
 
@@ -214,6 +226,7 @@ always @(posedge clk) begin
         end
 
         case(access_cycle)
+            // BG0 Address Attrib or Rowscroll
             0: begin
                 if (line_start) begin
                     ram_addr <= { 8'b0_11_00000, vcnt[7:0] };
@@ -223,6 +236,7 @@ always @(posedge clk) begin
                     ram_addr <= { 3'b0_00, v[8:3], h[8:3], 1'b0 };
                 end
             end
+            // BG0 Store Attrib or Rowscroll
             1: begin
                 if (line_start) begin
                     bg0_rowscroll <= SDin;
@@ -230,23 +244,30 @@ always @(posedge clk) begin
                     bg0_attrib <= SDin;
                 end
             end
+            // BG0 Address Tile code
             2: ram_addr[0] <= 1;
+            // BG0 Store Tile code, start ROM read
             3: begin
                 bg0_code <= SDin;
                 v = vcnt + bg0_y[8:0];
                 rom_address <= { SDin, v[2:0], 2'b0 };
                 rom_req <= ~rom_req;
             end
+            // BG1 Address Colscroll
             4: begin
                 h = hcnt;
                 ram_addr <= { 10'b0111_000000, h[8:3] };
             end
+            // BG1 Store Colscroll
             5: bg1_colscroll <= SDin;
+            // FG0 Address GFX
             6: begin
                 v = vcnt + fg0_y[8:0];
                 ram_addr <= { 5'b0_0110, fg0_code[7:0], v[2:0] };
             end
+            // FG0 Store GFX
             7: fg0_gfx <= SDin;
+            // BG1 Address Attrib or Rowscroll
             8: begin
                 if (line_start) begin
                     ram_addr <= { 8'b01100010, vcnt[7:0] };
@@ -256,6 +277,7 @@ always @(posedge clk) begin
                     ram_addr <= { 3'b0_10, v[8:3], h[8:3], 1'b0 };
                 end
             end
+            // BG1 Store Attrib or Rowscroll
             9: begin
                 if (line_start) begin
                     bg1_rowscroll <= SDin;
@@ -263,7 +285,9 @@ always @(posedge clk) begin
                     bg1_attrib <= SDin;
                 end
             end
+            // BG1 Address Tile code
             10: ram_addr[0] <= 1;
+            // BG1 Store Tile code, start ROM read
             11: begin
                 bg1_code <= SDin;
 
@@ -272,15 +296,18 @@ always @(posedge clk) begin
                 rom_address <= { SDin, v[2:0], 2'b0 };
                 rom_req <= ~rom_req;
             end
+            // FG0 Address tile code
             12: begin
                 h = hcnt + fg0_x[8:0];
                 v = vcnt + fg0_y[8:0];
                 ram_addr <= { 4'b0_010, v[8:3], h[8:3] };
             end
+            // FG0 Store tile code
             13: begin
                 fg0_code <= SDin;
                 ram_access <= ram_pending;
             end
+            // Address CPU access
             14: begin
                 ram_addr <= VA[16:1];
                 WEUPn <= ~ram_access | UDSn | RW;
@@ -295,6 +322,7 @@ always @(posedge clk) begin
                                     fg0_gfx[ 9], fg0_gfx[1],
                                     fg0_gfx[ 8], fg0_gfx[0] };
             end
+            // Finish CPU access
             15: begin
                 if (ram_access) begin
                     ram_access <= 0;

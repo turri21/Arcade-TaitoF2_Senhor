@@ -17,7 +17,14 @@ module F2(
     output reg [ 1:0] sdr_cpu_be,
     output reg        sdr_cpu_rw,     // 1 - read, 0 - write
     output reg        sdr_cpu_req,
-    input             sdr_cpu_ack
+    input             sdr_cpu_ack,
+
+    output reg [26:1] sdr_scn_main_addr,
+    input      [31:0] sdr_scn_main_q,
+    output reg        sdr_scn_main_req,
+    input             sdr_scn_main_ack
+
+
 );
 
 //////////////////////////////////
@@ -133,6 +140,9 @@ assign blue = 0;
 assign green = scn_main_dot_color[14:7];
 assign red = scn_main_dot_color[7:0];
 
+wire [20:0] scn_main_rom_address;
+assign sdr_scn_main_addr = { 5'b0, scn_main_rom_address[20:0] };
+
 TC0100SCN scn_main(
     .clk(clk),
     .ce_13m(ce_13m),
@@ -160,8 +170,10 @@ TC0100SCN scn_main(
     .SCE1n(scn_main_ram_ce_1_n),
 
     // ROM interface
-    .AD(),
-    .RD(0),
+    .rom_address(scn_main_rom_address),
+    .rom_req(sdr_scn_main_req),
+    .rom_ack(sdr_scn_main_ack),
+    .rom_data(sdr_scn_main_q),
 
     // Video interface
     .SC(scn_main_dot_color),

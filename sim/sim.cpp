@@ -18,7 +18,8 @@ VerilatedContext *contextp;
 F2 *top;
 VerilatedVcdC *tfp;
 
-SimSDRAM sdram(128 * 1024 * 1024);
+SimSDRAM cpu_sdram(128 * 1024 * 1024);
+SimSDRAM scn_main_sdram(256 * 1024);
 SimVideo video;
 
 uint64_t total_ticks = 0;
@@ -29,7 +30,7 @@ int trace_depth = 1;
 
 bool simulation_run = false;
 bool simulation_step = false;
-int simulation_step_size = 1000;
+int simulation_step_size = 10000;
 uint64_t simulation_reset_until = 100;
 
 void tick(int count = 1)
@@ -47,14 +48,14 @@ void tick(int count = 1)
             top->reset = 0;
         }
 
-        sdram.update_channel(top->sdr_cpu_addr, top->sdr_cpu_req, top->sdr_cpu_rw, top->sdr_cpu_be, top->sdr_cpu_data, &top->sdr_cpu_q, &top->sdr_cpu_ack);
+        cpu_sdram.update_channel_16(top->sdr_cpu_addr, top->sdr_cpu_req, top->sdr_cpu_rw, top->sdr_cpu_be, top->sdr_cpu_data, &top->sdr_cpu_q, &top->sdr_cpu_ack);
+        scn_main_sdram.update_channel_32(top->sdr_scn_main_addr, top->sdr_scn_main_req, 1, 15, 0, &top->sdr_scn_main_q, &top->sdr_scn_main_ack);
         video.clock(top->ce_pixel != 0, top->hsync != 0, top->vsync != 0, top->red, top->green, top->blue);
         contextp->timeInc(1);
         top->clk = 0;
 
         top->eval();
         if (trace_active) tfp->dump(contextp->time());
-        //print_trace(top->rootp->V33);
 
         contextp->timeInc(1);
         top->clk = 1;
@@ -82,8 +83,11 @@ int main(int argc, char **argv)
     }
 
     FILE *fp = fopen("cpu.bin", "rb");
-    fread(sdram.data, 1, 128 * 1024, fp);
+    fread(cpu_sdram.data, 1, 128 * 1024, fp);
     fclose(fp);
+
+    scn_main_sdram.load_data("b82-07.18", 0, 2);
+    scn_main_sdram.load_data("b82-06.19", 1, 2);
 
     strcpy(trace_filename, "sim.vcd");
 
@@ -92,6 +96,7 @@ int main(int argc, char **argv)
     tfp = new VerilatedVcdC;
 
     MemoryEditor scn_main_mem;
+    MemoryEditor scn_main_rom;
     scn_main_mem.ReadFn = scn_mem_read;
 
     video.init(320, 200, imgui_get_renderer());
@@ -155,6 +160,7 @@ int main(int argc, char **argv)
         ImGui::End();
 
         scn_main_mem.DrawWindow("Screen Mem", nullptr, 64 * 1024);
+        scn_main_rom.DrawWindow("Screen ROM", scn_main_sdram.data, 256 * 1024);
         video.draw();
 
         imgui_end_frame();

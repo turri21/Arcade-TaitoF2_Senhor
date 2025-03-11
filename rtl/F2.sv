@@ -34,6 +34,7 @@ logic ROMn; // CPU ROM
 logic WORKn; // CPU RAM
 logic SCREENn;
 logic COLORn;
+logic IOn;
 
 wire SDTACKn, CDTACKn;
 
@@ -98,6 +99,31 @@ fx68k m68000(
     .eab(cpu_addr)
 );
 
+wire [7:0] io_data_out;
+
+TC0220IOC tc0220ioc(
+    .clk,
+
+    .RES_CLK_IN(0),
+    .RES_INn(1),
+    .RES_OUTn(),
+
+    .A(cpu_addr[3:0]),
+    .WEn(cpu_rw),
+    .CSn(IOn),
+    .OEn(0),
+
+    .Din(cpu_data_out[7:0]),
+    .Dout(io_data_out),
+
+    .COIN_LOCK_A(),
+    .COIN_LOCK_B(),
+    .COINMETER_A(),
+    .COINMETER_B(),
+
+    .INB(8'b0),
+    .IN(32'b0)
+);
 
 
 //////////////////////////////////
@@ -250,6 +276,7 @@ always_comb begin
     ROMn = 1;
     SCREENn = 1;
     COLORn = 1;
+    IOn = 1;
 
     if (~&cpu_ds_n) begin
         casex(cpu_word_addr)
@@ -257,12 +284,18 @@ always_comb begin
             24'h1xxxxx: WORKn = 0;
             24'h8xxxxx: SCREENn = 0;
             24'h2xxxxx: COLORn = 0;
+            24'h30xxxx: IOn = 0;
         endcase
     end
 end
 /* verilator lint_on CASEX */
 
-assign cpu_data_in = sdr_cpu_q;
+assign cpu_data_in = ~ROMn ? sdr_cpu_q :
+                     ~WORKn ? sdr_cpu_q :
+                     ~SCREENn ? scn_main_data_out :
+                     ~COLORn ? pri_data_out :
+                     ~IOn ? { 8'b0, io_data_out } :
+                     16'd0;
 
 reg prev_ds_n;
 always_ff @(posedge clk) begin

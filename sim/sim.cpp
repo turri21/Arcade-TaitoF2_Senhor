@@ -99,8 +99,8 @@ int main(int argc, char **argv)
     fread(cpu_sdram.data, 1, 128 * 1024, fp);
     fclose(fp);
 
-    //cpu_sdram.load_data("b82-09.10", 0, 2);
-    //cpu_sdram.load_data("b82-17.11", 1, 2);
+    cpu_sdram.load_data("b82-09.10", 0, 2);
+    cpu_sdram.load_data("b82-17.11", 1, 2);
 
     scn_main_sdram.load_data("b82-07.18", 0, 2);
     scn_main_sdram.load_data("b82-06.19", 1, 2);

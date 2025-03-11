@@ -4,3 +4,6 @@
 [submodule "sim/imgui"]
 	path = sim/imgui
 	url = https://github.com/ocornut/imgui.git
+[submodule "sim/dis68k"]
+	path = sim/dis68k
+	url = git@github.com:wickerwaka/dis68k.git

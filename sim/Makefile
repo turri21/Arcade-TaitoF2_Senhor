@@ -15,6 +15,7 @@ SRCS = imgui/imgui.cpp \
 		imgui/imgui_widgets.cpp \
 		imgui/backends/imgui_impl_sdl2.cpp \
 		imgui/backends/imgui_impl_sdlrenderer2.cpp \
+		dis68k/dis68k.cpp \
 		sim.cpp \
 		imgui_wrap.cpp
 

@@ -118,7 +118,10 @@ assign VSYNn = vcnt < 200;
 assign VBLOn = vcnt < 200;
 
 
-assign SC = |bg0_dot[3:0] ? { 3'd0, bg0_dot } : ( |bg1_dot[3:0] ? { 3'd0, bg1_dot } : { 15'd0 } );
+assign SC = |fg0_dot[3:0] ? { 3'd0, fg0_dot } :
+            |bg0_dot[3:0] ? { 3'd0, bg0_dot } :
+            |bg1_dot[3:0] ? { 3'd0, bg1_dot } :
+            { 15'd0 };
 
 wire [5:0] col_count = full_hcnt[9:4];
 reg [3:0] state;
@@ -131,8 +134,8 @@ always @(posedge clk) begin
         vcnt <= 0;
     end else if (ce_13m) begin
         full_hcnt <= full_hcnt + 1;
-        if (ce_pixel) hcnt <= hcnt + 1;
-        if (~|full_hcnt[3:0]) begin
+        if (ce_pixel) begin
+            hcnt <= hcnt + 1;
             if (hcnt == 7 && col_count < 2) begin
                 hcnt <= 0;
             end
@@ -156,24 +159,21 @@ wire [8:0] bg0_hofs = bg0_x[8:0] + bg0_rowscroll[8:0];
 wire [8:0] bg1_hofs = bg1_x[8:0] + bg1_rowscroll[8:0];
 reg [31:0] bg0_gfx;
 wire [31:0] bg1_gfx = rom_data;
-wire [11:0] bg0_dot, bg1_dot;
+wire [11:0] bg0_dot, bg1_dot, fg0_dot;
 reg [15:0] bg0_rowscroll, bg1_rowscroll;
 reg [15:0] bg1_colscroll;
 reg [15:0] bg0_code, bg1_code;
 reg [15:0] bg0_attrib, bg1_attrib;
 reg [15:0] fg0_code, fg0_gfx;
 
-reg [47:0] fg_shift;
-
-wire [31:0] bg0_gfx_swizzle = { bg0_gfx[31], bg0_gfx[23], bg0_gfx[15], bg0_gfx[7],
-                                bg0_gfx[30], bg0_gfx[22], bg0_gfx[14], bg0_gfx[6],
-                                bg0_gfx[29], bg0_gfx[21], bg0_gfx[13], bg0_gfx[5],
-                                bg0_gfx[28], bg0_gfx[20], bg0_gfx[12], bg0_gfx[4],
-                                bg0_gfx[27], bg0_gfx[19], bg0_gfx[11], bg0_gfx[3],
-                                bg0_gfx[26], bg0_gfx[18], bg0_gfx[10], bg0_gfx[2],
-                                bg0_gfx[25], bg0_gfx[17], bg0_gfx[ 9], bg0_gfx[1],
-                                bg0_gfx[24], bg0_gfx[16], bg0_gfx[ 8], bg0_gfx[0] };
-
+wire [31:0] fg0_gfx_swizzle = { 2'b0, fg0_gfx[15], fg0_gfx[7],
+                                2'b0, fg0_gfx[14], fg0_gfx[6],
+                                2'b0, fg0_gfx[13], fg0_gfx[5],
+                                2'b0, fg0_gfx[12], fg0_gfx[4],
+                                2'b0, fg0_gfx[11], fg0_gfx[3],
+                                2'b0, fg0_gfx[10], fg0_gfx[2],
+                                2'b0, fg0_gfx[ 9], fg0_gfx[1],
+                                2'b0, fg0_gfx[ 8], fg0_gfx[0] };
 
 tc0100scn_shifter bg0_shift(
     .clk, .ce_pixel,
@@ -193,12 +193,18 @@ tc0100scn_shifter bg1_shift(
     .load(access_cycle == 15)
 );
 
+tc0100scn_shifter fg0_shift(
+    .clk, .ce_pixel,
+    .tap(fg0_x[2:0]),
+    .gfx_in(fg0_gfx_swizzle),
+    .palette_in({2'b0, fg0_code[13:8]}),
+    .dot_out(fg0_dot),
+    .load(access_cycle == 15)
+);
+
+
 always @(posedge clk) begin
     bit [8:0] h, v;
-
-    if (ce_pixel) begin
-        fg_shift[47:2] <= fg_shift[45:0];
-    end
 
     if (reset) begin
         dtack_n <= 1;
@@ -312,15 +318,6 @@ always @(posedge clk) begin
                 ram_addr <= VA[16:1];
                 WEUPn <= ~ram_access | UDSn | RW;
                 WELOn <= ~ram_access | LDSn | RW;
-
-                fg_shift[15:0] <= { fg0_gfx[15], fg0_gfx[7],
-                                    fg0_gfx[14], fg0_gfx[6],
-                                    fg0_gfx[13], fg0_gfx[5],
-                                    fg0_gfx[12], fg0_gfx[4],
-                                    fg0_gfx[11], fg0_gfx[3],
-                                    fg0_gfx[10], fg0_gfx[2],
-                                    fg0_gfx[ 9], fg0_gfx[1],
-                                    fg0_gfx[ 8], fg0_gfx[0] };
             end
             // Finish CPU access
             15: begin

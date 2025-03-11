@@ -93,7 +93,7 @@ public:
             uint32_t *src = pixels + ((line + line_start) * width);
             if (!in_vsync && ((line + line_start) == y))
             {
-                memset(dest, 0xffffffff, pitch);
+                memset(dest, 0x2f, pitch);
             }
             else
             {

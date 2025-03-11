@@ -9,6 +9,8 @@
 #include "sim_sdram.h"
 #include "sim_video.h"
 
+#include "dis68k/dis68k.h"
+
 #include <stdio.h>
 #include <SDL.h>
 
@@ -179,6 +181,16 @@ int main(int argc, char **argv)
         scn_main_rom.DrawWindow("Screen ROM", scn_main_sdram.data, 256 * 1024);
         color_ram.DrawWindow("Color RAM", nullptr, 8 * 1024);
         video.draw();
+
+        ImGui::Begin("68000");
+        uint32_t pc = top->rootp->F2__DOT__m68000__DOT__PC;
+        ImGui::LabelText("PC", "%08X", pc);
+        Dis68k dis(cpu_sdram.data + pc, cpu_sdram.data + pc + 64, pc);
+        char optxt[128];
+        uint32_t addr;
+        dis.disasm(&addr, optxt, sizeof(optxt));
+        ImGui::TextUnformatted(optxt);
+        ImGui::End();
 
         imgui_end_frame();
     }

@@ -41,6 +41,7 @@ wire SDTACKn, CDTACKn;
 wire sdr_dtack_n = sdr_cpu_req != sdr_cpu_ack;
 
 wire DTACKn = sdr_dtack_n | SDTACKn | CDTACKn;
+wire [2:0] IPLn;
 
 //////////////////////////////////
 //// CLOCK ENABLES
@@ -76,6 +77,7 @@ wire [2:0]  cpu_fc;
 wire [15:0] cpu_data_in, cpu_data_out;
 wire [22:0] cpu_addr;
 wire [23:0] cpu_word_addr = { cpu_addr, 1'b0 };
+wire IACKn = ~&cpu_fc;
 
 fx68k m68000(
     .clk(clk),
@@ -91,10 +93,10 @@ fx68k m68000(
     .FC0(cpu_fc[0]), .FC1(cpu_fc[1]), .FC2(cpu_fc[2]),
     .BGn(),
     .oRESETn(), .oHALTEDn(),
-    .DTACKn(DTACKn), .VPAn(1),
+    .DTACKn(DTACKn), .VPAn(IACKn),
     .BERRn(1),
     .BRn(1), .BGACKn(1),
-    .IPL0n(1), .IPL1n(1), .IPL2n(1),
+    .IPL0n(IPLn[0]), .IPL1n(IPLn[1]), .IPL2n(IPLn[2]),
     .iEdb(cpu_data_in), .oEdb(cpu_data_out),
     .eab(cpu_addr)
 );
@@ -121,8 +123,8 @@ TC0220IOC tc0220ioc(
     .COINMETER_A(),
     .COINMETER_B(),
 
-    .INB(8'b0),
-    .IN(32'b0)
+    .INB(8'hff),
+    .IN(32'hffffffff)
 );
 
 
@@ -268,7 +270,40 @@ TC0110PR tc0110pr(
 );
 
 
+//////////////////////////////////
+//// Interrupt Processing
+wire ICLR1n = ~(~IACKn & (cpu_addr[2:0] == 3'b101) & ~cpu_ds_n[0]);
+wire ICLR2n = ~(~IACKn & (cpu_addr[2:0] == 3'b110) & ~cpu_ds_n[0]);
 
+reg int_req1, int_req2;
+reg vbl_prev, dma_prev;
+
+assign IPLn = int_req1 ? ~3'b101 : int_req2 ? ~3'b110 : ~3'b000;
+
+always_ff @(posedge clk) begin
+    vbl_prev <= VBLOn;
+    dma_prev <= VBLOn;
+
+    if (reset) begin
+        int_req2 <= 0;
+        int_req1 <= 0;
+    end else begin
+        if (vbl_prev & ~VBLOn) begin
+            int_req1 <= 1;
+        end
+        if (~dma_prev & VBLOn) begin
+            int_req2 <= 1;
+        end
+
+        if (~ICLR1n) begin
+            int_req1 <= 0;
+        end
+
+        if (~ICLR2n) begin
+            int_req2 <= 0;
+        end
+    end
+end
 
 /* verilator lint_off CASEX */
 always_comb begin

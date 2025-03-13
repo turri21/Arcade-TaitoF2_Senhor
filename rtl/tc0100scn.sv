@@ -119,8 +119,8 @@ assign VBLOn = vcnt < 200;
 
 
 assign SC = |fg0_dot[3:0] ? { 3'd0, fg0_dot } :
-            |bg0_dot[3:0] ? { 3'd0, bg0_dot } :
             |bg1_dot[3:0] ? { 3'd0, bg1_dot } :
+            |bg0_dot[3:0] ? { 3'd0, bg0_dot } :
             { 15'd0 };
 
 wire [5:0] col_count = full_hcnt[9:4];
@@ -266,13 +266,14 @@ always @(posedge clk) begin
             end
             // BG1 Store Colscroll
             5: bg1_colscroll <= SDin;
-            // FG0 Address GFX
+            // FG0 Address tile code
             6: begin
+                h = hcnt + fg0_x[8:0];
                 v = vcnt + fg0_y[8:0];
-                ram_addr <= { 5'b0_0110, fg0_code[7:0], v[2:0] };
+                ram_addr <= { 4'b0_010, v[8:3], h[8:3] };
             end
-            // FG0 Store GFX
-            7: fg0_gfx <= SDin;
+            // FG0 Store Tile
+            7: fg0_code <= SDin;
             // BG1 Address Attrib or Rowscroll
             8: begin
                 if (line_start) begin
@@ -302,15 +303,14 @@ always @(posedge clk) begin
                 rom_address <= { SDin, v[2:0], 2'b0 };
                 rom_req <= ~rom_req;
             end
-            // FG0 Address tile code
+            // FG0 Address GFX
             12: begin
-                h = hcnt + fg0_x[8:0];
                 v = vcnt + fg0_y[8:0];
-                ram_addr <= { 4'b0_010, v[8:3], h[8:3] };
+                ram_addr <= { 5'b0_0110, fg0_code[7:0], v[2:0] };
             end
-            // FG0 Store tile code
+            // FG0 Store GFX
             13: begin
-                fg0_code <= SDin;
+                fg0_gfx <= SDin;
                 ram_access <= ram_pending;
             end
             // Address CPU access

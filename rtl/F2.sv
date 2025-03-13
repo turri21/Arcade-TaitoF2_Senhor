@@ -22,10 +22,119 @@ module F2(
     output reg [26:1] sdr_scn_main_addr,
     input      [31:0] sdr_scn_main_q,
     output reg        sdr_scn_main_req,
-    input             sdr_scn_main_ack
+    input             sdr_scn_main_ack,
 
 
+    input ss_do_save,
+    input ss_do_restore,
+    output [3:0] ss_state_out,
+    output reg [31:0] ss_saved_ssp,
+    input [31:0] ss_restore_ssp
 );
+
+
+logic [15:0] save_handler[13] = '{
+    16'h48e7,
+    16'hfffe,
+    16'h4e6e,
+    16'h2f0e,
+
+    // 0x8 - stop/restart pos
+    16'h4df9,
+    16'h00ff,
+    16'h0000,
+    16'h2c8f,
+
+    16'h2c5f,
+    16'h4e66,
+    16'h4cdf,
+    16'h7fff,
+    16'h4e73
+};
+
+
+typedef enum bit [3:0] {
+    SST_IDLE = 0,
+    SST_START_SAVE = 1,
+    SST_WAIT_SAVE = 2,
+    SST_SAVE_PAUSED = 3,
+    SST_START_RESTORE = 4,
+    SST_HOLD_RESET = 5,
+    SST_WAIT_RESET = 6
+} ss_state_t;
+
+ss_state_t ss_state = SST_IDLE;
+reg [15:0] ss_counter;
+reg [15:0] reset_vector[4];
+
+wire ss_pause = (ss_state == SST_SAVE_PAUSED) || (ss_state == SST_START_RESTORE);
+wire ss_reset = (ss_state == SST_HOLD_RESET);
+wire ss_restart = (ss_state == SST_WAIT_RESET);
+
+assign ss_state_out = ss_state;
+
+always_ff @(posedge clk) begin
+    ss_counter <= ss_counter + 1;
+    case(ss_state)
+        SST_IDLE: begin
+            if (ss_do_save) begin
+                ss_state <= SST_START_SAVE;
+            end
+
+            if (ss_do_restore) begin
+                ss_state <= SST_START_RESTORE;
+                reset_vector[0] <= ss_restore_ssp[31:16];
+                reset_vector[1] <= ss_restore_ssp[15:0];
+                reset_vector[2] <= 16'h00ff;
+                reset_vector[3] <= 16'h0008;
+            end
+        end
+
+        SST_START_SAVE: begin
+            if (cpu_ds_n == 2'b00 && !cpu_rw & cpu_word_addr == 24'hff0000) begin
+                ss_saved_ssp[31:16] <= cpu_data_out;
+                ss_state <= SST_WAIT_SAVE;
+            end
+        end
+
+        SST_WAIT_SAVE: begin
+            if (cpu_ds_n == 2'b00 && !cpu_rw && cpu_word_addr == 24'hff0002) begin
+                ss_saved_ssp[15:0] <= cpu_data_out;
+                ss_state <= SST_SAVE_PAUSED;
+            end
+        end
+
+
+        SST_SAVE_PAUSED: begin
+            if (~ss_do_save) begin
+                ss_state <= SST_IDLE;
+            end
+        end
+
+        SST_START_RESTORE: begin
+            if (~ss_do_restore) begin
+                ss_state <= SST_HOLD_RESET;
+                ss_counter <= 0;
+            end
+        end
+
+        SST_HOLD_RESET: begin
+            if (ss_counter == 1000) begin
+                ss_state <= SST_WAIT_RESET;
+            end
+        end
+
+        SST_WAIT_RESET: begin
+            if (cpu_ds_n == 2'b00 && !cpu_rw && cpu_word_addr == 24'hff0002) begin
+                ss_state <= SST_IDLE;
+            end
+        end
+
+        default: begin
+            ss_state <= SST_IDLE;
+        end
+    endcase
+end
 
 //////////////////////////////////
 //// CHIP SELECTS
@@ -60,7 +169,7 @@ wire ce_12m, ce_12m_180, ce_dummy_6m, ce_dummy_6m_180;
 jtframe_frac_cen #(2) cpu_cen
 (
     .clk(clk),
-    .cen_in(1),
+    .cen_in(~ss_pause),
     .n(10'd3),
     .m(10'd10),
     .cen({ce_dummy_6m, ce_12m}),
@@ -82,8 +191,8 @@ wire IACKn = ~&cpu_fc;
 fx68k m68000(
     .clk(clk),
     .HALTn(1),
-    .extReset(reset),
-    .pwrUp(reset),
+    .extReset(reset | ss_reset),
+    .pwrUp(reset | ss_reset),
     .enPhi1(ce_12m),
     .enPhi2(ce_12m_180),
 
@@ -274,15 +383,21 @@ TC0110PR tc0110pr(
 //// Interrupt Processing
 wire ICLR1n = ~(~IACKn & (cpu_addr[2:0] == 3'b101) & ~cpu_ds_n[0]);
 wire ICLR2n = ~(~IACKn & (cpu_addr[2:0] == 3'b110) & ~cpu_ds_n[0]);
+wire clear_save_n = ~(~IACKn & (cpu_addr[2:0] == 3'b111) & ~cpu_ds_n[0]);
 
 reg int_req1, int_req2;
 reg vbl_prev, dma_prev;
 
-assign IPLn = int_req1 ? ~3'b101 : int_req2 ? ~3'b110 : ~3'b000;
+reg save_req, save_prev;
+assign IPLn = save_req ? ~3'b111 :
+              int_req2 ? ~3'b110 :
+              int_req1 ? ~3'b101 :
+              ~3'b000;
 
 always_ff @(posedge clk) begin
     vbl_prev <= VBLOn;
     dma_prev <= VBLOn;
+    save_prev <= ss_do_save;
 
     if (reset) begin
         int_req2 <= 0;
@@ -295,6 +410,10 @@ always_ff @(posedge clk) begin
             int_req2 <= 1;
         end
 
+        if (~save_prev & ss_do_save) begin
+            save_req <= 1;
+        end
+
         if (~ICLR1n) begin
             int_req1 <= 0;
         end
@@ -302,8 +421,14 @@ always_ff @(posedge clk) begin
         if (~ICLR2n) begin
             int_req2 <= 0;
         end
+
+        if (~clear_save_n) begin
+            save_req <= 0;
+        end
     end
 end
+
+logic SS_SAVEn, SS_RESETn, SS_VECn;
 
 /* verilator lint_off CASEX */
 always_comb begin
@@ -312,14 +437,27 @@ always_comb begin
     SCREENn = 1;
     COLORn = 1;
     IOn = 1;
+    SS_SAVEn = 1;
+    SS_RESETn = 1;
+    SS_VECn = 1;
 
     if (~&cpu_ds_n) begin
         casex(cpu_word_addr)
+            24'h00000x: begin
+                if (ss_restart) begin
+                    SS_RESETn = 0;
+                end else begin
+                    ROMn = 0;
+                end
+            end
+            24'h00007c: SS_VECn = 0;
+            24'h00007e: SS_VECn = 0;
             24'h0xxxxx: ROMn = 0;
             24'h1xxxxx: WORKn = 0;
             24'h8xxxxx: SCREENn = 0;
             24'h2xxxxx: COLORn = 0;
             24'h30xxxx: IOn = 0;
+            24'hff00xx: SS_SAVEn = 0;
         endcase
     end
 end
@@ -330,6 +468,9 @@ assign cpu_data_in = ~ROMn ? sdr_cpu_q :
                      ~SCREENn ? scn_main_data_out :
                      ~COLORn ? pri_data_out :
                      ~IOn ? { 8'b0, io_data_out } :
+                     ~SS_SAVEn ? save_handler[cpu_addr[3:0]] :
+                     ~SS_RESETn ? reset_vector[cpu_addr[1:0]] :
+                     ~SS_VECn ? ( cpu_addr[0] ? 16'h0000 : 16'h00ff ) :
                      16'd0;
 
 reg prev_ds_n;

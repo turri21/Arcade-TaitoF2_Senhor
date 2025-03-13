@@ -84,6 +84,24 @@ public:
         return true;
     }
 
+    bool save_data(const char *filename)
+    {
+        FILE *fp = fopen(filename, "wb");
+        if (fp == nullptr)
+        {
+            return false;
+        }
+
+        if (fwrite(data, 1, size, fp) != size)
+        {
+            fclose(fp);
+            return false;
+        }
+
+        fclose(fp);
+        return true;
+    }
+
     uint32_t size;
     uint32_t mask;
     uint8_t *data;

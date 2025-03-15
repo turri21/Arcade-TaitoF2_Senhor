@@ -17,7 +17,8 @@ SRCS = imgui/imgui.cpp \
 		imgui/backends/imgui_impl_sdlrenderer2.cpp \
 		dis68k/dis68k.cpp \
 		sim.cpp \
-		imgui_wrap.cpp
+		imgui_wrap.cpp \
+		save_state.cpp
 
 OBJS = $(patsubst %.cpp, $(OBJ_DIR)/%.o, $(SRCS))
 
@@ -38,7 +39,7 @@ VERILATOR_DEFINES =
 
 HDL_SRC =  ../rtl/fx68k/hdl/verilator/fx68k.sv ../rtl/fx68k/hdl/verilator/fx68kAlu.sv ../rtl/fx68k/hdl/verilator/uaddrPla.sv
 HDL_SRC += ../rtl/F2.sv ../rtl/tc0100scn.sv ../rtl/tc0110pr.sv ../rtl/tc0220ioc.sv
-HDL_SRC += ../rtl/ram.sv ../rtl/jtframe_frac_cen.v
+HDL_SRC += ../rtl/ram.sv ../rtl/jtframe_frac_cen.v ../rtl/memory_stream.sv
 
 HDL_GEN =
 

@@ -11,7 +11,7 @@ module F2(
     output      [7:0] green,
     output      [7:0] blue,
 
-    output reg [26:1] sdr_cpu_addr,
+    output reg [31:0] sdr_cpu_addr,
     input      [15:0] sdr_cpu_q,
     output reg [15:0] sdr_cpu_data,
     output reg [ 1:0] sdr_cpu_be,
@@ -19,12 +19,22 @@ module F2(
     output reg        sdr_cpu_req,
     input             sdr_cpu_ack,
 
-    output reg [26:1] sdr_scn_main_addr,
+    output reg [31:0] sdr_scn_main_addr,
     input      [31:0] sdr_scn_main_q,
     output reg        sdr_scn_main_req,
     input             sdr_scn_main_ack,
 
+    // Memory stream interface
+    output     [31:0] mem_addr,
+    output     [63:0] mem_wdata,
+    input      [63:0] mem_rdata,
+    output            mem_read,
+    output            mem_write,
+    input             mem_busy,
+    input             mem_read_complete,
 
+    input ss_save_test,
+    input ss_restore_test,
     input ss_do_save,
     input ss_do_restore,
     output [3:0] ss_state_out,
@@ -32,6 +42,35 @@ module F2(
     input [31:0] ss_restore_ssp
 );
 
+// Stream interface control signals - these would typically be connected to CPU or other control logic
+reg [31:0] stream_start_addr;
+reg [31:0] stream_length = 32'h00100000;
+reg        stream_read_start = ss_restore_test;
+wire       stream_write_start = ss_save_test;
+wire       stream_busy;
+wire       stream_read_req;
+wire [63:0] stream_read_data;
+wire        stream_data_ack;
+wire       stream_write_req;
+wire [63:0]  stream_write_data;
+
+wire [31:0] stream_chunk_address;
+wire [7:0] stream_chunk_index;
+wire       stream_query_req;
+
+ss2device_if ssd(
+    .data(stream_write_data),
+    .addr(stream_chunk_address[23:0]),
+    .idx(stream_chunk_index),
+    .write(stream_write_req),
+    .query(stream_query_req),
+    .read(stream_read_req)
+);
+
+ss2master_if ssm1(), ssm2(), ssm3(), ssm4(), ssm_sdr();
+
+assign stream_data_ack = ssm1.ack | ssm2.ack | ssm3.ack | ssm4.ack | ssm_sdr.ack;
+assign stream_read_data = ssm1.data | ssm2.data | ssm3.data | ssm4.data | ssm_sdr.data;
 
 logic [15:0] save_handler[13] = '{
     16'h48e7,
@@ -248,20 +287,24 @@ wire scn_main_ram_ce_0_n, scn_main_ram_ce_1_n;
 
 wire [14:0] scn_main_dot_color;
 
-singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(15), .NAME("SC0L")) scn_ram_0_lo(
+singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(15), .NAME("SC0L"), .SS_IDX(1)) scn_ram_0_lo(
     .clock(clk),
     .address(scn_main_ram_addr),
     .wren(~(scn_main_ram_ce_0_n | scn_main_ram_we_lo_n)),
     .data(scn_main_ram_dout[7:0]),
-    .q(scn_main_ram_din[7:0])
+    .q(scn_main_ram_din[7:0]),
+    .ssd(ssd),
+    .ssm(ssm1)
 );
 
-singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(15), .NAME("SC0U")) scn_ram_0_up(
+singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(15), .NAME("SC0U"), .SS_IDX(2)) scn_ram_0_up(
     .clock(clk),
     .address(scn_main_ram_addr),
     .wren(~(scn_main_ram_ce_0_n | scn_main_ram_we_up_n)),
     .data(scn_main_ram_dout[15:8]),
-    .q(scn_main_ram_din[15:8])
+    .q(scn_main_ram_din[15:8]),
+    .ssd(ssd),
+    .ssm(ssm2)
 );
 
 wire HSYNn;
@@ -279,7 +322,7 @@ assign green = {pri_ram_din[9:5], pri_ram_din[9:7]};
 assign red = {pri_ram_din[4:0], pri_ram_din[4:2]};
 
 wire [20:0] scn_main_rom_address;
-assign sdr_scn_main_addr = { 5'b0, scn_main_rom_address[20:0] };
+assign sdr_scn_main_addr = { 11'b0, scn_main_rom_address[20:0] };
 
 TC0100SCN scn_main(
     .clk(clk),
@@ -330,20 +373,24 @@ wire [12:0] pri_ram_addr;
 wire [15:0] pri_ram_din, pri_ram_dout;
 wire pri_ram_we_l_n, pri_ram_we_h_n;
 
-singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(12), .NAME("PRIL")) pri_ram_l(
+singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(12), .NAME("PRIL"), .SS_IDX(3)) pri_ram_l(
     .clock(clk),
     .address(pri_ram_addr[12:1]),
     .wren(~pri_ram_we_l_n),
     .data(pri_ram_dout[7:0]),
-    .q(pri_ram_din[7:0])
+    .q(pri_ram_din[7:0]),
+    .ssd(ssd),
+    .ssm(ssm3)
 );
 
-singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(12), .NAME("PRIH")) pri_ram_h(
+singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(12), .NAME("PRIH"), .SS_IDX(4)) pri_ram_h(
     .clock(clk),
     .address(pri_ram_addr[12:1]),
     .wren(~pri_ram_we_h_n),
     .data(pri_ram_dout[15:8]),
-    .q(pri_ram_din[15:8])
+    .q(pri_ram_din[15:8]),
+    .ssd(ssd),
+    .ssm(ssm4)
 );
 
 
@@ -474,15 +521,83 @@ assign cpu_data_in = ~ROMn ? sdr_cpu_q :
                      16'd0;
 
 reg prev_ds_n;
+reg ss_sdr_active;
 always_ff @(posedge clk) begin
     prev_ds_n <= &cpu_ds_n;
-    if (~(ROMn & WORKn) & prev_ds_n) begin
-        sdr_cpu_addr <= { 2'b0, cpu_word_addr };
+    ssm_sdr.ack <= 0;
+
+    if (ssd.sel(5)) begin
+        if (ssd.qry(5)) begin
+            ssm_sdr.query_response(5, 32'h8000, 1);
+        end else if (ssd.rd(5)) begin
+            if (~ss_sdr_active) begin
+                sdr_cpu_addr <= 32'h100000 + { 9'b0, ssd.addr[21:0], 1'b0 };
+                sdr_cpu_be <= 2'b11;
+                sdr_cpu_rw <= 1;
+                sdr_cpu_req <= ~sdr_cpu_req;
+                ss_sdr_active <= 1;
+            end else if (sdr_cpu_req == sdr_cpu_ack) begin
+                ssm_sdr.ack <= 1;
+                ssm_sdr.data <= { 48'b0, sdr_cpu_q };
+            end
+        end else if (ssd.wr(5)) begin
+            if (~ss_sdr_active) begin
+                sdr_cpu_addr <= 32'h100000 + { 9'b0, ssd.addr[21:0], 1'b0 };
+                sdr_cpu_be <= 2'b11;
+                sdr_cpu_rw <= 0;
+                sdr_cpu_req <= ~sdr_cpu_req;
+                sdr_cpu_data <= ssd.data[15:0];
+                ss_sdr_active <= 1;
+            end else if (sdr_cpu_req == sdr_cpu_ack) begin
+                ssm_sdr.ack <= 1;
+            end
+        end else begin
+            ss_sdr_active <= 0;
+        end
+    end else if (~(ROMn & WORKn) & prev_ds_n) begin
+        ss_sdr_active <= 0;
+        sdr_cpu_addr <= { 8'b0, cpu_word_addr };
         sdr_cpu_data <= cpu_data_out;
         sdr_cpu_be <= ~cpu_ds_n;
         sdr_cpu_rw <= cpu_rw;
         sdr_cpu_req <= ~sdr_cpu_req;
+        ss_sdr_active <= 0;
     end
 end
+
+// Instantiate the memory_stream module
+memory_stream memory_stream_inst (
+    .clk(clk),
+    .reset(reset),
+
+    // Memory interface
+    .mem_addr(mem_addr),
+    .mem_wdata(mem_wdata),
+    .mem_rdata(mem_rdata),
+    .mem_read(mem_read),
+    .mem_write(mem_write),
+    .mem_busy(mem_busy),
+    .mem_read_complete(mem_read_complete),
+
+    // Stream interface for reading
+    .read_req(stream_read_req),
+    .read_data(stream_read_data),
+    .data_ack(stream_data_ack),
+
+    // Stream interface for writing
+    .write_req(stream_write_req),
+    .write_data(stream_write_data),
+
+    // Control signals
+    .start_addr(stream_start_addr),
+    .length(stream_length),
+    .read_start(stream_read_start),
+    .write_start(stream_write_start),
+    .busy(stream_busy),
+
+    .chunk_index(stream_chunk_index),
+    .chunk_address(stream_chunk_address),
+    .query_req(stream_query_req)
+);
 
 endmodule

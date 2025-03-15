@@ -8,6 +8,8 @@
 #include "imgui_memory_editor.h"
 #include "sim_sdram.h"
 #include "sim_video.h"
+#include "sim_memory.h"
+#include "save_state.h"
 
 #include "dis68k/dis68k.h"
 
@@ -22,6 +24,7 @@ VerilatedVcdC *tfp;
 
 SimSDRAM cpu_sdram(128 * 1024 * 1024);
 SimSDRAM scn_main_sdram(256 * 1024);
+SimMemory ddr_memory(256 * 1024);
 SimVideo video;
 
 uint64_t total_ticks = 0;
@@ -35,143 +38,6 @@ bool simulation_step = false;
 int simulation_step_size = 10000;
 uint64_t simulation_reset_until = 100;
 
-// Get sizes of RAM arrays
-size_t get_scn_ram_size() 
-{
-    return sizeof(top->rootp->F2__DOT__scn_ram_0_up__DOT__ram) / sizeof(top->rootp->F2__DOT__scn_ram_0_up__DOT__ram[0]);
-}
-
-size_t get_pri_ram_size() 
-{
-    return sizeof(top->rootp->F2__DOT__pri_ram_h__DOT__ram) / sizeof(top->rootp->F2__DOT__pri_ram_h__DOT__ram[0]);
-}
-
-// Save all RAM state to a file
-bool save_ram_state(const char* filename) 
-{
-    FILE* fp = fopen(filename, "wb");
-    if (fp == nullptr) 
-    {
-        printf("Failed to open file for saving RAM state: %s\n", filename);
-        return false;
-    }
-   
-    uint32_t ssp = top->ss_saved_ssp;
-    fwrite(&ssp, sizeof(ssp), 1, fp);
-
-    // Get RAM sizes
-    size_t scn_ram_size = get_scn_ram_size();
-    size_t pri_ram_size = get_pri_ram_size();
-    
-    // Write the sizes first
-    fwrite(&scn_ram_size, sizeof(size_t), 1, fp);
-    fwrite(&pri_ram_size, sizeof(size_t), 1, fp);
-    
-    // Write screen RAM
-    fwrite(top->rootp->F2__DOT__scn_ram_0_up__DOT__ram.m_storage, sizeof(uint8_t), scn_ram_size, fp);
-    fwrite(top->rootp->F2__DOT__scn_ram_0_lo__DOT__ram.m_storage, sizeof(uint8_t), scn_ram_size, fp);
-    
-    // Write priority RAM
-    fwrite(top->rootp->F2__DOT__pri_ram_h__DOT__ram.m_storage, sizeof(uint8_t), pri_ram_size, fp);
-    fwrite(top->rootp->F2__DOT__pri_ram_l__DOT__ram.m_storage, sizeof(uint8_t), pri_ram_size, fp);
-    
-    // Write SDRAM content
-    size_t cpu_sdram_size = cpu_sdram.size;
-    size_t scn_main_sdram_size = scn_main_sdram.size;
-    
-    fwrite(&cpu_sdram_size, sizeof(size_t), 1, fp);
-    fwrite(&scn_main_sdram_size, sizeof(size_t), 1, fp);
-    
-    fwrite(cpu_sdram.data, sizeof(uint8_t), cpu_sdram_size, fp);
-    fwrite(scn_main_sdram.data, sizeof(uint8_t), scn_main_sdram_size, fp);
-    
-    fclose(fp);
-    printf("RAM state saved to %s\n", filename);
-    return true;
-}
-
-// Load RAM state from a file
-bool load_ram_state(const char* filename) 
-{
-    FILE* fp = fopen(filename, "rb");
-    if (fp == nullptr) 
-    {
-        printf("Failed to open file for loading RAM state: %s\n", filename);
-        return false;
-    }
-    
-    uint32_t ssp;
-    fread(&ssp, sizeof(ssp), 1, fp);
-    top->ss_restore_ssp = ssp;
-
-    // Read sizes
-    size_t scn_ram_size, pri_ram_size;
-    if (fread(&scn_ram_size, sizeof(size_t), 1, fp) != 1 ||
-        fread(&pri_ram_size, sizeof(size_t), 1, fp) != 1) 
-    {
-        printf("Error reading RAM sizes\n");
-        fclose(fp);
-        return false;
-    }
-    
-    // Verify sizes match
-    if (scn_ram_size != get_scn_ram_size() || pri_ram_size != get_pri_ram_size()) 
-    {
-        printf("RAM size mismatch. File sizes: SCN=%zu, PRI=%zu, Expected: SCN=%zu, PRI=%zu\n",
-               scn_ram_size, pri_ram_size, get_scn_ram_size(), get_pri_ram_size());
-        fclose(fp);
-        return false;
-    }
-    
-    // Read screen RAM
-    if (fread(top->rootp->F2__DOT__scn_ram_0_up__DOT__ram.m_storage, sizeof(uint8_t), scn_ram_size, fp) != scn_ram_size ||
-        fread(top->rootp->F2__DOT__scn_ram_0_lo__DOT__ram.m_storage, sizeof(uint8_t), scn_ram_size, fp) != scn_ram_size) 
-    {
-        printf("Error reading screen RAM\n");
-        fclose(fp);
-        return false;
-    }
-    
-    // Read priority RAM
-    if (fread(top->rootp->F2__DOT__pri_ram_h__DOT__ram.m_storage, sizeof(uint8_t), pri_ram_size, fp) != pri_ram_size ||
-        fread(top->rootp->F2__DOT__pri_ram_l__DOT__ram.m_storage, sizeof(uint8_t), pri_ram_size, fp) != pri_ram_size) 
-    {
-        printf("Error reading priority RAM\n");
-        fclose(fp);
-        return false;
-    }
-    
-    // Read SDRAM sizes
-    size_t cpu_sdram_size, scn_main_sdram_size;
-    if (fread(&cpu_sdram_size, sizeof(size_t), 1, fp) != 1 ||
-        fread(&scn_main_sdram_size, sizeof(size_t), 1, fp) != 1) 
-    {
-        printf("Error reading SDRAM sizes\n");
-        fclose(fp);
-        return false;
-    }
-    
-    // Verify sizes match
-    if (cpu_sdram_size != cpu_sdram.size || scn_main_sdram_size != scn_main_sdram.size) 
-    {
-        printf("SDRAM size mismatch\n");
-        fclose(fp);
-        return false;
-    }
-    
-    // Read SDRAM content
-    if (fread(cpu_sdram.data, sizeof(uint8_t), cpu_sdram_size, fp) != cpu_sdram_size ||
-        fread(scn_main_sdram.data, sizeof(uint8_t), scn_main_sdram_size, fp) != scn_main_sdram_size) 
-    {
-        printf("Error reading SDRAM data\n");
-        fclose(fp);
-        return false;
-    }
-    
-    fclose(fp);
-    printf("RAM state loaded from %s\n", filename);
-    return true;
-}
 
 
 void tick(int count = 1)
@@ -192,18 +58,21 @@ void tick(int count = 1)
         cpu_sdram.update_channel_16(top->sdr_cpu_addr, top->sdr_cpu_req, top->sdr_cpu_rw, top->sdr_cpu_be, top->sdr_cpu_data, &top->sdr_cpu_q, &top->sdr_cpu_ack);
         scn_main_sdram.update_channel_32(top->sdr_scn_main_addr, top->sdr_scn_main_req, 1, 15, 0, &top->sdr_scn_main_q, &top->sdr_scn_main_ack);
         video.clock(top->ce_pixel != 0, top->hsync != 0, top->vsync != 0, top->red, top->green, top->blue);
+        
+        // Process memory stream operations
+        ddr_memory.clock(top->mem_addr, top->mem_wdata, top->mem_rdata, top->mem_read, top->mem_write, top->mem_busy, top->mem_read_complete);
 
         if (top->ss_do_save && top->ss_state_out == 3) // SST_SAVE_PAUSED
         {
             // Save all RAM state to file
-            save_ram_state("ram_state.bin");
+            save_ram_state("ram_state.bin", top, cpu_sdram, scn_main_sdram);
             top->ss_do_save = 0;
         }
 
         // Check for restore request before processing
         if (top->ss_do_restore && top->ss_state_out == 4)
         {
-            if (load_ram_state("ram_state.bin"))
+            if (load_ram_state("ram_state.bin", top, cpu_sdram, scn_main_sdram))
             {
                 printf("RAM state restored\n");
             }
@@ -227,6 +96,9 @@ void tick(int count = 1)
         top->eval();
         if (trace_active) tfp->dump(contextp->time());
     }
+
+    top->ss_save_test = 0;
+    top->ss_restore_test = 0;
 }
 
 ImU8 scn_mem_read(const ImU8* , size_t off, void*)
@@ -249,9 +121,10 @@ ImU8 color_ram_read(const ImU8* , size_t off, void*)
         return top->rootp->F2__DOT__pri_ram_h__DOT__ram[word_off];
 }
 
-
 int main(int argc, char **argv)
 {
+    int force_ticks = 0;
+
     if( !imgui_init() )
     {
         return -1;
@@ -275,26 +148,32 @@ int main(int argc, char **argv)
 
     top->ss_do_save = 0;
     top->ss_do_restore = 0;
+    top->ss_save_test = 0;
+    top->ss_restore_test = 0;
 
+    MemoryEditor scn_main_mem_lo;
+    MemoryEditor scn_main_mem_hi;
     MemoryEditor scn_main_mem;
     MemoryEditor scn_main_rom;
     MemoryEditor color_ram;
     MemoryEditor rom_mem;
     MemoryEditor work_mem;
+    MemoryEditor ddr_mem_editor;
 
     scn_main_mem.ReadFn = scn_mem_read;
     color_ram.ReadFn = color_ram_read;
-
+    
     video.init(320, 200, imgui_get_renderer());
 
     Verilated::traceEverOn(true);
 
     while( imgui_begin_frame() )
     {
-        if (simulation_run || simulation_step)
+        if (simulation_run || simulation_step || (force_ticks > 0))
         {
-            tick(simulation_step_size);
+            tick(force_ticks > 0 ? force_ticks : simulation_step_size);
             video.update_texture();
+            force_ticks = 0;
         }
         simulation_step = false;
 
@@ -319,7 +198,7 @@ int main(int argc, char **argv)
         // RAM state save/load controls
         if (ImGui::Button("Save RAM State"))
         {
-            if (save_ram_state("ram_state.bin"))
+            if (save_ram_state("ram_state.bin", top, cpu_sdram, scn_main_sdram))
             {
                 printf("RAM state saved manually\n");
             }
@@ -333,7 +212,7 @@ int main(int argc, char **argv)
         
         if (ImGui::Button("Load RAM State"))
         {
-            if (load_ram_state("ram_state.bin"))
+            if (load_ram_state("ram_state.bin", top, cpu_sdram, scn_main_sdram))
             {
                 printf("RAM state loaded manually\n");
             }
@@ -372,7 +251,6 @@ int main(int argc, char **argv)
             }
         }
 
-
         ImGui::Separator();
         if (ImGui::Button("Save"))
         {
@@ -383,16 +261,30 @@ int main(int argc, char **argv)
         {
             top->ss_do_restore = 1;
         }
+        if (ImGui::Button("Save Test"))
+        {
+            top->ss_save_test = 1;
+            force_ticks = 100;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Restore Test"))
+        {
+            top->ss_restore_test = 1;
+            force_ticks = 100;
+        }
         ImGui::Text("ss_state: %d", top->ss_state_out);
         ImGui::Text("ss_save_ssp: %08x", top->ss_saved_ssp);
 
         ImGui::End();
 
+        scn_main_mem_lo.DrawWindow("Screen Mem Lo", (uint8_t *)&top->rootp->F2__DOT__scn_ram_0_lo__DOT__ram[0], 32 * 1024);
+        scn_main_mem_hi.DrawWindow("Screen Mem Hi", (uint8_t *)&top->rootp->F2__DOT__scn_ram_0_up__DOT__ram[0], 32 * 1024);
         scn_main_mem.DrawWindow("Screen Mem", nullptr, 64 * 1024);
         scn_main_rom.DrawWindow("Screen ROM", scn_main_sdram.data, 256 * 1024);
         color_ram.DrawWindow("Color RAM", nullptr, 8 * 1024);
         rom_mem.DrawWindow("ROM", cpu_sdram.data, 1024 * 1024);
         work_mem.DrawWindow("Work", cpu_sdram.data + (1024 * 1024), 64 * 1024);
+        ddr_mem_editor.DrawWindow("DDR", ddr_memory.memory.data(), ddr_memory.size);
         video.draw();
 
         ImGui::Begin("68000");

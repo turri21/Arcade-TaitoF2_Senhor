@@ -133,25 +133,110 @@ end
 
 endmodule
 
+interface ss2device_if(
+    input [63:0] data,
+    input [23:0] addr,
+    input [7:0]  idx,
+    input write,
+    input read,
+    input query
+);
+    function logic sel(input [7:0] s_idx);
+        return s_idx == idx;
+    endfunction
+
+    function logic rd(input [7:0] s_idx);
+        return s_idx == idx && read;
+    endfunction
+
+    function logic wr(input [7:0] s_idx);
+        return s_idx == idx && write;
+    endfunction
+
+    function logic qry(input [7:0] s_idx);
+        return s_idx == idx && query;
+    endfunction
+endinterface
+
+interface ss2master_if;
+    logic [63:0] data;
+    logic ack;
+
+    task query_response(input [7:0] s_idx, input [31:0] count, input [1:0] width);
+        data <= { s_idx, 22'b0, width, count };
+        ack <= 1;
+    endtask
+endinterface;
+
+module ss_mux #(parameter N_DEV=1) (
+    output [63:0] data,
+    output ack,
+
+    ss2master_if ifc[N_DEV-1:0]
+);
+
+logic [63:0] map[N_DEV];
+logic select[N_DEV];
+for (genvar i=0; i < N_DEV; i++) begin : g_loop
+    assign map[i] = ifc[i].data;
+    assign select[i] = ifc[i].ack;
+end
+
+always_comb begin
+    int i;
+    data = 0;
+    ack = 0;
+    for( i = 0; i < N_DEV; i = i + 1 ) begin
+        if (select[i]) begin
+            ack = 1;
+            data = map[i];
+        end
+    end
+end
+
+endmodule;
+
 module singleport_ram_unreg #(
     parameter WIDTH = 8,
     parameter WIDTHAD = 10,
-    parameter NAME = "NONE"
+    parameter NAME = "NONE",
+    parameter SS_IDX = 0
 ) (
     input   wire                  clock,
     input   wire                  wren,
     input   wire    [WIDTHAD-1:0] address,
     input   wire    [WIDTH-1:0]   data,
-    output          [WIDTH-1:0]   q
+    output          [WIDTH-1:0]   q,
+
+    ss2master_if ssm,
+    ss2device_if ssd
 );
 
 // Shared ramory
 reg [WIDTH-1:0] ram[2**WIDTHAD] /* verilator public_flat */;
 
-assign q = ram[address];
+wire [31:0] SIZE = 2**WIDTHAD;
+
+wire [WIDTHAD-1:0] addr = ssd.sel(SS_IDX) ? ssd.addr[WIDTHAD-1:0] : address;
+
+assign q = ram[addr];
 always @(posedge clock) begin
-    if (wren) begin
-        ram[address] <= data;
+    ssm.ack <= 0;
+    ssm.data <= 0;
+
+    if (ssd.wr(SS_IDX)) begin
+        ram[addr] <= ssd.data[WIDTH-1:0];
+        ssm.ack <= 1;
+    end else if (wren) begin
+        ram[addr] <= data;
+    end
+
+    if (ssd.qry(SS_IDX)) begin
+        ssm.data <= { 32'd0, SIZE };
+        ssm.ack <= 1;
+    end else if (ssd.rd(SS_IDX)) begin
+        ssm.data[WIDTH-1:0] <= q;
+        ssm.ack <= 1;
     end
 end
 

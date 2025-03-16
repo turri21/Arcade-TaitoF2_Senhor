@@ -9,16 +9,15 @@
 #include "sim_sdram.h"
 #include "sim_video.h"
 #include "sim_memory.h"
+#include "sim_state.h"
 #include "dis68k/dis68k.h"
 
 #include <stdio.h>
 #include <SDL.h>
-#include <dirent.h>
 #include <vector>
 #include <string>
 #include <algorithm>
 #include <cstring>
-#include <algorithm>
 
 // TODO
 
@@ -30,6 +29,7 @@ SimSDRAM cpu_sdram(128 * 1024 * 1024);
 SimSDRAM scn_main_sdram(256 * 1024);
 SimMemory ddr_memory(256 * 1024);
 SimVideo video;
+SimState* state_manager = nullptr;
 
 uint64_t total_ticks = 0;
 
@@ -42,7 +42,7 @@ bool simulation_step = false;
 int simulation_step_size = 10000;
 uint64_t simulation_reset_until = 100;
 
-void tick(int count = 1)
+void sim_tick(int count = 1)
 {
     for( int i = 0; i < count; i++ )
     {
@@ -78,42 +78,6 @@ void tick(int count = 1)
     }
 }
 
-bool save_state(const char *filename)
-{
-    top->ss_do_save = 1;
-    while (top->ss_state_out == 0)
-    {
-        tick(1000);
-    }
-    top->ss_do_save = 0;
-    while (top->ss_state_out != 0)
-    {
-        tick(1000);
-    }
-
-    ddr_memory.save_data(filename);
-
-    return true;
-}
-
-bool restore_state(const char *filename)
-{
-    ddr_memory.load_data(filename);
-
-    top->ss_do_restore = 1;
-    while (top->ss_state_out == 0)
-    {
-        tick(1000);
-    }
-    top->ss_do_restore = 0;
-    while (top->ss_state_out != 0)
-    {
-        tick(1000);
-    }
-
-    return true;
-}
-
 ImU8 scn_mem_read(const ImU8* , size_t off, void*)
 {
     size_t word_off = off >> 1;
@@ -132,34 +96,6 @@ ImU8 color_ram_read(const ImU8* , size_t off, void*)
         return top->rootp->F2__DOT__pri_ram_l__DOT__ram[word_off];
     else
         return top->rootp->F2__DOT__pri_ram_h__DOT__ram[word_off];
-}
-
-// Function to get all .f2state files in the current directory
-std::vector<std::string> get_f2state_files()
-{
-    std::vector<std::string> files;
-    DIR* dir;
-    struct dirent* ent;
-    
-    if ((dir = opendir(".")) != NULL)
-    {
-        while ((ent = readdir(dir)) != NULL)
-        {
-            std::string filename = ent->d_name;
-            // Check if filename ends with .f2state
-            if (filename.size() > 8 && 
-                filename.substr(filename.size() - 8) == ".f2state")
-            {
-                files.push_back(filename);
-            }
-        }
-        closedir(dir);
-    }
-    
-    // Sort file names
-    std::sort(files.begin(), files.end());
-    
-    return files;
 }
 
 int main(int argc, char **argv)
@@ -189,6 +125,9 @@ int main(int argc, char **argv)
 
     top->ss_do_save = 0;
     top->ss_do_restore = 0;
+    
+    // Create state manager
+    state_manager = new SimState(top, &ddr_memory);
 
     MemoryEditor scn_main_mem_lo;
     MemoryEditor scn_main_mem_hi;
@@ -210,7 +149,7 @@ int main(int argc, char **argv)
     {
         if (simulation_run || simulation_step || (force_ticks > 0))
         {
-            tick(force_ticks > 0 ? force_ticks : simulation_step_size);
+            sim_tick(force_ticks > 0 ? force_ticks : simulation_step_size);
             video.update_texture();
             force_ticks = 0;
         }
@@ -240,7 +179,7 @@ int main(int argc, char **argv)
         static char state_filename[256] = "state.f2state";
         ImGui::InputText("State Filename", state_filename, sizeof(state_filename));
         
-        static std::vector<std::string> state_files = get_f2state_files();
+        static std::vector<std::string> state_files = state_manager->get_f2state_files();
         static int selected_state_file = -1;
         
         if (ImGui::Button("Save State"))
@@ -254,10 +193,10 @@ int main(int argc, char **argv)
                 state_filename[sizeof(state_filename) - 1] = '\0';
             }
             
-            if (save_state(state_filename))
+            if (state_manager->save_state(state_filename))
             {
                 // Update file list after successfully saving
-                state_files = get_f2state_files();
+                state_files = state_manager->get_f2state_files();
                 // Try to select the newly saved file
                 for (size_t i = 0; i < state_files.size(); i++)
                 {
@@ -282,7 +221,7 @@ int main(int argc, char **argv)
                     selected_state_file = (int)i;
                     if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
                     {
-                        restore_state(state_files[i].c_str());
+                        state_manager->restore_state(state_files[i].c_str());
                     }
                 }
             }
@@ -353,6 +292,7 @@ int main(int argc, char **argv)
 
     video.deinit();
 
+    delete state_manager;
     delete top;
     delete contextp;
     return 0;

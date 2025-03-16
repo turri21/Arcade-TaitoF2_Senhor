@@ -9,12 +9,16 @@
 #include "sim_sdram.h"
 #include "sim_video.h"
 #include "sim_memory.h"
-#include "save_state.h"
-
 #include "dis68k/dis68k.h"
 
 #include <stdio.h>
 #include <SDL.h>
+#include <dirent.h>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <cstring>
+#include <algorithm>
 
 // TODO
 
@@ -38,8 +42,6 @@ bool simulation_step = false;
 int simulation_step_size = 10000;
 uint64_t simulation_reset_until = 100;
 
-
-
 void tick(int count = 1)
 {
     for( int i = 0; i < count; i++ )
@@ -62,28 +64,6 @@ void tick(int count = 1)
         // Process memory stream operations
         ddr_memory.clock(top->mem_addr, top->mem_wdata, top->mem_rdata, top->mem_read, top->mem_write, top->mem_busy, top->mem_read_complete);
 
-        if (top->ss_do_save && top->ss_state_out == 3) // SST_SAVE_PAUSED
-        {
-            // Save all RAM state to file
-            save_ram_state("ram_state.bin", top, cpu_sdram, scn_main_sdram);
-            top->ss_do_save = 0;
-        }
-
-        // Check for restore request before processing
-        if (top->ss_do_restore && top->ss_state_out == 4)
-        {
-            if (load_ram_state("ram_state.bin", top, cpu_sdram, scn_main_sdram))
-            {
-                printf("RAM state restored\n");
-            }
-            else
-            {
-                printf("Failed to restore RAM state\n");
-            }
-            top->ss_do_restore = 0;
-        }
-
-
         contextp->timeInc(1);
         top->clk = 0;
 
@@ -96,9 +76,42 @@ void tick(int count = 1)
         top->eval();
         if (trace_active) tfp->dump(contextp->time());
     }
+}
 
-    top->ss_save_test = 0;
-    top->ss_restore_test = 0;
+bool save_state(const char *filename)
+{
+    top->ss_do_save = 1;
+    while (top->ss_state_out == 0)
+    {
+        tick(1000);
+    }
+    top->ss_do_save = 0;
+    while (top->ss_state_out != 0)
+    {
+        tick(1000);
+    }
+
+    ddr_memory.save_data(filename);
+
+    return true;
+}
+
+bool restore_state(const char *filename)
+{
+    ddr_memory.load_data(filename);
+
+    top->ss_do_restore = 1;
+    while (top->ss_state_out == 0)
+    {
+        tick(1000);
+    }
+    top->ss_do_restore = 0;
+    while (top->ss_state_out != 0)
+    {
+        tick(1000);
+    }
+
+    return true;
 }
 
 ImU8 scn_mem_read(const ImU8* , size_t off, void*)
@@ -119,6 +132,34 @@ ImU8 color_ram_read(const ImU8* , size_t off, void*)
         return top->rootp->F2__DOT__pri_ram_l__DOT__ram[word_off];
     else
         return top->rootp->F2__DOT__pri_ram_h__DOT__ram[word_off];
+}
+
+// Function to get all .f2state files in the current directory
+std::vector<std::string> get_f2state_files()
+{
+    std::vector<std::string> files;
+    DIR* dir;
+    struct dirent* ent;
+    
+    if ((dir = opendir(".")) != NULL)
+    {
+        while ((ent = readdir(dir)) != NULL)
+        {
+            std::string filename = ent->d_name;
+            // Check if filename ends with .f2state
+            if (filename.size() > 8 && 
+                filename.substr(filename.size() - 8) == ".f2state")
+            {
+                files.push_back(filename);
+            }
+        }
+        closedir(dir);
+    }
+    
+    // Sort file names
+    std::sort(files.begin(), files.end());
+    
+    return files;
 }
 
 int main(int argc, char **argv)
@@ -148,8 +189,6 @@ int main(int argc, char **argv)
 
     top->ss_do_save = 0;
     top->ss_do_restore = 0;
-    top->ss_save_test = 0;
-    top->ss_restore_test = 0;
 
     MemoryEditor scn_main_mem_lo;
     MemoryEditor scn_main_mem_hi;
@@ -195,35 +234,67 @@ int main(int argc, char **argv)
 
         ImGui::Separator();
         
-        // RAM state save/load controls
-        if (ImGui::Button("Save RAM State"))
+        // Save/Restore State Section
+        ImGui::Text("Save/Restore State");
+        
+        static char state_filename[256] = "state.f2state";
+        ImGui::InputText("State Filename", state_filename, sizeof(state_filename));
+        
+        static std::vector<std::string> state_files = get_f2state_files();
+        static int selected_state_file = -1;
+        
+        if (ImGui::Button("Save State"))
         {
-            if (save_ram_state("ram_state.bin", top, cpu_sdram, scn_main_sdram))
+            // Ensure filename has .f2state extension
+            std::string filename = state_filename;
+            if (filename.size() < 8 || filename.substr(filename.size() - 8) != ".f2state")
             {
-                printf("RAM state saved manually\n");
+                filename += ".f2state";
+                strncpy(state_filename, filename.c_str(), sizeof(state_filename) - 1);
+                state_filename[sizeof(state_filename) - 1] = '\0';
             }
-            else
+            
+            if (save_state(state_filename))
             {
-                printf("Failed to save RAM state\n");
+                // Update file list after successfully saving
+                state_files = get_f2state_files();
+                // Try to select the newly saved file
+                for (size_t i = 0; i < state_files.size(); i++)
+                {
+                    if (state_files[i] == state_filename)
+                    {
+                        selected_state_file = i;
+                        break;
+                    }
+                }
             }
         }
         
-        ImGui::SameLine();
-        
-        if (ImGui::Button("Load RAM State"))
+        // Show list of state files
+        if (state_files.size() > 0)
         {
-            if (load_ram_state("ram_state.bin", top, cpu_sdram, scn_main_sdram))
+            ImGui::Text("Available State Files:");
+            ImGui::BeginChild("StateFiles", ImVec2(0, 100), true);
+            for (size_t i = 0; i < state_files.size(); i++)
             {
-                printf("RAM state loaded manually\n");
+                if (ImGui::Selectable(state_files[i].c_str(), selected_state_file == (int)i, ImGuiSelectableFlags_AllowDoubleClick))
+                {
+                    selected_state_file = (int)i;
+                    if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                    {
+                        restore_state(state_files[i].c_str());
+                    }
+                }
             }
-            else
-            {
-                printf("Failed to load RAM state\n");
-            }
+            ImGui::EndChild();
         }
-
+        else
+        {
+            ImGui::Text("No state files found (*.f2state)");
+        }
+        
         ImGui::Separator();
-
+        
         ImGui::PushItemWidth(100);
         if(ImGui::InputInt("Trace Depth", &trace_depth, 1, 10,
                            trace_active ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None))
@@ -250,30 +321,6 @@ int main(int argc, char **argv)
                 }
             }
         }
-
-        ImGui::Separator();
-        if (ImGui::Button("Save"))
-        {
-            top->ss_do_save = 1;
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Restore"))
-        {
-            top->ss_do_restore = 1;
-        }
-        if (ImGui::Button("Save Test"))
-        {
-            top->ss_save_test = 1;
-            force_ticks = 100;
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Restore Test"))
-        {
-            top->ss_restore_test = 1;
-            force_ticks = 100;
-        }
-        ImGui::Text("ss_state: %d", top->ss_state_out);
-        ImGui::Text("ss_save_ssp: %08x", top->ss_saved_ssp);
 
         ImGui::End();
 

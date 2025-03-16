@@ -33,44 +33,52 @@ module F2(
     input             mem_busy,
     input             mem_read_complete,
 
-    input ss_save_test,
-    input ss_restore_test,
     input ss_do_save,
     input ss_do_restore,
-    output [3:0] ss_state_out,
-    output reg [31:0] ss_saved_ssp,
-    input [31:0] ss_restore_ssp
+    output [3:0] ss_state_out
 );
 
 // Stream interface control signals - these would typically be connected to CPU or other control logic
 reg [31:0] stream_start_addr;
 reg [31:0] stream_length = 32'h00100000;
-reg        stream_read_start = ss_restore_test;
-wire       stream_write_start = ss_save_test;
+reg        stream_read_start = 0;
+reg       stream_write_start = 0;
 wire       stream_busy;
 wire       stream_read_req;
-wire [63:0] stream_read_data;
-wire        stream_data_ack;
+wire [63:0] stream_read_data[8];
+wire [7:0]   stream_data_ack;
 wire       stream_write_req;
 wire [63:0]  stream_write_data;
 
 wire [31:0] stream_chunk_address;
-wire [7:0] stream_chunk_index;
 wire       stream_query_req;
+wire [7:0]   stream_chunk_select;
 
-ss2device_if ssd(
+ss2device_if #(.COUNT(8)) ssd(
     .data(stream_write_data),
     .addr(stream_chunk_address[23:0]),
-    .idx(stream_chunk_index),
     .write(stream_write_req),
     .query(stream_query_req),
-    .read(stream_read_req)
+    .read(stream_read_req),
+    .select(stream_chunk_select),
+    .ack(stream_data_ack),
+    .data_out(stream_read_data)
 );
 
-ss2master_if ssm1(), ssm2(), ssm3(), ssm4(), ssm_sdr();
+reg [31:0] ss_saved_ssp;
+reg [31:0] ss_restore_ssp;
 
-assign stream_data_ack = ssm1.ack | ssm2.ack | ssm3.ack | ssm4.ack | ssm_sdr.ack;
-assign stream_read_data = ssm1.data | ssm2.data | ssm3.data | ssm4.data | ssm_sdr.data;
+always_ff @(posedge clk) begin
+    ssd.setup(0, 1, 2); // 1, 32-bit value
+    if (ssd.access(0)) begin
+        if (ssd.read) begin
+            ssd.read_response(0, { 32'd0, ss_saved_ssp });
+        end else if (ssd.write) begin
+            ss_restore_ssp <= ssd.data[31:0];
+            ssd.write_ack(0);
+        end
+    end
+end
 
 logic [15:0] save_handler[13] = '{
     16'h48e7,
@@ -94,20 +102,22 @@ logic [15:0] save_handler[13] = '{
 
 typedef enum bit [3:0] {
     SST_IDLE = 0,
-    SST_START_SAVE = 1,
-    SST_WAIT_SAVE = 2,
-    SST_SAVE_PAUSED = 3,
-    SST_START_RESTORE = 4,
-    SST_HOLD_RESET = 5,
-    SST_WAIT_RESET = 6
+    SST_START_SAVE,
+    SST_WAIT_SAVE,
+    SST_SAVE_PAUSED_SETTLE,
+    SST_SAVE_PAUSED,
+    SST_RESTORE_SETTLE,
+    SST_WAIT_RESTORE,
+    SST_HOLD_RESET,
+    SST_WAIT_RESET
 } ss_state_t;
 
 ss_state_t ss_state = SST_IDLE;
 reg [15:0] ss_counter;
 reg [15:0] reset_vector[4];
 
-wire ss_pause = (ss_state == SST_SAVE_PAUSED) || (ss_state == SST_START_RESTORE);
-wire ss_reset = (ss_state == SST_HOLD_RESET);
+wire ss_pause = (ss_state == SST_SAVE_PAUSED) || (ss_state == SST_WAIT_RESTORE) || (ss_state == SST_SAVE_PAUSED_SETTLE);
+wire ss_reset = (ss_state == SST_HOLD_RESET) || (ss_state == SST_RESTORE_SETTLE);
 wire ss_restart = (ss_state == SST_WAIT_RESET);
 
 assign ss_state_out = ss_state;
@@ -121,11 +131,7 @@ always_ff @(posedge clk) begin
             end
 
             if (ss_do_restore) begin
-                ss_state <= SST_START_RESTORE;
-                reset_vector[0] <= ss_restore_ssp[31:16];
-                reset_vector[1] <= ss_restore_ssp[15:0];
-                reset_vector[2] <= 16'h00ff;
-                reset_vector[3] <= 16'h0008;
+                ss_state <= SST_RESTORE_SETTLE;
             end
         end
 
@@ -139,23 +145,48 @@ always_ff @(posedge clk) begin
         SST_WAIT_SAVE: begin
             if (cpu_ds_n == 2'b00 && !cpu_rw && cpu_word_addr == 24'hff0002) begin
                 ss_saved_ssp[15:0] <= cpu_data_out;
+                ss_state <= SST_SAVE_PAUSED_SETTLE;
+                ss_counter <= 0;
+            end
+        end
+
+
+        SST_SAVE_PAUSED_SETTLE: begin
+            if (ss_counter == 64) begin
+                stream_write_start <= 1;
                 ss_state <= SST_SAVE_PAUSED;
             end
         end
 
-
         SST_SAVE_PAUSED: begin
-            if (~ss_do_save) begin
+            if (stream_busy & stream_write_start) begin
+                stream_write_start <= 0;
+            end else if (~stream_busy & ~stream_write_start) begin
                 ss_state <= SST_IDLE;
             end
         end
 
-        SST_START_RESTORE: begin
-            if (~ss_do_restore) begin
+        SST_RESTORE_SETTLE: begin
+            if (ss_counter == 64) begin
+                stream_read_start <= 1;
+                ss_state <= SST_WAIT_RESTORE;
+            end
+        end
+
+        SST_WAIT_RESTORE: begin
+            if (stream_busy & stream_read_start) begin
+                stream_read_start <= 0;
+            end else if (~stream_busy & ~stream_read_start) begin
+                reset_vector[0] <= ss_restore_ssp[31:16];
+                reset_vector[1] <= ss_restore_ssp[15:0];
+                reset_vector[2] <= 16'h00ff;
+                reset_vector[3] <= 16'h0008;
+
                 ss_state <= SST_HOLD_RESET;
                 ss_counter <= 0;
             end
         end
+
 
         SST_HOLD_RESET: begin
             if (ss_counter == 1000) begin
@@ -293,8 +324,7 @@ singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(15), .NAME("SC0L"), .SS_IDX(1)) scn_r
     .wren(~(scn_main_ram_ce_0_n | scn_main_ram_we_lo_n)),
     .data(scn_main_ram_dout[7:0]),
     .q(scn_main_ram_din[7:0]),
-    .ssd(ssd),
-    .ssm(ssm1)
+    .ssd(ssd)
 );
 
 singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(15), .NAME("SC0U"), .SS_IDX(2)) scn_ram_0_up(
@@ -303,8 +333,7 @@ singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(15), .NAME("SC0U"), .SS_IDX(2)) scn_r
     .wren(~(scn_main_ram_ce_0_n | scn_main_ram_we_up_n)),
     .data(scn_main_ram_dout[15:8]),
     .q(scn_main_ram_din[15:8]),
-    .ssd(ssd),
-    .ssm(ssm2)
+    .ssd(ssd)
 );
 
 wire HSYNn;
@@ -379,8 +408,7 @@ singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(12), .NAME("PRIL"), .SS_IDX(3)) pri_r
     .wren(~pri_ram_we_l_n),
     .data(pri_ram_dout[7:0]),
     .q(pri_ram_din[7:0]),
-    .ssd(ssd),
-    .ssm(ssm3)
+    .ssd(ssd)
 );
 
 singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(12), .NAME("PRIH"), .SS_IDX(4)) pri_ram_h(
@@ -389,8 +417,7 @@ singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(12), .NAME("PRIH"), .SS_IDX(4)) pri_r
     .wren(~pri_ram_we_h_n),
     .data(pri_ram_dout[15:8]),
     .q(pri_ram_din[15:8]),
-    .ssd(ssd),
-    .ssm(ssm4)
+    .ssd(ssd)
 );
 
 
@@ -522,14 +549,15 @@ assign cpu_data_in = ~ROMn ? sdr_cpu_q :
 
 reg prev_ds_n;
 reg ss_sdr_active;
+parameter SDR_IDX = 5;
+
 always_ff @(posedge clk) begin
     prev_ds_n <= &cpu_ds_n;
-    ssm_sdr.ack <= 0;
 
-    if (ssd.sel(5)) begin
-        if (ssd.qry(5)) begin
-            ssm_sdr.query_response(5, 32'h8000, 1);
-        end else if (ssd.rd(5)) begin
+    ssd.setup(SDR_IDX, 32'h8000, 1);
+
+    if (ssd.access(SDR_IDX)) begin
+        if (ssd.read) begin
             if (~ss_sdr_active) begin
                 sdr_cpu_addr <= 32'h100000 + { 9'b0, ssd.addr[21:0], 1'b0 };
                 sdr_cpu_be <= 2'b11;
@@ -537,10 +565,9 @@ always_ff @(posedge clk) begin
                 sdr_cpu_req <= ~sdr_cpu_req;
                 ss_sdr_active <= 1;
             end else if (sdr_cpu_req == sdr_cpu_ack) begin
-                ssm_sdr.ack <= 1;
-                ssm_sdr.data <= { 48'b0, sdr_cpu_q };
+                ssd.read_response(SDR_IDX, {48'b0, sdr_cpu_q});
             end
-        end else if (ssd.wr(5)) begin
+        end else if (ssd.write) begin
             if (~ss_sdr_active) begin
                 sdr_cpu_addr <= 32'h100000 + { 9'b0, ssd.addr[21:0], 1'b0 };
                 sdr_cpu_be <= 2'b11;
@@ -549,18 +576,17 @@ always_ff @(posedge clk) begin
                 sdr_cpu_data <= ssd.data[15:0];
                 ss_sdr_active <= 1;
             end else if (sdr_cpu_req == sdr_cpu_ack) begin
-                ssm_sdr.ack <= 1;
+                ssd.write_ack(SDR_IDX);
             end
-        end else begin
-            ss_sdr_active <= 0;
         end
     end else if (~(ROMn & WORKn) & prev_ds_n) begin
-        ss_sdr_active <= 0;
         sdr_cpu_addr <= { 8'b0, cpu_word_addr };
         sdr_cpu_data <= cpu_data_out;
         sdr_cpu_be <= ~cpu_ds_n;
         sdr_cpu_rw <= cpu_rw;
         sdr_cpu_req <= ~sdr_cpu_req;
+        ss_sdr_active <= 0;
+    end else begin
         ss_sdr_active <= 0;
     end
 end
@@ -595,7 +621,7 @@ memory_stream memory_stream_inst (
     .write_start(stream_write_start),
     .busy(stream_busy),
 
-    .chunk_index(stream_chunk_index),
+    .chunk_select(stream_chunk_select),
     .chunk_address(stream_chunk_address),
     .query_req(stream_query_req)
 );

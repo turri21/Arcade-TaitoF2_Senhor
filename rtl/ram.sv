@@ -133,68 +133,39 @@ end
 
 endmodule
 
-interface ss2device_if(
+interface ss2device_if #(parameter COUNT = 8)(
     input [63:0] data,
     input [23:0] addr,
-    input [7:0]  idx,
+    input [COUNT-1:0] select,
     input write,
     input read,
-    input query
+    input query,
+    output reg [63:0] data_out[COUNT],
+    output reg [COUNT-1:0] ack
+
 );
-    function logic sel(input [7:0] s_idx);
-        return s_idx == idx;
+    function logic access(int idx);
+        return select[idx] & ~query & (read | write);
     endfunction
 
-    function logic rd(input [7:0] s_idx);
-        return s_idx == idx && read;
-    endfunction
-
-    function logic wr(input [7:0] s_idx);
-        return s_idx == idx && write;
-    endfunction
-
-    function logic qry(input [7:0] s_idx);
-        return s_idx == idx && query;
-    endfunction
-endinterface
-
-interface ss2master_if;
-    logic [63:0] data;
-    logic ack;
-
-    task query_response(input [7:0] s_idx, input [31:0] count, input [1:0] width);
-        data <= { s_idx, 22'b0, width, count };
-        ack <= 1;
-    endtask
-endinterface;
-
-module ss_mux #(parameter N_DEV=1) (
-    output [63:0] data,
-    output ack,
-
-    ss2master_if ifc[N_DEV-1:0]
-);
-
-logic [63:0] map[N_DEV];
-logic select[N_DEV];
-for (genvar i=0; i < N_DEV; i++) begin : g_loop
-    assign map[i] = ifc[i].data;
-    assign select[i] = ifc[i].ack;
-end
-
-always_comb begin
-    int i;
-    data = 0;
-    ack = 0;
-    for( i = 0; i < N_DEV; i = i + 1 ) begin
-        if (select[i]) begin
-            ack = 1;
-            data = map[i];
+    task setup(int idx, input [31:0] count, input [1:0] width);
+        ack[idx] <= 0;
+        if (select[idx] & query) begin
+            data_out[idx] <= { idx[7:0], 22'b0, width, count };
+            ack[idx] <= 1;
         end
-    end
-end
+    endtask
 
-endmodule;
+    task read_response(int idx, input [63:0] dout);
+        data_out[idx] <= dout;
+        ack[idx] <= 1;
+    endtask
+
+    task write_ack(int idx);
+        ack[idx] <= 1;
+    endtask
+
+endinterface
 
 module singleport_ram_unreg #(
     parameter WIDTH = 8,
@@ -208,7 +179,6 @@ module singleport_ram_unreg #(
     input   wire    [WIDTH-1:0]   data,
     output          [WIDTH-1:0]   q,
 
-    ss2master_if ssm,
     ss2device_if ssd
 );
 
@@ -217,26 +187,23 @@ reg [WIDTH-1:0] ram[2**WIDTHAD] /* verilator public_flat */;
 
 wire [31:0] SIZE = 2**WIDTHAD;
 
-wire [WIDTHAD-1:0] addr = ssd.sel(SS_IDX) ? ssd.addr[WIDTHAD-1:0] : address;
+wire [WIDTHAD-1:0] addr = ssd.access(SS_IDX) ? ssd.addr[WIDTHAD-1:0] : address;
 
 assign q = ram[addr];
 always @(posedge clock) begin
-    ssm.ack <= 0;
-    ssm.data <= 0;
+    ssd.setup(SS_IDX, SIZE, 0);
 
-    if (ssd.wr(SS_IDX)) begin
-        ram[addr] <= ssd.data[WIDTH-1:0];
-        ssm.ack <= 1;
-    end else if (wren) begin
-        ram[addr] <= data;
-    end
-
-    if (ssd.qry(SS_IDX)) begin
-        ssm.data <= { 32'd0, SIZE };
-        ssm.ack <= 1;
-    end else if (ssd.rd(SS_IDX)) begin
-        ssm.data[WIDTH-1:0] <= q;
-        ssm.ack <= 1;
+    if (ssd.access(SS_IDX)) begin
+        if (ssd.write) begin
+            ram[addr] <= ssd.data[WIDTH-1:0];
+            ssd.write_ack(SS_IDX);
+        end else if (ssd.read) begin
+            ssd.read_response(SS_IDX, { 56'd0, ram[addr] });
+        end
+    end else begin
+        if (wren) begin
+            ram[addr] <= data;
+        end
     end
 end
 

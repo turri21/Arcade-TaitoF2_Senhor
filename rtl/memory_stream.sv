@@ -1,4 +1,4 @@
-module memory_stream
+module memory_stream #(parameter COUNT = 8)
 (
     input               clk,
     input               reset,
@@ -15,11 +15,11 @@ module memory_stream
     // 8-bit stream interface for reading from memory
     output reg          write_req,
     output reg [63:0]   write_data,
-    input               data_ack,
+    input  [COUNT-1:0]  data_ack,
 
     // 8-bit stream interface for writing to memory
     output reg          read_req,
-    input      [63:0]   read_data,
+    input      [63:0]   read_data[COUNT],
 
     // Control signals
     input      [31:0]   start_addr,
@@ -29,7 +29,7 @@ module memory_stream
 
     output reg          query_req,
     output reg [31:0]   chunk_address,
-    output reg [7:0]    chunk_index,
+    output [COUNT-1:0] chunk_select,
 
     output              busy
 );
@@ -42,7 +42,9 @@ module memory_stream
         READ_STREAM,
         WRITE_GATHER,
         WRITE_MEM_REQ,
+        WRITE_MEM_FINAL_REQ,
         WRITE_MEM_WAIT,
+        QUERY_GATHER_FIRST,
         QUERY_GATHER_NEXT,
         QUERY_GATHER_WAIT,
         QUERY_SCATTER_WAIT
@@ -51,6 +53,8 @@ module memory_stream
     state_t state;
 
     assign busy = state != IDLE;
+
+    parameter CHUNK_BITS = $clog2(COUNT);
 
     logic [2:0] word_end[4] = { 3'b111, 3'b011, 3'b001, 3'b000 };
 
@@ -62,7 +66,17 @@ module memory_stream
     reg [31:0] chunk_remaining;
     reg [3:0]  query_delay;
     reg [1:0]  chunk_width;
+    reg [CHUNK_BITS-1:0] chunk_index;
 
+    wire chunk_data_ack = data_ack[chunk_index];
+    wire [63:0] chunk_read_data = read_data[chunk_index];
+
+    always_comb begin
+        chunk_select = 0;
+        if (busy) begin
+            chunk_select[chunk_index] = 1;
+        end
+    end
 
     always_ff @(posedge clk) begin
         if (reset) begin
@@ -94,7 +108,7 @@ module memory_stream
                     if (read_start) begin
                         state <= READ_MEM_REQ;
                     end else if (write_start) begin
-                        state <= QUERY_GATHER_NEXT;
+                        state <= QUERY_GATHER_FIRST;
                     end
                 end
 
@@ -119,7 +133,7 @@ module memory_stream
                             end else begin
                                 chunk_remaining <= mem_rdata[31:0];
                                 chunk_width <= mem_rdata[33:32];
-                                chunk_index <= mem_rdata[63:56];
+                                chunk_index <= mem_rdata[56+CHUNK_BITS-1:56];
                                 write_req <= 1;
                                 query_req <= 1;
                                 query_delay <= 0;
@@ -132,7 +146,8 @@ module memory_stream
                 end
 
                 QUERY_SCATTER_WAIT: begin
-                    if (data_ack) begin
+                    if (chunk_data_ack) begin
+                        // TODO check size and width
                         query_req <= 0;
                         write_req <= 0;
                         state <= READ_MEM_REQ;
@@ -183,7 +198,7 @@ module memory_stream
                             end
                         endcase
 
-                        if (data_ack & write_req) begin
+                        if (chunk_data_ack & write_req) begin
                             // Advance to next byte
                             if (word_counter == word_end[chunk_width]) begin
                                 // Need to fetch next word
@@ -203,14 +218,17 @@ module memory_stream
                     end
                 end
 
+                QUERY_GATHER_FIRST: begin
+                    chunk_index <= 0;
+                    read_req <= 1;
+                    query_req <= 1;
+                    state <= QUERY_GATHER_WAIT;
+                    query_delay <= 0;
+                end
+
                 QUERY_GATHER_NEXT: begin
-                    if (chunk_index == 254) begin
-                        buffer <= ~64'd0;
-                        chunk_remaining <= 0;
-                        chunk_index <= 255;
-                        state <= WRITE_MEM_REQ;
-                    end else if (chunk_index == 255) begin
-                        state <= IDLE;
+                    if ((chunk_index + 1) == COUNT) begin
+                        state <= WRITE_MEM_FINAL_REQ;
                     end else begin
                         chunk_index <= chunk_index + 1;
                         read_req <= 1;
@@ -221,11 +239,12 @@ module memory_stream
                 end
 
                 QUERY_GATHER_WAIT: begin
-                    if (data_ack) begin
-                        chunk_remaining <= read_data[31:0];
-                        chunk_width <= read_data[33:32];
-                        buffer[33:0] <= read_data[33:0];
-                        buffer[63:56] <= chunk_index;
+                    if (chunk_data_ack) begin
+                        buffer<= 0;
+                        chunk_remaining <= chunk_read_data[31:0];
+                        chunk_width <= chunk_read_data[33:32];
+                        buffer[33:0] <= chunk_read_data[33:0];
+                        buffer[56+CHUNK_BITS-1:56] <= chunk_index[CHUNK_BITS-1:0];
                         chunk_address <= 0;
                         query_req <= 0;
                         read_req <= 0;
@@ -248,34 +267,34 @@ module memory_stream
                             state <= QUERY_GATHER_NEXT;
                         end
                     end
-                    else if (data_ack & read_req) begin
+                    else if (chunk_data_ack & read_req) begin
                         // Store incoming byte in buffer
                         case (chunk_width)
                             0: case (word_counter)
-                                3'd0: buffer[7:0] <= read_data[7:0];
-                                3'd1: buffer[15:8] <= read_data[7:0];
-                                3'd2: buffer[23:16] <= read_data[7:0];
-                                3'd3: buffer[31:24] <= read_data[7:0];
-                                3'd4: buffer[39:32] <= read_data[7:0];
-                                3'd5: buffer[47:40] <= read_data[7:0];
-                                3'd6: buffer[55:48] <= read_data[7:0];
-                                3'd7: buffer[63:56] <= read_data[7:0];
+                                3'd0: buffer[7:0] <= chunk_read_data[7:0];
+                                3'd1: buffer[15:8] <= chunk_read_data[7:0];
+                                3'd2: buffer[23:16] <= chunk_read_data[7:0];
+                                3'd3: buffer[31:24] <= chunk_read_data[7:0];
+                                3'd4: buffer[39:32] <= chunk_read_data[7:0];
+                                3'd5: buffer[47:40] <= chunk_read_data[7:0];
+                                3'd6: buffer[55:48] <= chunk_read_data[7:0];
+                                3'd7: buffer[63:56] <= chunk_read_data[7:0];
                                 default: begin end
                             endcase
                             1: case (word_counter)
-                                3'd0: buffer[15:0] <= read_data[15:0];
-                                3'd1: buffer[31:16] <= read_data[15:0];
-                                3'd2: buffer[47:32] <= read_data[15:0];
-                                3'd3: buffer[63:48] <= read_data[15:0];
+                                3'd0: buffer[15:0] <= chunk_read_data[15:0];
+                                3'd1: buffer[31:16] <= chunk_read_data[15:0];
+                                3'd2: buffer[47:32] <= chunk_read_data[15:0];
+                                3'd3: buffer[63:48] <= chunk_read_data[15:0];
                                 default: begin end
                             endcase
                             2: case (word_counter)
-                                3'd0: buffer[31:0] <= read_data[31:0];
-                                3'd1: buffer[63:32] <= read_data[31:0];
+                                3'd0: buffer[31:0] <= chunk_read_data[31:0];
+                                3'd1: buffer[63:32] <= chunk_read_data[31:0];
                                 default: begin end
                             endcase
                             3: begin
-                                buffer[63:0] <= read_data[63:0];
+                                buffer[63:0] <= chunk_read_data[63:0];
                             end
                         endcase
 
@@ -305,6 +324,17 @@ module memory_stream
                         mem_wdata <= buffer;
                         mem_write <= 1;
                         state <= WRITE_MEM_WAIT;
+                    end
+                end
+
+                WRITE_MEM_FINAL_REQ: begin
+                    if (current_addr >= end_addr) begin
+                        state <= IDLE;
+                    end else if (!mem_busy) begin
+                        mem_addr <= current_addr & 32'hFFFFFFF8; // Align to 8-byte boundary
+                        mem_wdata <= ~64'd0;
+                        mem_write <= 1;
+                        state <= IDLE;
                     end
                 end
 

@@ -17,8 +17,7 @@ SRCS = imgui/imgui.cpp \
 		imgui/backends/imgui_impl_sdlrenderer2.cpp \
 		dis68k/dis68k.cpp \
 		sim.cpp \
-		imgui_wrap.cpp \
-		save_state.cpp
+		imgui_wrap.cpp
 
 OBJS = $(patsubst %.cpp, $(OBJ_DIR)/%.o, $(SRCS))
 
@@ -26,7 +25,7 @@ DEPFLAGS = -MT $@ -MMD -MP -MF $(OBJ_DIR)/$*.d
 
 CC=cc
 CXX=c++
-CPPFLAGS= --std=gnu++17 -g $(DEPFLAGS)
+CPPFLAGS= --std=gnu++17 -g $(DEPFLAGS) -O2
 CPPFLAGS+=-I$(VERILATED_DIR) $(shell pkg-config --cflags verilator)
 CPPFLAGS+=$(shell pkg-config --cflags sdl2)
 CPPFLAGS+=-Iimgui/ -Iimgui/backends/

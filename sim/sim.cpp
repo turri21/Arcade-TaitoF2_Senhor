@@ -39,7 +39,7 @@ int trace_depth = 1;
 
 bool simulation_run = false;
 bool simulation_step = false;
-int simulation_step_size = 10000;
+int simulation_step_size = 100000;
 uint64_t simulation_reset_until = 100;
 
 void sim_tick(int count = 1)
@@ -62,7 +62,7 @@ void sim_tick(int count = 1)
         video.clock(top->ce_pixel != 0, top->hsync != 0, top->vsync != 0, top->red, top->green, top->blue);
         
         // Process memory stream operations
-        ddr_memory.clock(top->mem_addr, top->mem_wdata, top->mem_rdata, top->mem_read, top->mem_write, top->mem_busy, top->mem_read_complete);
+        ddr_memory.clock(top->ddr_addr, top->ddr_wdata, top->ddr_rdata, top->ddr_read, top->ddr_write, top->ddr_busy, top->ddr_read_complete);
 
         contextp->timeInc(1);
         top->clk = 0;
@@ -141,7 +141,7 @@ int main(int argc, char **argv)
     scn_main_mem.ReadFn = scn_mem_read;
     color_ram.ReadFn = color_ram_read;
     
-    video.init(320, 200, imgui_get_renderer());
+    video.init(320, 224, imgui_get_renderer());
 
     Verilated::traceEverOn(true);
 

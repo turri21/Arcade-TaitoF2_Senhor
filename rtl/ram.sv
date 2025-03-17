@@ -133,40 +133,6 @@ end
 
 endmodule
 
-interface ss2device_if #(parameter COUNT = 8)(
-    input [63:0] data,
-    input [23:0] addr,
-    input [COUNT-1:0] select,
-    input write,
-    input read,
-    input query,
-    output reg [63:0] data_out[COUNT],
-    output reg [COUNT-1:0] ack
-
-);
-    function logic access(int idx);
-        return select[idx] & ~query & (read | write);
-    endfunction
-
-    task setup(int idx, input [31:0] count, input [1:0] width);
-        ack[idx] <= 0;
-        if (select[idx] & query) begin
-            data_out[idx] <= { idx[7:0], 22'b0, width, count };
-            ack[idx] <= 1;
-        end
-    endtask
-
-    task read_response(int idx, input [63:0] dout);
-        data_out[idx] <= dout;
-        ack[idx] <= 1;
-    endtask
-
-    task write_ack(int idx);
-        ack[idx] <= 1;
-    endtask
-
-endinterface
-
 module singleport_ram_unreg #(
     parameter WIDTH = 8,
     parameter WIDTHAD = 10,
@@ -179,7 +145,7 @@ module singleport_ram_unreg #(
     input   wire    [WIDTH-1:0]   data,
     output          [WIDTH-1:0]   q,
 
-    ss2device_if ssd
+    ssbus_if.slave ssbus
 );
 
 // Shared ramory
@@ -187,18 +153,18 @@ reg [WIDTH-1:0] ram[2**WIDTHAD] /* verilator public_flat */;
 
 wire [31:0] SIZE = 2**WIDTHAD;
 
-wire [WIDTHAD-1:0] addr = ssd.access(SS_IDX) ? ssd.addr[WIDTHAD-1:0] : address;
+wire [WIDTHAD-1:0] addr = ssbus.access(SS_IDX) ? ssbus.addr[WIDTHAD-1:0] : address;
 
 assign q = ram[addr];
 always @(posedge clock) begin
-    ssd.setup(SS_IDX, SIZE, 0);
+    ssbus.setup(SS_IDX, SIZE, 0);
 
-    if (ssd.access(SS_IDX)) begin
-        if (ssd.write) begin
-            ram[addr] <= ssd.data[WIDTH-1:0];
-            ssd.write_ack(SS_IDX);
-        end else if (ssd.read) begin
-            ssd.read_response(SS_IDX, { 56'd0, ram[addr] });
+    if (ssbus.access(SS_IDX)) begin
+        if (ssbus.write) begin
+            ram[addr] <= ssbus.data[WIDTH-1:0];
+            ssbus.write_ack(SS_IDX);
+        end else if (ssbus.read) begin
+            ssbus.read_response(SS_IDX, { 56'd0, ram[addr] });
         end
     end else begin
         if (wren) begin

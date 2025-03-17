@@ -2,3 +2,9 @@
 -explicit-parameter-storage-type
 -line-length
 -parameter-name-style
+-function-task-excplicit-lifetime
+-explicit-task-lifetime
+-explicit-function-lifetime
+-function-task-argument-types
+-explicit-function-task-parameter-type
+

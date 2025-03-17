@@ -4,13 +4,13 @@ module memory_stream #(parameter COUNT = 8)
     input               reset,
 
     // Memory interface (64-bit bus)
-    output reg [31:0]   mem_addr,
-    output reg [63:0]   mem_wdata,
-    input      [63:0]   mem_rdata,
-    output reg          mem_read,
-    output reg          mem_write,
-    input               mem_busy,
-    input               mem_read_complete,
+    output reg [31:0]   ddr_addr,
+    output reg [63:0]   ddr_wdata,
+    input      [63:0]   ddr_rdata,
+    output reg          ddr_read,
+    output reg          ddr_write,
+    input               ddr_busy,
+    input               ddr_read_complete,
 
     // 8-bit stream interface for reading from memory
     output reg          write_req,
@@ -81,8 +81,8 @@ module memory_stream #(parameter COUNT = 8)
     always_ff @(posedge clk) begin
         if (reset) begin
             state <= IDLE;
-            mem_read <= 0;
-            mem_write <= 0;
+            ddr_read <= 0;
+            ddr_write <= 0;
             write_req <= 0;
             read_req <= 0;
             word_counter <= 0;
@@ -93,8 +93,8 @@ module memory_stream #(parameter COUNT = 8)
             case (state)
                 IDLE: begin
                     // Default signals
-                    mem_read <= 0;
-                    mem_write <= 0;
+                    ddr_read <= 0;
+                    ddr_write <= 0;
                     write_req <= 0;
                     read_req <= 0;
                     chunk_index <= 0;
@@ -115,25 +115,25 @@ module memory_stream #(parameter COUNT = 8)
                 READ_MEM_REQ: begin
                     if (current_addr >= end_addr) begin
                         state <= IDLE;
-                    end else if (!mem_busy) begin
-                        mem_addr <= current_addr & 32'hFFFFFFF8; // Align to 8-byte boundary
+                    end else if (!ddr_busy) begin
+                        ddr_addr <= current_addr & 32'hFFFFFFF8; // Align to 8-byte boundary
                         current_addr <= current_addr + 8;
-                        mem_read <= 1;
+                        ddr_read <= 1;
                         state <= READ_MEM_WAIT;
                     end
                 end
 
                 READ_MEM_WAIT: begin
-                    mem_read <= 0;
-                    if (mem_read_complete) begin
-                        buffer <= mem_rdata;
+                    ddr_read <= 0;
+                    if (ddr_read_complete) begin
+                        buffer <= ddr_rdata;
                         if (chunk_remaining == 0) begin
-                            if (&mem_rdata[63:56]) begin
+                            if (&ddr_rdata[63:56]) begin
                                 state <= IDLE;
                             end else begin
-                                chunk_remaining <= mem_rdata[31:0];
-                                chunk_width <= mem_rdata[33:32];
-                                chunk_index <= mem_rdata[56+CHUNK_BITS-1:56];
+                                chunk_remaining <= ddr_rdata[31:0];
+                                chunk_width <= ddr_rdata[33:32];
+                                chunk_index <= ddr_rdata[56+CHUNK_BITS-1:56];
                                 write_req <= 1;
                                 query_req <= 1;
                                 query_delay <= 0;
@@ -318,11 +318,11 @@ module memory_stream #(parameter COUNT = 8)
                 WRITE_MEM_REQ: begin
                     if (current_addr >= end_addr) begin
                         state <= IDLE;
-                    end else if (!mem_busy) begin
-                        mem_addr <= current_addr & 32'hFFFFFFF8; // Align to 8-byte boundary
+                    end else if (!ddr_busy) begin
+                        ddr_addr <= current_addr & 32'hFFFFFFF8; // Align to 8-byte boundary
                         current_addr <= current_addr + 8;
-                        mem_wdata <= buffer;
-                        mem_write <= 1;
+                        ddr_wdata <= buffer;
+                        ddr_write <= 1;
                         state <= WRITE_MEM_WAIT;
                     end
                 end
@@ -330,17 +330,17 @@ module memory_stream #(parameter COUNT = 8)
                 WRITE_MEM_FINAL_REQ: begin
                     if (current_addr >= end_addr) begin
                         state <= IDLE;
-                    end else if (!mem_busy) begin
-                        mem_addr <= current_addr & 32'hFFFFFFF8; // Align to 8-byte boundary
-                        mem_wdata <= ~64'd0;
-                        mem_write <= 1;
+                    end else if (!ddr_busy) begin
+                        ddr_addr <= current_addr & 32'hFFFFFFF8; // Align to 8-byte boundary
+                        ddr_wdata <= ~64'd0;
+                        ddr_write <= 1;
                         state <= IDLE;
                     end
                 end
 
                 WRITE_MEM_WAIT: begin
-                    mem_write <= 0;
-                    if (!mem_busy) begin
+                    ddr_write <= 0;
+                    if (!ddr_busy) begin
                         if (chunk_remaining == 0) begin
                             state <= QUERY_GATHER_NEXT;
                         end

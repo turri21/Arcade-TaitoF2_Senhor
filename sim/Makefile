@@ -37,9 +37,10 @@ LDLIBS=$(shell pkg-config --libs sdl2)
 
 VERILATOR_DEFINES =
 
-HDL_SRC =  ../rtl/fx68k/hdl/verilator/fx68k.sv ../rtl/fx68k/hdl/verilator/fx68kAlu.sv ../rtl/fx68k/hdl/verilator/uaddrPla.sv
+HDL_SRC  = ../rtl/fx68k/hdl/verilator/fx68k.sv ../rtl/fx68k/hdl/verilator/fx68kAlu.sv ../rtl/fx68k/hdl/verilator/uaddrPla.sv
+HDL_SRC += ../rtl/save_state_consts.sv
 HDL_SRC += ../rtl/F2.sv ../rtl/tc0100scn.sv ../rtl/tc0110pr.sv ../rtl/tc0220ioc.sv
-HDL_SRC += ../rtl/ram.sv ../rtl/jtframe_frac_cen.v ../rtl/memory_stream.sv
+HDL_SRC += ../rtl/ram.sv ../rtl/jtframe_frac_cen.v ../rtl/memory_stream.sv ../rtl/savestates.sv
 
 HDL_GEN =
 

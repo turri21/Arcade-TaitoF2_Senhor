@@ -33,7 +33,7 @@ end
 
 endmodule
 
-module TC0100SCN(
+module TC0100SCN #(parameter SS_IDX=-1) (
     input clk,
     input ce_13m,
     output ce_pixel, // TODO - does this generate it?
@@ -75,7 +75,9 @@ module TC0100SCN(
     output OLDH,
     output OLDV,
     input IHLD, // FIXME - confirm inputs
-    input IVLD
+    input IVLD,
+
+    ssbus_if.slave ssbus
 );
 
 reg dtack_n;
@@ -112,10 +114,10 @@ assign SCE1n = ~ram_addr[15];
 assign SDout = Din;
 assign ce_pixel = ce_13m & full_hcnt[0];
 
-assign HSYNn = full_hcnt < (320 * 2);
-assign HBLOn = full_hcnt < (320 * 2);
-assign VSYNn = vcnt < 200;
-assign VBLOn = vcnt < 200;
+assign HSYNn = full_hcnt >= (32 * 2) && full_hcnt < (352 * 2);
+assign HBLOn = HSYNn;
+assign VSYNn = vcnt >= 8 && vcnt < 232;
+assign VBLOn = VSYNn;
 
 
 assign SC = |fg0_dot[3:0] ? { 3'd0, fg0_dot } :
@@ -177,7 +179,7 @@ wire [31:0] fg0_gfx_swizzle = { 2'b0, fg0_gfx[15], fg0_gfx[7],
 
 tc0100scn_shifter bg0_shift(
     .clk, .ce_pixel,
-    .tap(bg0_hofs[2:0]),
+    .tap(~bg0_hofs[2:0]),
     .gfx_in(bg0_gfx),
     .palette_in(bg0_attrib[7:0]),
     .dot_out(bg0_dot),
@@ -186,7 +188,7 @@ tc0100scn_shifter bg0_shift(
 
 tc0100scn_shifter bg1_shift(
     .clk, .ce_pixel,
-    .tap(bg1_hofs[2:0]),
+    .tap(~bg1_hofs[2:0]),
     .gfx_in(bg1_gfx),
     .palette_in(bg1_attrib[7:0]),
     .dot_out(bg1_dot),
@@ -195,7 +197,7 @@ tc0100scn_shifter bg1_shift(
 
 tc0100scn_shifter fg0_shift(
     .clk, .ce_pixel,
-    .tap(fg0_x[2:0]),
+    .tap(~fg0_x[2:0]),
     .gfx_in(fg0_gfx_swizzle),
     .palette_in({2'b0, fg0_code[13:8]}),
     .dot_out(fg0_dot),
@@ -237,8 +239,8 @@ always @(posedge clk) begin
                 if (line_start) begin
                     ram_addr <= { 8'b0_11_00000, vcnt[7:0] };
                 end else begin
-                    h = hcnt + bg0_hofs;
-                    v = vcnt + bg0_y[8:0];
+                    h = {hcnt[8:3], 3'b0} - bg0_hofs;
+                    v = vcnt - bg0_y[8:0];
                     ram_addr <= { 3'b0_00, v[8:3], h[8:3], 1'b0 };
                 end
             end
@@ -255,7 +257,7 @@ always @(posedge clk) begin
             // BG0 Store Tile code, start ROM read
             3: begin
                 bg0_code <= SDin;
-                v = vcnt + bg0_y[8:0];
+                v = vcnt - bg0_y[8:0];
                 rom_address <= { SDin, v[2:0], 2'b0 };
                 rom_req <= ~rom_req;
             end
@@ -268,8 +270,8 @@ always @(posedge clk) begin
             5: bg1_colscroll <= SDin;
             // FG0 Address tile code
             6: begin
-                h = hcnt + fg0_x[8:0];
-                v = vcnt + fg0_y[8:0];
+                h = {hcnt[8:3], 3'b0} - fg0_x[8:0];
+                v = vcnt - fg0_y[8:0];
                 ram_addr <= { 4'b0_010, v[8:3], h[8:3] };
             end
             // FG0 Store Tile
@@ -279,8 +281,8 @@ always @(posedge clk) begin
                 if (line_start) begin
                     ram_addr <= { 8'b01100010, vcnt[7:0] };
                 end else begin
-                    h = hcnt + bg1_hofs;
-                    v = vcnt + bg1_y[8:0] + bg1_colscroll[8:0];
+                    h = {hcnt[8:3], 3'b0} - bg1_hofs;
+                    v = vcnt - (bg1_y[8:0] + bg1_colscroll[8:0]);
                     ram_addr <= { 3'b0_10, v[8:3], h[8:3], 1'b0 };
                 end
             end
@@ -299,13 +301,13 @@ always @(posedge clk) begin
                 bg1_code <= SDin;
 
                 bg0_gfx <= rom_data;
-                v = vcnt + bg1_y[8:0] + bg1_colscroll[8:0];
+                v = vcnt - (bg1_y[8:0] + bg1_colscroll[8:0]);
                 rom_address <= { SDin, v[2:0], 2'b0 };
                 rom_req <= ~rom_req;
             end
             // FG0 Address GFX
             12: begin
-                v = vcnt + fg0_y[8:0];
+                v = vcnt - fg0_y[8:0];
                 ram_addr <= { 5'b0_0110, fg0_code[7:0], v[2:0] };
             end
             // FG0 Store GFX
@@ -331,6 +333,16 @@ always @(posedge clk) begin
             default: begin
             end
         endcase
+    end
+
+    ssbus.setup(SS_IDX, 8, 1);
+    if (ssbus.access(SS_IDX)) begin
+        if (ssbus.write) begin
+            ctrl[ssbus.addr[2:0]] <= ssbus.data[15:0];
+            ssbus.write_ack(SS_IDX);
+        end else if (ssbus.read) begin
+            ssbus.read_response(SS_IDX, { 48'b0, ctrl[ssbus.addr[2:0]] });
+        end
     end
 end
 

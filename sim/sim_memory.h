@@ -20,6 +20,8 @@ public:
         read_complete = false;
         busy = false;
         busy_counter = 0;
+        burst_counter = 0;
+        burst_size = 0;
     }
     
     // Load data from a file into memory at specified offset
@@ -99,7 +101,8 @@ public:
         bool read,
         bool write,
         uint8_t& busy_out,
-        uint8_t& read_complete_out
+        uint8_t& read_complete_out,
+        uint8_t burstcnt = 1
     )
     {
         // Update busy status - simulate memory with occasional busy cycles
@@ -108,29 +111,62 @@ public:
             busy_counter--;
             if (busy_counter == 0)
             {
-                busy = false;
-                
                 // If we're completing a read operation
                 if (pending_read)
                 {
                     read_complete = true;
-                    pending_read = false;
                     
-                    // Prepare read data
-                    uint32_t aligned_addr = pending_addr & ~0x7; // Align to 8-byte boundary
-                    if (aligned_addr + 8 <= size)
+                    // Prepare read data from the current burst address
+                    uint32_t current_burst_addr = (pending_addr & ~0x7) + (burst_size - burst_counter) * 8;
+                    if (current_burst_addr + 8 <= size)
                     {
                         // Assemble 64-bit word from memory
                         pending_rdata = 0;
                         for (int i = 0; i < 8; i++)
                         {
-                            pending_rdata |= static_cast<uint64_t>(memory[aligned_addr + i]) << (i * 8);
+                            pending_rdata |= static_cast<uint64_t>(memory[current_burst_addr + i]) << (i * 8);
                         }
                     }
                     else
                     {
                         pending_rdata = 0;
                     }
+                    
+                    // Decrement burst counter
+                    burst_counter--;
+                    
+                    // If burst is complete, clear pending read flag
+                    if (burst_counter == 0)
+                    {
+                        pending_read = false;
+                        busy = false;
+                    }
+                    else
+                    {
+                        // Otherwise, set up for next word in burst
+                        busy_counter = read_latency;
+                    }
+                }
+                else if (burst_counter > 0)
+                {
+                    // Writing in burst mode, move to next word
+                    burst_counter--;
+                    
+                    if (burst_counter == 0)
+                    {
+                        busy = false;
+                    }
+                    else
+                    {
+                        // Ready for next write in the burst
+                        busy = false;
+                        busy_counter = 0;
+                    }
+                }
+                else
+                {
+                    // Normal operation completion
+                    busy = false;
                 }
             }
         }
@@ -140,30 +176,52 @@ public:
         {
             if (read && !pending_read)
             {
-                // Start new read operation
+                // Start new read operation in burst mode
                 busy = true;
                 busy_counter = read_latency;
                 pending_read = true;
                 pending_addr = addr;
                 read_complete = false;
+                burst_counter = burstcnt;
+                burst_size = burstcnt;
             }
-            else if (write)
+            else if (write && (burst_counter == 0 || !busy))
             {
-                // Perform write operation
-                uint32_t aligned_addr = addr & ~0x7; // Align to 8-byte boundary
+                // Handle start of burst write or individual word in burst
+                uint32_t current_burst_addr;
                 
-                if (aligned_addr + 8 <= size)
+                if (burst_counter == 0)
+                {
+                    // Starting a new burst write
+                    pending_addr = addr;
+                    burst_counter = burstcnt - 1; // First word is written now
+                    burst_size = burstcnt;
+                    current_burst_addr = addr & ~0x7;
+                }
+                else
+                {
+                    // Writing next word in an existing burst
+                    current_burst_addr = (pending_addr & ~0x7) + (burst_size - burst_counter) * 8;
+                    burst_counter--;
+                }
+                
+                // Perform write operation
+                if (current_burst_addr + 8 <= size)
                 {
                     // Write 64-bit word to memory
                     for (int i = 0; i < 8; i++)
                     {
-                        memory[aligned_addr + i] = (wdata >> (i * 8)) & 0xFF;
+                        memory[current_burst_addr + i] = (wdata >> (i * 8)) & 0xFF;
                     }
                 }
                 
-                // Simulate write latency
-                busy = true;
-                busy_counter = write_latency;
+                // If this is the last word in the burst or not a burst operation
+                if (burst_counter == 0)
+                {
+                    // Simulate write latency
+                    busy = true;
+                    busy_counter = write_latency;
+                }
             }
         }
         
@@ -204,6 +262,10 @@ private:
     bool pending_read;
     uint32_t pending_addr;
     uint64_t pending_rdata;
+    
+    // Burst operation state
+    uint8_t burst_counter;  // Counter for remaining words in burst
+    uint8_t burst_size;     // Total size of current burst
 };
 
 #endif // SIM_MEMORY_H

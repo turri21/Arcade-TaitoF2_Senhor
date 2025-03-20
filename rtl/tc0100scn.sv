@@ -114,7 +114,7 @@ assign SCE1n = ~ram_addr[15];
 assign SDout = Din;
 assign ce_pixel = ce_13m & full_hcnt[0];
 
-assign HSYNn = full_hcnt >= (32 * 2) && full_hcnt < (352 * 2);
+assign HSYNn = full_hcnt >= (51 * 2) && full_hcnt < (371 * 2);
 assign HBLOn = HSYNn;
 assign VSYNn = vcnt >= 8 && vcnt < 232;
 assign VBLOn = VSYNn;

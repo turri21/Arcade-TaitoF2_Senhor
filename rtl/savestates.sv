@@ -59,6 +59,7 @@ module save_state_data(
     input      [63:0] ddr_rdata,
     output            ddr_read,
     output            ddr_write,
+    output      [7:0] ddr_burstcnt,
     input             ddr_busy,
     input             ddr_read_complete,
 
@@ -80,6 +81,7 @@ memory_stream memory_stream (
     .ddr_rdata(ddr_rdata),
     .ddr_read(ddr_read),
     .ddr_write(ddr_write),
+    .ddr_burstcnt(ddr_burstcnt),
     .ddr_busy(ddr_busy),
     .ddr_read_complete(ddr_read_complete),
 

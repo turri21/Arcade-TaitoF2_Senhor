@@ -32,6 +32,7 @@ module F2(
     input      [63:0] ddr_rdata,
     output            ddr_read,
     output            ddr_write,
+    output      [7:0] ddr_burstcnt,
     input             ddr_busy,
     input             ddr_read_complete,
 
@@ -285,6 +286,39 @@ TC0220IOC tc0220ioc(
 
     .INB(8'hff),
     .IN(32'hffffffff)
+);
+
+wire [14:0] obj_ram_addr;
+wire [15:0] obj_din, obj_dout;
+
+TC0200OBJ tc0200obj(
+    .clk,
+
+    .ce_13m,
+    .ce_pixel,
+
+    .RA(obj_ram_addr),
+    .Din(obj_din),
+    .Dout(obj_dout),
+
+    .RESET(0),
+    .ERCSn(), // TODO - what generates this
+    .EBUSY(), // TODO - what generates this
+    .RDWEn(),
+
+    .EDMAn(), // TODO - is dma started by vblank?
+
+    .DOT(),
+
+    .EXHBLn(0),
+    .EXVBLn(0),
+
+    .HSYNCn(),
+    .VSYNCn(),
+    .HBLn(),
+    .VBLn(),
+
+    .ssbus
 );
 
 
@@ -584,6 +618,7 @@ save_state_data save_state_data(
     .ddr_write,
     .ddr_busy,
     .ddr_read_complete,
+    .ddr_burstcnt,
 
     .read_start(ss_read),
     .write_start(ss_write),

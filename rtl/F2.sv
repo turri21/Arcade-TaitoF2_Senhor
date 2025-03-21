@@ -196,6 +196,7 @@ logic WORKn; // CPU RAM
 logic SCREENn;
 logic COLORn;
 logic IOn;
+logic OBJECTn;
 
 wire SDTACKn, CDTACKn;
 
@@ -290,6 +291,17 @@ TC0220IOC tc0220ioc(
 
 wire [14:0] obj_ram_addr;
 wire [15:0] obj_din, obj_dout;
+wire [15:0] objram_data_out;
+
+m68k_ram_unreg #(.WIDTHAD(15), .SS_IDX(SSIDX_OBJ_RAM)) objram(
+    .clock(clk),
+    .address(cpu_addr[14:0]),
+    .we_lds_n(OBJECTn | cpu_ds_n[0]),
+    .we_uds_n(OBJECTn | cpu_ds_n[1]),
+    .data(cpu_data_out),
+    .q(objram_data_out),
+    .ssbus(ssbus)
+);
 
 TC0200OBJ tc0200obj(
     .clk,
@@ -333,21 +345,13 @@ wire scn_main_ram_ce_0_n, scn_main_ram_ce_1_n;
 
 wire [14:0] scn_main_dot_color;
 
-singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(15), .SS_IDX(SSIDX_SCN_RAM_0_LO)) scn_ram_0_lo(
+m68k_ram_unreg #(.WIDTHAD(15), .SS_IDX(SSIDX_SCN_RAM_0)) scn_ram_0(
     .clock(clk),
     .address(scn_main_ram_addr),
-    .wren(~(scn_main_ram_ce_0_n | scn_main_ram_we_lo_n)),
-    .data(scn_main_ram_dout[7:0]),
-    .q(scn_main_ram_din[7:0]),
-    .ssbus(ssbus)
-);
-
-singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(15), .SS_IDX(SSIDX_SCN_RAM_0_UP)) scn_ram_0_up(
-    .clock(clk),
-    .address(scn_main_ram_addr),
-    .wren(~(scn_main_ram_ce_0_n | scn_main_ram_we_up_n)),
-    .data(scn_main_ram_dout[15:8]),
-    .q(scn_main_ram_din[15:8]),
+    .we_lds_n(scn_main_ram_ce_0_n | scn_main_ram_we_lo_n),
+    .we_uds_n(scn_main_ram_ce_0_n | scn_main_ram_we_up_n),
+    .data(scn_main_ram_dout),
+    .q(scn_main_ram_din),
     .ssbus(ssbus)
 );
 
@@ -414,29 +418,21 @@ TC0100SCN #(.SS_IDX(SSIDX_SCN_0)) scn_main(
     .ssbus
 );
 
+
 wire [15:0] pri_data_out;
 wire [12:0] pri_ram_addr;
 wire [15:0] pri_ram_din, pri_ram_dout;
 wire pri_ram_we_l_n, pri_ram_we_h_n;
 
-singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(12), .SS_IDX(SSIDX_PRI_RAM_L)) pri_ram_l(
+m68k_ram_unreg #(.WIDTHAD(12), .SS_IDX(SSIDX_PRI_RAM)) pri_ram(
     .clock(clk),
     .address(pri_ram_addr[12:1]),
-    .wren(~pri_ram_we_l_n),
-    .data(pri_ram_dout[7:0]),
-    .q(pri_ram_din[7:0]),
+    .we_lds_n(pri_ram_we_l_n),
+    .we_uds_n(pri_ram_we_h_n),
+    .data(pri_ram_dout),
+    .q(pri_ram_din),
     .ssbus(ssbus)
 );
-
-singleport_ram_unreg #(.WIDTH(8), .WIDTHAD(12), .SS_IDX(SSIDX_PRI_RAM_H)) pri_ram_h(
-    .clock(clk),
-    .address(pri_ram_addr[12:1]),
-    .wren(~pri_ram_we_h_n),
-    .data(pri_ram_dout[15:8]),
-    .q(pri_ram_din[15:8]),
-    .ssbus(ssbus)
-);
-
 
 TC0110PR tc0110pr(
     .clk,
@@ -528,6 +524,7 @@ always_comb begin
     SCREENn = 1;
     COLORn = 1;
     IOn = 1;
+    OBJECTn = 1;
     SS_SAVEn = 1;
     SS_RESETn = 1;
     SS_VECn = 1;
@@ -546,6 +543,7 @@ always_comb begin
             24'h0xxxxx: ROMn = 0;
             24'h1xxxxx: WORKn = 0;
             24'h8xxxxx: SCREENn = 0;
+            24'h9xxxxx: OBJECTn = 0;
             24'h2xxxxx: COLORn = 0;
             24'h30xxxx: IOn = 0;
             24'hff00xx: SS_SAVEn = 0;
@@ -557,6 +555,7 @@ end
 assign cpu_data_in = ~ROMn ? sdr_cpu_q :
                      ~WORKn ? sdr_cpu_q :
                      ~SCREENn ? scn_main_data_out :
+                     ~OBJECTn ? objram_data_out :
                      ~COLORn ? pri_data_out :
                      ~IOn ? { 8'b0, io_data_out } :
                      ~SS_SAVEn ? save_handler[cpu_addr[3:0]] :

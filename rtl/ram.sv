@@ -175,6 +175,47 @@ end
 
 endmodule
 
+module m68k_ram_unreg #(
+    parameter WIDTHAD = 10,
+    parameter SS_IDX = -1
+) (
+    input   wire                  clock,
+    input   wire                  we_lds_n,
+    input   wire                  we_uds_n,
+    input   wire    [WIDTHAD-1:0] address,
+    input   wire    [15:0]   data,
+    output          [15:0]   q,
+
+    ssbus_if.slave ssbus
+);
+
+reg [7:0] ram_l[2**WIDTHAD];
+reg [7:0] ram_h[2**WIDTHAD];
+wire [31:0] SIZE = 2**WIDTHAD;
+
+wire [WIDTHAD-1:0] addr = ssbus.access(SS_IDX) ? ssbus.addr[WIDTHAD-1:0] : address;
+
+assign q = { ram_h[addr], ram_l[addr] };
+always @(posedge clock) begin
+    ssbus.setup(SS_IDX, SIZE, 1);
+
+    if (ssbus.access(SS_IDX)) begin
+        if (ssbus.write) begin
+            ram_l[addr] <= ssbus.data[7:0];
+            ram_h[addr] <= ssbus.data[15:8];
+            ssbus.write_ack(SS_IDX);
+        end else if (ssbus.read) begin
+            ssbus.read_response(SS_IDX, { 48'd0, ram_h[addr], ram_l[addr] });
+        end
+    end else begin
+        if (~we_lds_n) ram_l[addr] <= data[7:0];
+        if (~we_uds_n) ram_h[addr] <= data[15:8];
+    end
+end
+
+endmodule
+
+
 
 `ifdef NOT_SIM
 module singleport_ram #(

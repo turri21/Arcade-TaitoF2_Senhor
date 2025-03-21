@@ -83,9 +83,9 @@ ImU8 scn_mem_read(const ImU8* , size_t off, void*)
     size_t word_off = off >> 1;
 
     if (off & 1)
-        return top->rootp->F2__DOT__scn_ram_0_lo__DOT__ram[word_off];
+        return top->rootp->F2__DOT__scn_ram_0__DOT__ram_l[word_off];
     else
-        return top->rootp->F2__DOT__scn_ram_0_up__DOT__ram[word_off];
+        return top->rootp->F2__DOT__scn_ram_0__DOT__ram_h[word_off];
 }
 
 ImU8 color_ram_read(const ImU8* , size_t off, void*)
@@ -93,10 +93,21 @@ ImU8 color_ram_read(const ImU8* , size_t off, void*)
     size_t word_off = off >> 1;
 
     if (off & 1)
-        return top->rootp->F2__DOT__pri_ram_l__DOT__ram[word_off];
+        return top->rootp->F2__DOT__pri_ram__DOT__ram_l[word_off];
     else
-        return top->rootp->F2__DOT__pri_ram_h__DOT__ram[word_off];
+        return top->rootp->F2__DOT__pri_ram__DOT__ram_h[word_off];
 }
+
+ImU8 obj_ram_read(const ImU8* , size_t off, void*)
+{
+    size_t word_off = off >> 1;
+
+    if (off & 1)
+        return top->rootp->F2__DOT__objram__DOT__ram_l[word_off];
+    else
+        return top->rootp->F2__DOT__objram__DOT__ram_h[word_off];
+}
+
 
 int main(int argc, char **argv)
 {
@@ -129,8 +140,7 @@ int main(int argc, char **argv)
     // Create state manager
     state_manager = new SimState(top, &ddr_memory);
 
-    MemoryEditor scn_main_mem_lo;
-    MemoryEditor scn_main_mem_hi;
+    MemoryEditor obj_ram;
     MemoryEditor scn_main_mem;
     MemoryEditor scn_main_rom;
     MemoryEditor color_ram;
@@ -140,6 +150,7 @@ int main(int argc, char **argv)
 
     scn_main_mem.ReadFn = scn_mem_read;
     color_ram.ReadFn = color_ram_read;
+    obj_ram.ReadFn = obj_ram_read;
     
     video.init(320, 224, imgui_get_renderer());
 
@@ -263,11 +274,10 @@ int main(int argc, char **argv)
 
         ImGui::End();
 
-        scn_main_mem_lo.DrawWindow("Screen Mem Lo", (uint8_t *)&top->rootp->F2__DOT__scn_ram_0_lo__DOT__ram[0], 32 * 1024);
-        scn_main_mem_hi.DrawWindow("Screen Mem Hi", (uint8_t *)&top->rootp->F2__DOT__scn_ram_0_up__DOT__ram[0], 32 * 1024);
         scn_main_mem.DrawWindow("Screen Mem", nullptr, 64 * 1024);
         scn_main_rom.DrawWindow("Screen ROM", scn_main_sdram.data, 256 * 1024);
         color_ram.DrawWindow("Color RAM", nullptr, 8 * 1024);
+        obj_ram.DrawWindow("OBJ RAM", nullptr, 64 * 1024);
         rom_mem.DrawWindow("ROM", cpu_sdram.data, 1024 * 1024);
         work_mem.DrawWindow("Work", cpu_sdram.data + (1024 * 1024), 64 * 1024);
         ddr_mem_editor.DrawWindow("DDR", ddr_memory.memory.data(), ddr_memory.size);

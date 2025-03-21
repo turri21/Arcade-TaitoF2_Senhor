@@ -10,6 +10,7 @@
 #include "sim_video.h"
 #include "sim_memory.h"
 #include "sim_state.h"
+#include "tc0200obj.h"
 #include "dis68k/dis68k.h"
 
 #include <stdio.h>
@@ -281,6 +282,7 @@ int main(int argc, char **argv)
         rom_mem.DrawWindow("ROM", cpu_sdram.data, 1024 * 1024);
         work_mem.DrawWindow("Work", cpu_sdram.data + (1024 * 1024), 64 * 1024);
         ddr_mem_editor.DrawWindow("DDR", ddr_memory.memory.data(), ddr_memory.size);
+        draw_obj_window();
         video.draw();
 
         ImGui::Begin("68000");

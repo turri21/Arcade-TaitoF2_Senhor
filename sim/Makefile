@@ -18,7 +18,8 @@ SRCS = imgui/imgui.cpp \
 		dis68k/dis68k.cpp \
 		sim_state.cpp \
 		sim.cpp \
-		imgui_wrap.cpp
+		imgui_wrap.cpp \
+		tc0200obj.cpp
 
 OBJS = $(patsubst %.cpp, $(OBJ_DIR)/%.o, $(SRCS))
 

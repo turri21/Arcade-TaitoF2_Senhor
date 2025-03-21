@@ -33,6 +33,7 @@ module F2(
     output            ddr_read,
     output            ddr_write,
     output      [7:0] ddr_burstcnt,
+    output      [7:0] ddr_byteenable,
     input             ddr_busy,
     input             ddr_read_complete,
 
@@ -618,6 +619,7 @@ save_state_data save_state_data(
     .ddr_busy,
     .ddr_read_complete,
     .ddr_burstcnt,
+    .ddr_byteenable,
 
     .read_start(ss_read),
     .write_start(ss_write),

@@ -102,7 +102,8 @@ public:
         bool write,
         uint8_t& busy_out,
         uint8_t& read_complete_out,
-        uint8_t burstcnt = 1
+        uint8_t burstcnt = 1,
+        uint8_t byteenable = 0xFF
     )
     {
         // Update busy status - simulate memory with occasional busy cycles
@@ -208,10 +209,14 @@ public:
                 // Perform write operation
                 if (current_burst_addr + 8 <= size)
                 {
-                    // Write 64-bit word to memory
+                    // Write 64-bit word to memory, respecting byte enable signal
                     for (int i = 0; i < 8; i++)
                     {
-                        memory[current_burst_addr + i] = (wdata >> (i * 8)) & 0xFF;
+                        // Only write byte if corresponding bit in byteenable is set
+                        if (byteenable & (1 << i))
+                        {
+                            memory[current_burst_addr + i] = (wdata >> (i * 8)) & 0xFF;
+                        }
                     }
                 }
                 

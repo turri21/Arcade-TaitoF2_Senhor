@@ -10,6 +10,7 @@ module memory_stream #(parameter COUNT = 8)
     output reg          ddr_read,
     output reg          ddr_write,
     output reg [7:0]    ddr_burstcnt,
+    output reg [7:0]    ddr_byteenable,
     input               ddr_busy,
     input               ddr_read_complete,
 
@@ -85,6 +86,7 @@ module memory_stream #(parameter COUNT = 8)
             ddr_read <= 0;
             ddr_write <= 0;
             ddr_burstcnt <= 8'd1; // Initialize to 1 for non-burst operations
+            ddr_byteenable <= 8'hFF; // All bytes enabled by default
             write_req <= 0;
             read_req <= 0;
             word_counter <= 0;
@@ -98,6 +100,7 @@ module memory_stream #(parameter COUNT = 8)
                     ddr_read <= 0;
                     ddr_write <= 0;
                     ddr_burstcnt <= 8'd1; // Always set to 1 for non-burst operations
+                    ddr_byteenable <= 8'hFF; // All bytes enabled by default
                     write_req <= 0;
                     read_req <= 0;
                     chunk_index <= 0;

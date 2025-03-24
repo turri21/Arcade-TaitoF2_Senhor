@@ -8,8 +8,8 @@
 
 extern void sim_tick(int count);
 
-SimState::SimState(F2* top, SimMemory* memory) 
-    : m_top(top), m_memory(memory)
+SimState::SimState(F2* top, SimMemory* memory, int offset, int size) 
+    : m_top(top), m_memory(memory), m_offset(offset), m_size(size)
 {
 }
 
@@ -26,14 +26,14 @@ bool SimState::save_state(const char* filename)
         tick(1000);
     }
 
-    m_memory->save_data(filename);
+    m_memory->save_data(filename, m_offset, m_size);
 
     return true;
 }
 
 bool SimState::restore_state(const char* filename)
 {
-    m_memory->load_data(filename);
+    m_memory->load_data(filename, m_offset);
 
     m_top->ss_do_restore = 1;
     while (m_top->ss_state_out == 0)
@@ -41,10 +41,10 @@ bool SimState::restore_state(const char* filename)
         tick(1000);
     }
     m_top->ss_do_restore = 0;
-    while (m_top->ss_state_out != 0)
+    /*while (m_top->ss_state_out != 0)
     {
         tick(1000);
-    }
+    }*/
 
     return true;
 }

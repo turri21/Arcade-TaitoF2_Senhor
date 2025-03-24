@@ -171,9 +171,7 @@ public:
                 }
             }
         }
-        
-        // Process new memory operations
-        if (!busy)
+        else
         {
             if (read && !pending_read)
             {
@@ -224,14 +222,15 @@ public:
                 if (burst_counter == 0)
                 {
                     // Simulate write latency
-                    busy = true;
-                    busy_counter = write_latency;
+                    // TODO - busy usage doesn't match DE-10
+                    //busy = true;
+                    //busy_counter = write_latency;
                 }
             }
         }
         
         // Set outputs
-        busy_out = busy ? 1 : 0;
+        busy_out = 0; // busy ? 1 : 0; // TODO - busy_out doesn't match DE-10 DDR
         read_complete_out = read_complete ? 1 : 0;
         
         if (read_complete)

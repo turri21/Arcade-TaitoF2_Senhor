@@ -28,7 +28,7 @@ VerilatedVcdC *tfp;
 
 SimSDRAM cpu_sdram(128 * 1024 * 1024);
 SimSDRAM scn_main_sdram(256 * 1024);
-SimMemory ddr_memory(256 * 1024);
+SimMemory ddr_memory(2 * 1024 * 1024);
 SimVideo video;
 SimState* state_manager = nullptr;
 
@@ -139,7 +139,9 @@ int main(int argc, char **argv)
     top->ss_do_restore = 0;
     
     // Create state manager
-    state_manager = new SimState(top, &ddr_memory);
+    state_manager = new SimState(top, &ddr_memory, 0, 256 * 1024);
+
+    memset(&ddr_memory.memory[0x100000 + 8192], 0x01, 8192);
 
     MemoryEditor obj_ram;
     MemoryEditor scn_main_mem;

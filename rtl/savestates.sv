@@ -54,15 +54,7 @@ module save_state_data(
     input clk,
     input reset,
 
-    output     [31:0] ddr_addr,
-    output     [63:0] ddr_wdata,
-    input      [63:0] ddr_rdata,
-    output            ddr_read,
-    output            ddr_write,
-    output      [7:0] ddr_burstcnt,
-    output      [7:0] ddr_byteenable,
-    input             ddr_busy,
-    input             ddr_read_complete,
+    ddr_if.to_host ddr,
 
     input             read_start,
     input             write_start,
@@ -77,15 +69,7 @@ memory_stream memory_stream (
     .reset(reset),
 
     // Memory interface
-    .ddr_addr(ddr_addr),
-    .ddr_wdata(ddr_wdata),
-    .ddr_rdata(ddr_rdata),
-    .ddr_read(ddr_read),
-    .ddr_write(ddr_write),
-    .ddr_burstcnt(ddr_burstcnt),
-    .ddr_byteenable(ddr_byteenable),
-    .ddr_busy(ddr_busy),
-    .ddr_read_complete(ddr_read_complete),
+    .ddr,
 
     .read_req(ssbus.read),
     .read_data(ssbus.data_out),
@@ -94,7 +78,7 @@ memory_stream memory_stream (
     .write_req(ssbus.write),
     .write_data(ssbus.data),
 
-    .start_addr(32'd0),
+    .start_addr(SS_DDR_BASE),
     .length(32'h00100000),
     .read_start(read_start),
     .write_start(write_start),

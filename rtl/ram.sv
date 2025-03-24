@@ -20,8 +20,7 @@
 
 module dualport_ram #(
     parameter WIDTH = 8,
-    parameter WIDTHAD = 10,
-    parameter NAME = "NONE"
+    parameter WIDTHAD = 10
 ) (
     // Port A
     input   wire                  clock_a,
@@ -65,8 +64,7 @@ endmodule
 
 module dualport_ram_unreg #(
     parameter WIDTH = 8,
-    parameter WIDTHAD = 10,
-    parameter NAME = "NONE"
+    parameter WIDTHAD = 10
 ) (
     // Port A
     input   wire                  clock_a,

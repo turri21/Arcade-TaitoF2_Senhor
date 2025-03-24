@@ -1,4 +1,4 @@
-import save_state_consts::*;
+import system_consts::*;
 
 module F2(
     input clk,
@@ -42,6 +42,26 @@ module F2(
     output [3:0] ss_state_out
 );
 
+
+ddr_if ddr();
+assign ddr_addr = ddr.addr;
+assign ddr_wdata = ddr.wdata;
+assign ddr_read = ddr.read;
+assign ddr_write = ddr.write;
+assign ddr_burstcnt = ddr.burstcnt;
+assign ddr_byteenable = ddr.byteenable;
+assign ddr.rdata = ddr_rdata;
+assign ddr.busy = ddr_busy;
+assign ddr.rdata_ready = ddr_read_complete;
+
+ddr_if ddr_ss(), ddr_obj();
+
+ddr_mux ddr_mux(
+    .clk,
+    .x(ddr),
+    .a(ddr_ss),
+    .b(ddr_obj)
+);
 
 reg [31:0] ss_saved_ssp;
 reg [31:0] ss_restore_ssp;
@@ -293,6 +313,7 @@ TC0220IOC tc0220ioc(
 wire [14:0] obj_ram_addr;
 wire [15:0] obj_din, obj_dout;
 wire [15:0] objram_data_out;
+wire [11:0] obj_dot;
 
 m68k_ram_unreg #(.WIDTHAD(15), .SS_IDX(SSIDX_OBJ_RAM)) objram(
     .clock(clk),
@@ -321,15 +342,17 @@ TC0200OBJ tc0200obj(
 
     .EDMAn(), // TODO - is dma started by vblank?
 
-    .DOT(),
+    .DOT(obj_dot),
 
-    .EXHBLn(0),
-    .EXVBLn(0),
+    .EXHBLn(HBLOn),
+    .EXVBLn(VBLOn),
 
     .HSYNCn(),
     .VSYNCn(),
     .HBLn(),
     .VBLn(),
+
+    .ddr(ddr_obj),
 
     .ssbus
 );
@@ -456,7 +479,7 @@ TC0110PR tc0110pr(
     .VSYn(VSYNn),
 
     .SC(scn_main_dot_color),
-    .OB(0),
+    .OB({3'b0, obj_dot}),
 
     // RAM Interface
     .CA(pri_ram_addr),
@@ -611,15 +634,7 @@ save_state_data save_state_data(
     .clk,
     .reset(0),
 
-    .ddr_addr,
-    .ddr_wdata,
-    .ddr_rdata,
-    .ddr_read,
-    .ddr_write,
-    .ddr_busy,
-    .ddr_read_complete,
-    .ddr_burstcnt,
-    .ddr_byteenable,
+    .ddr(ddr_ss),
 
     .read_start(ss_read),
     .write_start(ss_write),

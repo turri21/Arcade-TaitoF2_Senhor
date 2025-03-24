@@ -33,70 +33,71 @@ void draw_obj_window()
         return;
     }
 
-    ImGui::BeginTable("obj", 21, ImGuiTableFlags_HighlightHoveredColumn |
+    if( ImGui::BeginTable("obj", 21, ImGuiTableFlags_HighlightHoveredColumn |
                       ImGuiTableFlags_BordersInnerV |
                       ImGuiTableFlags_ScrollY |
                       ImGuiTableFlags_SizingFixedFit |
-                      ImGuiTableFlags_RowBg);
-    uint32_t colflags = ImGuiTableColumnFlags_AngledHeader;
-    ImGui::TableSetupColumn("", colflags & ~ImGuiTableColumnFlags_AngledHeader);
-    ImGui::TableSetupColumn("Code", colflags);
-    ImGui::TableSetupColumn("X", colflags);
-    ImGui::TableSetupColumn("Y", colflags);
-    ImGui::TableSetupColumn("Cmd", colflags);
-    ImGui::TableSetupColumn("Latch Extra", colflags);
-    ImGui::TableSetupColumn("Latch Master", colflags);
-    ImGui::TableSetupColumn("Ignore Extra", colflags);
-    ImGui::TableSetupColumn("Ignore All", colflags);
-    ImGui::TableSetupColumn("Flip X", colflags);
-    ImGui::TableSetupColumn("Flip Y", colflags);
-    ImGui::TableSetupColumn("Is Seq", colflags);
-    ImGui::TableSetupColumn("Latch Y", colflags);
-    ImGui::TableSetupColumn("Inc Y", colflags);
-    ImGui::TableSetupColumn("Latch X", colflags);
-    ImGui::TableSetupColumn("Inc X", colflags);
-    ImGui::TableSetupColumn("Latch Color", colflags);
-    ImGui::TableSetupColumn("Color", colflags);
-    ImGui::TableSetupColumn("Cmd", colflags);
-    ImGui::TableSetupColumn("Zoom X", colflags);
-    ImGui::TableSetupColumn("Zoom Y", colflags);
-    ImGui::TableSetupScrollFreeze(0, 1);
-    ImGui::TableAngledHeadersRow();
-
-    ImGuiListClipper clipper;
-    clipper.Begin(1024);
-    while( clipper.Step() )
+                      ImGuiTableFlags_RowBg) )
     {
-        for( uint16_t index = clipper.DisplayStart; index < clipper.DisplayEnd; index++ )
-        {
-            TC0200OBJ_Inst inst;
-            get_obj_inst(index, &inst);
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn(); ImGui::Text("%4u", index);
-            ImGui::TableNextColumn(); ImGui::Text("%04X", inst.code);
-            ImGui::TableNextColumn(); ImGui::Text("%4d", inst.x);
-            ImGui::TableNextColumn(); ImGui::Text("%4d", inst.y);
-            ImGui::TableNextColumn(); bullet(inst.has_cmd);
-            ImGui::TableNextColumn(); bullet(inst.latch_extra);
-            ImGui::TableNextColumn(); bullet(inst.latch_master);
-            ImGui::TableNextColumn(); bullet(inst.ignore_extra);
-            ImGui::TableNextColumn(); bullet(inst.ignore_all);
-            ImGui::TableNextColumn(); bullet(inst.flipx);
-            ImGui::TableNextColumn(); bullet(inst.flipy);
-            ImGui::TableNextColumn(); bullet(inst.is_seq);
-            ImGui::TableNextColumn(); bullet(inst.latch_y);
-            ImGui::TableNextColumn(); bullet(inst.inc_y);
-            ImGui::TableNextColumn(); bullet(inst.latch_x);
-            ImGui::TableNextColumn(); bullet(inst.inc_x);
-            ImGui::TableNextColumn(); bullet(inst.latch_color);
-            ImGui::TableNextColumn(); ImGui::Text("%02X", inst.color);
-            ImGui::TableNextColumn(); ImGui::Text("%04X", inst.cmd_bits);
-            ImGui::TableNextColumn(); ImGui::Text("%02X", inst.zoom_x);
-            ImGui::TableNextColumn(); ImGui::Text("%02X", inst.zoom_y);
-        }
-    }
+        uint32_t colflags = ImGuiTableColumnFlags_AngledHeader;
+        ImGui::TableSetupColumn("", colflags & ~ImGuiTableColumnFlags_AngledHeader);
+        ImGui::TableSetupColumn("Code", colflags);
+        ImGui::TableSetupColumn("X", colflags);
+        ImGui::TableSetupColumn("Y", colflags);
+        ImGui::TableSetupColumn("Cmd", colflags);
+        ImGui::TableSetupColumn("Latch Extra", colflags);
+        ImGui::TableSetupColumn("Latch Master", colflags);
+        ImGui::TableSetupColumn("Ignore Extra", colflags);
+        ImGui::TableSetupColumn("Ignore All", colflags);
+        ImGui::TableSetupColumn("Flip X", colflags);
+        ImGui::TableSetupColumn("Flip Y", colflags);
+        ImGui::TableSetupColumn("Is Seq", colflags);
+        ImGui::TableSetupColumn("Latch Y", colflags);
+        ImGui::TableSetupColumn("Inc Y", colflags);
+        ImGui::TableSetupColumn("Latch X", colflags);
+        ImGui::TableSetupColumn("Inc X", colflags);
+        ImGui::TableSetupColumn("Latch Color", colflags);
+        ImGui::TableSetupColumn("Color", colflags);
+        ImGui::TableSetupColumn("Cmd", colflags);
+        ImGui::TableSetupColumn("Zoom X", colflags);
+        ImGui::TableSetupColumn("Zoom Y", colflags);
+        ImGui::TableSetupScrollFreeze(0, 1);
+        ImGui::TableAngledHeadersRow();
 
-    ImGui::EndTable();
+        ImGuiListClipper clipper;
+        clipper.Begin(1024);
+        while( clipper.Step() )
+        {
+            for( uint16_t index = clipper.DisplayStart; index < clipper.DisplayEnd; index++ )
+            {
+                TC0200OBJ_Inst inst;
+                get_obj_inst(index, &inst);
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn(); ImGui::Text("%4u", index);
+                ImGui::TableNextColumn(); ImGui::Text("%04X", inst.code);
+                ImGui::TableNextColumn(); ImGui::Text("%4d", inst.x);
+                ImGui::TableNextColumn(); ImGui::Text("%4d", inst.y);
+                ImGui::TableNextColumn(); bullet(inst.has_cmd);
+                ImGui::TableNextColumn(); bullet(inst.latch_extra);
+                ImGui::TableNextColumn(); bullet(inst.latch_master);
+                ImGui::TableNextColumn(); bullet(inst.ignore_extra);
+                ImGui::TableNextColumn(); bullet(inst.ignore_all);
+                ImGui::TableNextColumn(); bullet(inst.flipx);
+                ImGui::TableNextColumn(); bullet(inst.flipy);
+                ImGui::TableNextColumn(); bullet(inst.is_seq);
+                ImGui::TableNextColumn(); bullet(inst.latch_y);
+                ImGui::TableNextColumn(); bullet(inst.inc_y);
+                ImGui::TableNextColumn(); bullet(inst.latch_x);
+                ImGui::TableNextColumn(); bullet(inst.inc_x);
+                ImGui::TableNextColumn(); bullet(inst.latch_color);
+                ImGui::TableNextColumn(); ImGui::Text("%02X", inst.color);
+                ImGui::TableNextColumn(); ImGui::Text("%04X", inst.cmd_bits);
+                ImGui::TableNextColumn(); ImGui::Text("%02X", inst.zoom_x);
+                ImGui::TableNextColumn(); ImGui::Text("%02X", inst.zoom_y);
+            }
+        }
+        ImGui::EndTable();
+    }
 
     ImGui::End();
 }

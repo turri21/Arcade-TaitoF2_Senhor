@@ -31,7 +31,7 @@ module TC0200OBJ #(parameter SS_IDX=-1) (
 
     input RESET,
     output ERCSn, // TODO - what generates this
-    output EBUSY, // TODO - what generates this
+    output EBUSY,
     output RDWEn,
 
     output EDMAn, // TODO - is dma started by vblank?
@@ -86,14 +86,14 @@ reg [15:0] work_buffer[8];
 wire [13:0] inst_tile_code       =  work_buffer[0][13:0];
 wire [7:0]  inst_x_zoom          =  work_buffer[1][7:0];
 wire [7:0]  inst_y_zoom          =  work_buffer[1][15:8];
-wire [11:0] inst_x_coord         =  work_buffer[2][11:0];
-wire        inst_latch_extra     =  work_buffer[2][12];
-wire        inst_latch_master    =  work_buffer[2][13];
-wire        inst_use_extra       = ~work_buffer[2][14];
-wire        inst_use_scroll      = ~work_buffer[2][15];
-wire [11:0] inst_y_coord         =  work_buffer[3][11:0];
-wire        inst_is_cmd          =  work_buffer[3][15];
-wire [2:0]  inst_unk1            =  work_buffer[3][14:12];
+wire [11:0] inst_x_coord         =  work_buffer[6][11:0];
+wire        inst_latch_extra     =  work_buffer[6][12];
+wire        inst_latch_master    =  work_buffer[6][13];
+wire        inst_use_extra       = ~work_buffer[6][14];
+wire        inst_use_scroll      = ~work_buffer[6][15];
+wire [11:0] inst_y_coord         =  work_buffer[7][11:0];
+wire        inst_is_cmd          =  work_buffer[7][15];
+wire [2:0]  inst_unk1            =  work_buffer[7][14:12];
 wire [7:0]  inst_color           =  work_buffer[4][7:0];
 wire        inst_x_flip          =  work_buffer[4][8];
 wire        inst_y_flip          =  work_buffer[4][9];
@@ -103,8 +103,6 @@ wire        inst_use_latch_y     = ~work_buffer[4][12];
 wire        inst_inc_y           =  work_buffer[4][13];
 wire        inst_use_latch_x     = ~work_buffer[4][14];
 wire        inst_inc_x           =  work_buffer[4][15];
-wire [11:0] inst_calc_x_coord    =  work_buffer[6][11:0];
-wire [11:0] inst_calc_y_coord    =  work_buffer[7][11:0];
 
 
 
@@ -135,7 +133,12 @@ always_ff @(posedge clk) begin
         if (~|cycle_count) scanout_buffer <= ~scanout_buffer;
 
         RDWEn <= 1;
+        ERCSn <= 1;
+        EBUSY <= 0;
         if (~EDMAn) begin
+            EBUSY <= 1;
+            ERCSn <= 0;
+
             unique case (dma_cycle[2:0])
                 0: begin
                     RA <= dma_addr + 15'd2;

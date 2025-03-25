@@ -219,11 +219,11 @@ logic COLORn;
 logic IOn;
 logic OBJECTn;
 
-wire SDTACKn, CDTACKn;
+wire SDTACKn, CDTACKn, CPUENn;
 
 wire sdr_dtack_n = sdr_cpu_req != sdr_cpu_ack;
 
-wire DTACKn = sdr_dtack_n | SDTACKn | CDTACKn;
+wire DTACKn = sdr_dtack_n | SDTACKn | CDTACKn | CPUENn;
 wire [2:0] IPLn;
 
 //////////////////////////////////
@@ -311,16 +311,25 @@ TC0220IOC tc0220ioc(
 );
 
 wire [14:0] obj_ram_addr;
-wire [15:0] obj_din, obj_dout;
+wire [15:0] obj_dout;
 wire [15:0] objram_data_out;
 wire [11:0] obj_dot;
 
+wire RCSn, BUSY, ORDWEn;
+
+wire OBJWEn = BUSY ? ORDWEn : OBJECTn;
+wire LOBJRAMn = BUSY ? RCSn : cpu_ds_n[0];
+wire UOBJRAMn = BUSY ? RCSn : cpu_ds_n[1];
+wire [14:0] OBJ_ADD = BUSY ? obj_ram_addr : cpu_addr[14:0];
+wire [15:0] OBJ_DATA = BUSY ? obj_dout : cpu_data_out;
+assign CPUENn = BUSY ? ~OBJECTn : 0;
+
 m68k_ram_unreg #(.WIDTHAD(15), .SS_IDX(SSIDX_OBJ_RAM)) objram(
     .clock(clk),
-    .address(cpu_addr[14:0]),
-    .we_lds_n(OBJECTn | cpu_ds_n[0]),
-    .we_uds_n(OBJECTn | cpu_ds_n[1]),
-    .data(cpu_data_out),
+    .address(OBJ_ADD),
+    .we_lds_n(OBJWEn | LOBJRAMn),
+    .we_uds_n(OBJWEn | UOBJRAMn),
+    .data(OBJ_DATA),
     .q(objram_data_out),
     .ssbus(ssbus)
 );
@@ -332,13 +341,13 @@ TC0200OBJ tc0200obj(
     .ce_pixel,
 
     .RA(obj_ram_addr),
-    .Din(obj_din),
+    .Din(objram_data_out),
     .Dout(obj_dout),
 
     .RESET(0),
-    .ERCSn(), // TODO - what generates this
-    .EBUSY(), // TODO - what generates this
-    .RDWEn(),
+    .ERCSn(RCSn), // TODO - what generates this
+    .EBUSY(BUSY),
+    .RDWEn(ORDWEn),
 
     .EDMAn(), // TODO - is dma started by vblank?
 

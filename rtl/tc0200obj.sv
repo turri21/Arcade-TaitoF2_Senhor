@@ -1,24 +1,3 @@
-/*
-
-module ddr_mux(
-    input clk,
-
-    output     [31:0] ddr_addr,
-    output     [63:0] ddr_wdata,
-    input      [63:0] ddr_rdata,
-    output            ddr_read,
-    output            ddr_write,
-    output      [7:0] ddr_burstcnt,
-    output      [7:0] ddr_byteenable,
-    input             ddr_busy,
-    input             ddr_read_complete,
-*/
-
-
-
-
-
-
 module TC0200OBJ #(parameter SS_IDX=-1) (
     input clk,
 
@@ -30,11 +9,11 @@ module TC0200OBJ #(parameter SS_IDX=-1) (
     output [15:0] Dout,
 
     input RESET,
-    output ERCSn, // TODO - what generates this
-    output EBUSY,
-    output RDWEn,
+    output reg ERCSn, // TODO - what generates this
+    output reg EBUSY,
+    output reg RDWEn,
 
-    output EDMAn, // TODO - is dma started by vblank?
+    output reg EDMAn, // TODO - is dma started by vblank?
 
     output [11:0] DOT,
 
@@ -105,39 +84,69 @@ wire        inst_use_latch_x     = ~work_buffer[4][14];
 wire        inst_inc_x           =  work_buffer[4][15];
 
 
+typedef enum
+{
+    ST_IDLE = 0,
+    ST_DMA_INIT,
+    ST_DMA,
+    ST_DRAW_INIT,
+    ST_READ_START,
+    ST_READ,
+    ST_EVAL
+} draw_state_t;
 
-reg [17:0] cycle_count;
-reg [17:0] draw_cycle;
-wire [17:0] dma_cycle = cycle_count;
+draw_state_t obj_state = ST_IDLE;
 
-always_ff @(posedge clk) begin
-    if (ce_13m) begin
-        cycle_count <= cycle_count + 18'd1;
-        draw_cycle <= cycle_count - 8191;
-        if (cycle_count == 222175) cycle_count <= 0;
-    end
-end
 
-assign EDMAn = cycle_count >= 1024 * 8;
-
+reg [12:0] dma_cycle;
 wire [14:0] dma_addr = {2'b00, dma_cycle[12:3], 3'b000};
-wire [14:0] draw_addr = {2'b00, draw_cycle[17:8], 3'b000};
 
 reg scanout_buffer = 0;
 wire draw_buffer = ~scanout_buffer;
 
-always_ff @(posedge clk) begin
+reg [11:0] master_x, master_y, extra_x, extra_y;
+reg prev_vbl_n, vbl_edge;
+
+always @(posedge clk) begin
+    bit [11:0] base_x, base_y;
     ddr_obj.acquire <= 0;
 
-    if (ce_13m) begin
-        if (~|cycle_count) scanout_buffer <= ~scanout_buffer;
+    prev_vbl_n <= VBLn;
+    if (prev_vbl_n & ~VBLn) begin
+        vbl_edge <= 1;
+    end
 
-        RDWEn <= 1;
-        ERCSn <= 1;
-        EBUSY <= 0;
-        if (~EDMAn) begin
+    case(obj_state)
+        ST_IDLE: begin
+            EBUSY <= 0;
+            ERCSn <= 1;
+            RDWEn <= 1;
+            EDMAn <= 1;
+            if (vbl_edge) begin
+                vbl_edge <= 0;
+                obj_state <= ST_DMA_INIT;
+            end
+        end
+
+        ST_DMA_INIT: begin
             EBUSY <= 1;
+            EDMAn <= 0;
+            dma_cycle <= 0;
+            scanout_buffer <= ~scanout_buffer;
+            obj_state <= ST_DMA;
+        end
+
+        ST_DMA: if (ce_13m) begin
+            dma_cycle <= dma_cycle + 1;
             ERCSn <= 0;
+
+            if (dma_cycle == 8191) begin
+                EBUSY <= 0;
+                RDWEn <= 1;
+                ERCSn <= 1;
+                EDMAn <= 1;
+                obj_state <= ST_DRAW_INIT;
+            end
 
             unique case (dma_cycle[2:0])
                 0: begin
@@ -151,24 +160,68 @@ always_ff @(posedge clk) begin
                 4: begin
                     RA <= dma_addr + 15'd6;
                     Dout <= work_buffer[1];
+                    RDWEn <= 0;
                 end
-                5: RDWEn <= 0;
+                5: RDWEn <= 1;
                 6: begin
                     RA <= dma_addr + 15'd7;
                     Dout <= work_buffer[2];
+                    RDWEn <= 0;
                 end
-                7: RDWEn <= 0;
+                7: RDWEn <= 1;
             endcase
-        end else begin
-            if (draw_cycle[7:0] < 16) begin
-                if (draw_cycle[0]) begin
-                    work_buffer[draw_cycle[3:1]] <= Din;
-                end else begin
-                    RA <= draw_addr + { 12'd0, draw_cycle[3:1] };
-                end
+
+        end
+        ST_DRAW_INIT: begin
+            RA <= 0;
+            RDWEn <= 1;
+            obj_state <= ST_READ_START;
+        end
+
+        ST_READ_START: if (ce_13m) begin
+            if (RA[12:3] == 835 || vbl_edge) begin
+                obj_state <= ST_IDLE;
+            end else begin
+                EBUSY <= 1;
+                ERCSn <= 0;
+                obj_state <= ST_READ;
             end
         end
-    end
+
+        ST_READ: if (ce_13m) begin
+            RA <= RA + 15'd1;
+            work_buffer[RA[2:0]] <= Din;
+            if (RA[2:0] == 3'b111) begin
+                obj_state <= ST_EVAL;
+                EBUSY <= 0;
+                ERCSn <= 1;
+            end
+        end
+
+        ST_EVAL: begin
+            if (inst_is_cmd) begin
+            end
+
+            base_x = inst_x_coord + (inst_use_scroll ? ( master_x + (inst_use_extra ? extra_x : 12'd0) ) : 12'd0);
+            base_y = inst_y_coord + (inst_use_scroll ? ( master_y + (inst_use_extra ? extra_y : 12'd0) ) : 12'd0);
+
+            if (inst_latch_extra) begin
+                extra_x <= base_x;
+                extra_y <= base_y;
+            end
+
+            if (inst_latch_master) begin
+                master_x <= base_x;
+                master_y <= base_y;
+            end
+
+            obj_state <= ST_READ_START;
+        end
+
+        default: begin
+            obj_state <= ST_IDLE;
+        end
+    endcase
 end
 
 

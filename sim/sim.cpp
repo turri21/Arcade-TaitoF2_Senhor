@@ -2,7 +2,7 @@
 #include "F2___024root.h"
 #include "imgui.h"
 #include "verilated.h"
-#include "verilated_vcd_c.h"
+#include "verilated_fst_c.h"
 
 #include "imgui_wrap.h"
 #include "imgui_memory_editor.h"
@@ -24,7 +24,7 @@
 
 VerilatedContext *contextp;
 F2 *top;
-VerilatedVcdC *tfp;
+std::unique_ptr<VerilatedFstC> tfp;
 
 SimSDRAM cpu_sdram(128 * 1024 * 1024);
 SimSDRAM scn_main_sdram(256 * 1024);
@@ -69,13 +69,13 @@ void sim_tick(int count = 1)
         top->clk = 0;
 
         top->eval();
-        if (trace_active) tfp->dump(contextp->time());
+        if (tfp) tfp->dump(contextp->time());
 
         contextp->timeInc(1);
         top->clk = 1;
 
         top->eval();
-        if (trace_active) tfp->dump(contextp->time());
+        if (tfp) tfp->dump(contextp->time());
     }
 }
 
@@ -133,11 +133,11 @@ int main(int argc, char **argv)
     ddr_memory.load_data("b82-04.4", 0x200001, 4);
     ddr_memory.load_data("b82-05.3", 0x200002, 4);
 
-    strcpy(trace_filename, "sim.vcd");
+    strcpy(trace_filename, "sim.fst");
 
     contextp = new VerilatedContext;
     top = new F2{contextp};
-    tfp = new VerilatedVcdC;
+    tfp = nullptr;
 
     top->ss_do_save = 0;
     top->ss_do_restore = 0;
@@ -260,21 +260,21 @@ int main(int argc, char **argv)
         }
         ImGui::PopItemWidth();
         ImGui::InputText("Filename", trace_filename, sizeof(trace_filename),
-                         trace_active ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None);
-        if(ImGui::Button(trace_active ? "Stop Tracing###TraceBtn" : "Start Tracing###TraceBtn"))
+                         tfp ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None);
+        if(ImGui::Button(tfp ? "Stop Tracing###TraceBtn" : "Start Tracing###TraceBtn"))
         {
-            if (trace_active)
+            if (tfp)
             {
                 tfp->close();
-                trace_active = false;
+                tfp.reset();
             }
             else
             {
                 if (strlen(trace_filename) > 0)
                 {
-                    top->trace(tfp, trace_depth);
+                    tfp = std::make_unique<VerilatedFstC>();
+                    top->trace(tfp.get(), trace_depth);
                     tfp->open(trace_filename);
-                    trace_active = tfp->isOpen();
                 }
             }
         }
@@ -304,7 +304,11 @@ int main(int argc, char **argv)
         imgui_end_frame();
     }
     
-    if (trace_active) tfp->close();
+    if (tfp)
+    {
+        tfp->close();
+        tfp.reset();
+    }
 
     top->final();
 

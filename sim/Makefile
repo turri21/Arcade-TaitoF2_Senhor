@@ -4,11 +4,11 @@ OBJ_DIR = obj
 VERILATED_DIR = verilated
 
 VERILATOR = verilator
-VERILATOR_ARGS = --cc --make gmake --trace --Mdir $(VERILATED_DIR) -Ihdl --MMD --MP $(VERILATOR_DEFINES)
+VERILATOR_ARGS = --cc --make gmake --trace-fst --Mdir $(VERILATED_DIR) -Ihdl --MMD --MP $(VERILATOR_DEFINES)
 PYTHON = python3
 
 VERILATOR_INC = $(shell pkg-config --variable=includedir verilator)
-VERILATOR_CPP = verilated.cpp verilated_vcd_c.cpp verilated_threads.cpp
+VERILATOR_CPP = verilated.cpp verilated_fst_c.cpp verilated_threads.cpp
 VERILATOR_OBJS = $(patsubst %.cpp, $(OBJ_DIR)/verilator/%.o, $(VERILATOR_CPP))
 
 SRCS = imgui/imgui.cpp \
@@ -66,7 +66,7 @@ $(OBJ_DIR)/verilator/%.o: $(VERILATOR_INC)/%.cpp
 $(OBJ_DIR)/sim.o: $(VERILATED_DIR)/F2__ALL.a
 
 sim: $(OBJS) $(VERILATOR_OBJS) $(VERILATED_DIR)/F2__ALL.a 
-	$(CXX) -o $@ $^ $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -lpthread
+	$(CXX) -o $@ $^ $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -lpthread -lz
 
 run: sim
 	./sim

@@ -40,12 +40,9 @@ ddr_mux ddr_mux(
 );
 
 // TODO
-// State machine
-//  DMA process
-//  Iterate for drawing
-//  Double buffering weirdness
-// SDR ROM interface
-// DDR framebuffer
+// Data shifting module
+// FB alignment
+
 
 
 // 256 cycles per sprite (13mhz)
@@ -76,7 +73,7 @@ wire [2:0]  inst_unk1            =  work_buffer[7][14:12];
 wire [7:0]  inst_color           =  work_buffer[4][7:0];
 wire        inst_x_flip          =  work_buffer[4][8];
 wire        inst_y_flip          =  work_buffer[4][9];
-wire        inst_use_latch_color = ~work_buffer[4][10];
+wire        inst_reuse_color     =  work_buffer[4][10];
 wire        inst_next_seq        =  work_buffer[4][11];
 wire        inst_use_latch_y     =  work_buffer[4][12];
 wire        inst_inc_y           =  work_buffer[4][13];
@@ -113,6 +110,7 @@ reg [15:0] fb_dirty_scan_addr, fb_dirty_draw_addr, fb_dirty_base_addr;
 
 reg [11:0] master_x, master_y, extra_x, extra_y;
 reg [11:0] latch_x, latch_y;
+reg [7:0]  latch_color;
 reg prev_vbl_n, vbl_edge;
 
 reg [31:0] draw_addr;
@@ -271,6 +269,10 @@ always @(posedge clk) begin
             end else begin
                 obj_state <= ST_CHECK_BOUNDS;
             end
+
+            if (~inst_reuse_color) begin
+                latch_color <= inst_color;
+            end
         end
 
         ST_CHECK_BOUNDS: begin
@@ -326,7 +328,7 @@ always @(posedge clk) begin
                 ddr_obj.addr <= draw_addr + {13'd0, 1'd0, 4'd0, draw_row, 5'd0, draw_col, 3'b000 };
                 ddr_obj.write <= 1;
                 ddr_obj.burstcnt <= 1;
-                ddr_obj.wdata <= to_16bpp(tile_row[draw_row], draw_col, inst_color);
+                ddr_obj.wdata <= to_16bpp(tile_row[draw_row], draw_col, { 2'b00, latch_color[5:0] });
                 ddr_obj.byteenable <= 8'hff;
                 draw_col <= draw_col + 1;
                 if (draw_col == 3) begin

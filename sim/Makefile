@@ -1,3 +1,5 @@
+MAKEFLAGS+="-j $(shell nproc)"
+
 OBJ_DIR = obj
 VERILATED_DIR = verilated
 

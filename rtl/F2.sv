@@ -317,7 +317,7 @@ wire [11:0] obj_dot;
 
 wire RCSn, BUSY, ORDWEn;
 
-wire OBJWEn = BUSY ? ORDWEn : OBJECTn;
+wire OBJWEn = BUSY ? ORDWEn : (OBJECTn | cpu_rw);
 wire LOBJRAMn = BUSY ? RCSn : cpu_ds_n[0];
 wire UOBJRAMn = BUSY ? RCSn : cpu_ds_n[1];
 wire [14:0] OBJ_ADD = BUSY ? obj_ram_addr : cpu_addr[14:0];

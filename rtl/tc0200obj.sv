@@ -108,6 +108,8 @@ wire [14:0] dma_addr = {2'b00, dma_cycle[12:3], 3'b000};
 
 reg scanout_buffer = 0;
 wire draw_buffer = ~scanout_buffer;
+reg fb_dirty[2 * 128 * 256];
+reg [15:0] fb_dirty_scan_addr, fb_dirty_draw_addr, fb_dirty_base_addr;
 
 reg [11:0] master_x, master_y, extra_x, extra_y;
 reg [11:0] latch_x, latch_y;
@@ -272,7 +274,9 @@ always @(posedge clk) begin
         end
 
         ST_CHECK_BOUNDS: begin
-            draw_addr <= OBJ_FB_DDR_BASE + { 13'd0, ~scanout_buffer, latch_y[7:0], latch_x[8:2], 3'b000 };
+            draw_addr <= OBJ_FB_DDR_BASE + { 13'd0, draw_buffer, latch_y[7:0], latch_x[8:2], 3'b000 };
+            fb_dirty_draw_addr <= { draw_buffer, latch_y[7:0], latch_x[8:2] };
+            fb_dirty_base_addr <= { draw_buffer, latch_y[7:0], latch_x[8:2] };
             if (latch_x > 400) begin
                 obj_state <= ST_READ_START;
             end else if (latch_y > 240) begin
@@ -331,12 +335,16 @@ always @(posedge clk) begin
                         obj_state <= ST_DRAW_ROW_WAIT;
                     end
                 end
-            end
+
+                fb_dirty[fb_dirty_draw_addr] <= 1;
+                fb_dirty_draw_addr <= fb_dirty_base_addr + { 5'd0, draw_row, 5'd0, draw_col };
+             end
         end
 
         ST_DRAW_ROW_WAIT: begin
             ddr_obj.acquire <= 1;
             if (~ddr_obj.busy) begin
+                fb_dirty[fb_dirty_draw_addr] <= 1;
                 ddr_obj.write <= 0;
                 obj_state <= ST_READ_START;
             end
@@ -444,7 +452,8 @@ always_ff @(posedge clk) begin
             if (~ddr_fb.busy) begin
                 ddr_fb.read <= 1;
                 ddr_fb.burstcnt <= 80; // 320 / 4
-                ddr_fb.addr <= OBJ_FB_DDR_BASE + { 13'd0, scanout_buffer, vcnt + 8'd1, 10'd8 };
+                ddr_fb.addr <= OBJ_FB_DDR_BASE + { 13'd0, scanout_buffer, vcnt + 8'd1, 10'd16 };
+                fb_dirty_scan_addr <= { scanout_buffer, vcnt + 8'd1, 7'd2 };
                 burstidx <= 0;
                 scan_state <= SCAN_WAIT_READ;
             end
@@ -455,11 +464,15 @@ always_ff @(posedge clk) begin
                 ddr_fb.read <= 0;
                 if (ddr_fb.rdata_ready) begin
                     if (vcnt[0]) begin
-                        line_buffer0[lb0_addr] <= ddr_fb.rdata;
+                        line_buffer0[lb0_addr] <= fb_dirty[fb_dirty_scan_addr] ? ddr_fb.rdata : 64'd0;
                     end else begin
-                        line_buffer1[lb1_addr] <= ddr_fb.rdata;
+                        line_buffer1[lb1_addr] <= fb_dirty[fb_dirty_scan_addr] ? ddr_fb.rdata : 64'd0;
                     end
                     burstidx <= burstidx + 1;
+
+                    fb_dirty[fb_dirty_scan_addr] <= 0;
+                    fb_dirty_scan_addr <= fb_dirty_scan_addr + 1;
+
                     if (burstidx + 1 == 80) begin
                         scan_state <= SCAN_IDLE;
                     end

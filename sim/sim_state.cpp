@@ -33,7 +33,7 @@ bool SimState::save_state(const char* filename)
 
 bool SimState::restore_state(const char* filename)
 {
-    m_memory->load_data(filename, m_offset);
+    m_memory->load_data(filename, m_offset, 1); // Pass stride=1 explicitly
 
     m_top->ss_do_restore = 1;
     while (m_top->ss_state_out == 0)

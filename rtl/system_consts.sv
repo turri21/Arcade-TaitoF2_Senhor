@@ -8,6 +8,7 @@ package system_consts;
 
     parameter bit [31:0] SS_DDR_BASE = 32'h00000000;
     parameter bit [31:0] OBJ_FB_DDR_BASE = 32'h00100000;
+    parameter bit [31:0] OBJ_DATA_DDR_BASE = 32'h00200000;
 
 endpackage
 

@@ -28,7 +28,7 @@ VerilatedVcdC *tfp;
 
 SimSDRAM cpu_sdram(128 * 1024 * 1024);
 SimSDRAM scn_main_sdram(256 * 1024);
-SimMemory ddr_memory(2 * 1024 * 1024);
+SimMemory ddr_memory(4 * 1024 * 1024);
 SimVideo video;
 SimState* state_manager = nullptr;
 
@@ -128,6 +128,10 @@ int main(int argc, char **argv)
 
     scn_main_sdram.load_data("b82-07.18", 0, 2);
     scn_main_sdram.load_data("b82-06.19", 1, 2);
+
+    ddr_memory.load_data("b82-03.5", 0x200000, 4);
+    ddr_memory.load_data("b82-04.4", 0x200001, 4);
+    ddr_memory.load_data("b82-05.3", 0x200002, 4);
 
     strcpy(trace_filename, "sim.vcd");
 

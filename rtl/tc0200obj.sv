@@ -78,9 +78,9 @@ wire        inst_x_flip          =  work_buffer[4][8];
 wire        inst_y_flip          =  work_buffer[4][9];
 wire        inst_use_latch_color = ~work_buffer[4][10];
 wire        inst_next_seq        =  work_buffer[4][11];
-wire        inst_use_latch_y     = ~work_buffer[4][12];
+wire        inst_use_latch_y     =  work_buffer[4][12];
 wire        inst_inc_y           =  work_buffer[4][13];
-wire        inst_use_latch_x     = ~work_buffer[4][14];
+wire        inst_use_latch_x     =  work_buffer[4][14];
 wire        inst_inc_x           =  work_buffer[4][15];
 
 
@@ -92,7 +92,12 @@ typedef enum
     ST_DRAW_INIT,
     ST_READ_START,
     ST_READ,
-    ST_EVAL
+    ST_EVAL,
+    ST_CHECK_BOUNDS,
+    ST_READ_TILE,
+    ST_READ_TILE_WAIT,
+    ST_DRAW_ROW,
+    ST_DRAW_ROW_WAIT
 } draw_state_t;
 
 draw_state_t obj_state = ST_IDLE;
@@ -105,7 +110,36 @@ reg scanout_buffer = 0;
 wire draw_buffer = ~scanout_buffer;
 
 reg [11:0] master_x, master_y, extra_x, extra_y;
+reg [11:0] latch_x, latch_y;
 reg prev_vbl_n, vbl_edge;
+
+reg [31:0] draw_addr;
+reg [3:0] draw_row;
+reg [1:0] draw_col;
+
+reg [(6 * 16)-1:0] tile_row[16];
+reg [4:0] tile_burst;
+
+function bit [(6 * 4)-1:0] deswizzle(input [31:0] d);
+    bit [(6 * 4)-1:0] r;
+    r[5:0]   = {d[17:16], d[3:0]};
+    r[11:6]  = {d[19:18], d[7:4]};
+    r[17:12] = {d[21:20], d[11:8]};
+    r[23:18] = {d[23:22], d[15:12]};
+    return r;
+endfunction
+
+function bit [63:0] to_16bpp(input [(6*16)-1:0] row, input [1:0] offset, input [7:0] color);
+    bit [63:0] r;
+    r[15:0]  = { 2'd0, color, row[ 0+(offset*24) +: 6] };
+    r[31:16] = { 2'd0, color, row[ 6+(offset*24) +: 6] };
+    r[47:32] = { 2'd0, color, row[12+(offset*24) +: 6] };
+    r[63:48] = { 2'd0, color, row[18+(offset*24) +: 6] };
+    return r;
+endfunction
+
+
+
 
 always @(posedge clk) begin
     bit [11:0] base_x, base_y;
@@ -118,10 +152,14 @@ always @(posedge clk) begin
 
     case(obj_state)
         ST_IDLE: begin
+            ddr_obj.read <= 0;
+            ddr_obj.write <= 0;
+
             EBUSY <= 0;
             ERCSn <= 1;
             RDWEn <= 1;
             EDMAn <= 1;
+
             if (vbl_edge) begin
                 vbl_edge <= 0;
                 obj_state <= ST_DMA_INIT;
@@ -215,8 +253,95 @@ always @(posedge clk) begin
                 master_y <= base_y;
             end
 
-            obj_state <= ST_READ_START;
+            if (inst_use_latch_y) begin
+                latch_y <= latch_y + {7'd0, inst_inc_y, 4'd0};
+            end else begin
+                latch_y <= base_y + {7'd0, inst_inc_y, 4'd0};
+            end
+            if (inst_use_latch_x) begin
+                latch_x <= latch_x + {7'd0, inst_inc_x, 4'd0};
+            end else begin
+                latch_x <= base_x + {7'd0, inst_inc_x, 4'd0};
+            end
+
+            if (inst_tile_code == 0) begin
+                obj_state <= ST_READ_START;
+            end else begin
+                obj_state <= ST_CHECK_BOUNDS;
+            end
         end
+
+        ST_CHECK_BOUNDS: begin
+            draw_addr <= OBJ_FB_DDR_BASE + { 13'd0, ~scanout_buffer, latch_y[7:0], latch_x[8:2], 3'b000 };
+            if (latch_x > 400) begin
+                obj_state <= ST_READ_START;
+            end else if (latch_y > 240) begin
+                obj_state <= ST_READ_START;
+            end else begin
+                obj_state <= ST_READ_TILE;
+            end
+        end
+
+        ST_READ_TILE: begin
+            ddr_obj.acquire <= 1;
+            if (~ddr_obj.busy) begin
+                ddr_obj.read <= 1;
+                ddr_obj.burstcnt <= 32;
+                ddr_obj.addr <= OBJ_DATA_DDR_BASE + {10'd0, inst_tile_code, 8'd0};
+                tile_burst <= 0;
+                obj_state <= ST_READ_TILE_WAIT;
+            end
+        end
+
+        ST_READ_TILE_WAIT: begin
+            ddr_obj.acquire <= 1;
+            if (~ddr_obj.busy) begin
+                ddr_obj.read <= 0;
+                if (ddr_obj.rdata_ready) begin
+                    tile_burst <= tile_burst + 1;
+                    if (~tile_burst[0]) begin
+                        tile_row[tile_burst[4:1]][(6*4)-1:0] <= deswizzle(ddr_obj.rdata[31:0]);
+                        tile_row[tile_burst[4:1]][(6*8)-1:(6*4)] <= deswizzle(ddr_obj.rdata[63:32]);
+                    end else begin
+                        tile_row[tile_burst[4:1]][(6*12)-1:(6*8)] <= deswizzle(ddr_obj.rdata[31:0]);
+                        tile_row[tile_burst[4:1]][(6*16)-1:(6*12)] <= deswizzle(ddr_obj.rdata[63:32]);
+                    end
+
+                    if (tile_burst == 31) begin
+                        obj_state <= ST_DRAW_ROW;
+                        draw_row <= 0;
+                        draw_col <= 0;
+                    end
+                end
+            end
+        end
+
+        ST_DRAW_ROW: begin
+            ddr_obj.acquire <= 1;
+            if (~ddr_obj.busy) begin
+                ddr_obj.addr <= draw_addr + {13'd0, 1'd0, 4'd0, draw_row, 5'd0, draw_col, 3'b000 };
+                ddr_obj.write <= 1;
+                ddr_obj.burstcnt <= 1;
+                ddr_obj.wdata <= to_16bpp(tile_row[draw_row], draw_col, inst_color);
+                ddr_obj.byteenable <= 8'hff;
+                draw_col <= draw_col + 1;
+                if (draw_col == 3) begin
+                    draw_row <= draw_row + 1;
+                    if (draw_row == 15) begin
+                        obj_state <= ST_DRAW_ROW_WAIT;
+                    end
+                end
+            end
+        end
+
+        ST_DRAW_ROW_WAIT: begin
+            ddr_obj.acquire <= 1;
+            if (~ddr_obj.busy) begin
+                ddr_obj.write <= 0;
+                obj_state <= ST_READ_START;
+            end
+        end
+
 
         default: begin
             obj_state <= ST_IDLE;

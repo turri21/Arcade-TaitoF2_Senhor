@@ -120,30 +120,43 @@ reg [1:0] draw_col;
 reg [(6 * 16)-1:0] tile_row[16];
 reg [4:0] tile_burst;
 
-function bit [(6 * 4)-1:0] deswizzle(input [31:0] d);
-    bit [(6 * 4)-1:0] r;
-    r[5:0]   = {d[17:16], d[3:0]};
-    r[11:6]  = {d[19:18], d[7:4]};
-    r[17:12] = {d[21:20], d[11:8]};
-    r[23:18] = {d[23:22], d[15:12]};
-    return r;
-endfunction
+wire [7:0] read_tile_burstcnt;
+wire read_tile_complete;
+wire [63:0] shifter_data;
+wire [7:0] shifter_be;
+wire [14:0] shifter_addr;
+wire shifter_ready, shifter_done;
+reg shifter_read;
 
-function bit [63:0] to_16bpp(input [(6*16)-1:0] row, input [1:0] offset, input [7:0] color);
-    bit [63:0] r;
-    r[15:0]  = { 2'd0, color, row[ 0+(offset*24) +: 6] };
-    r[31:16] = { 2'd0, color, row[ 6+(offset*24) +: 6] };
-    r[47:32] = { 2'd0, color, row[12+(offset*24) +: 6] };
-    r[63:48] = { 2'd0, color, row[18+(offset*24) +: 6] };
-    return r;
-endfunction
+tc0200obj_data_shifter shifter(
+    .clk,
+    .reset(obj_state == ST_EVAL),
+    .bpp6(1),
+    .burstcnt(read_tile_burstcnt),
+    .load_complete(read_tile_complete),
 
+    .x(latch_x),
+    .y(latch_y),
+    .flip_x(inst_x_flip),
+    .flip_y(inst_y_flip),
+    .color(latch_color),
 
+    .out_data(shifter_data),
+    .out_be(shifter_be),
+    .out_ready(shifter_ready),
+    .out_read(shifter_read),
+    .out_addr(shifter_addr),
+    .out_done(shifter_done),
+
+    .din(ddr_obj.rdata),
+    .load(ddr_obj.rdata_ready && (obj_state == ST_READ_TILE_WAIT))
+);
 
 
 always @(posedge clk) begin
     bit [11:0] base_x, base_y;
     ddr_obj.acquire <= 0;
+    shifter_read <= 0;
 
     prev_vbl_n <= VBLn;
     if (prev_vbl_n & ~VBLn) begin
@@ -292,7 +305,7 @@ always @(posedge clk) begin
             ddr_obj.acquire <= 1;
             if (~ddr_obj.busy) begin
                 ddr_obj.read <= 1;
-                ddr_obj.burstcnt <= 32;
+                ddr_obj.burstcnt <= read_tile_burstcnt;
                 ddr_obj.addr <= OBJ_DATA_DDR_BASE + {10'd0, inst_tile_code, 8'd0};
                 tile_burst <= 0;
                 obj_state <= ST_READ_TILE_WAIT;
@@ -300,24 +313,15 @@ always @(posedge clk) begin
         end
 
         ST_READ_TILE_WAIT: begin
-            ddr_obj.acquire <= 1;
-            if (~ddr_obj.busy) begin
-                ddr_obj.read <= 0;
-                if (ddr_obj.rdata_ready) begin
-                    tile_burst <= tile_burst + 1;
-                    if (~tile_burst[0]) begin
-                        tile_row[tile_burst[4:1]][(6*4)-1:0] <= deswizzle(ddr_obj.rdata[31:0]);
-                        tile_row[tile_burst[4:1]][(6*8)-1:(6*4)] <= deswizzle(ddr_obj.rdata[63:32]);
-                    end else begin
-                        tile_row[tile_burst[4:1]][(6*12)-1:(6*8)] <= deswizzle(ddr_obj.rdata[31:0]);
-                        tile_row[tile_burst[4:1]][(6*16)-1:(6*12)] <= deswizzle(ddr_obj.rdata[63:32]);
-                    end
-
-                    if (tile_burst == 31) begin
-                        obj_state <= ST_DRAW_ROW;
-                        draw_row <= 0;
-                        draw_col <= 0;
-                    end
+            if (read_tile_complete) begin
+                obj_state <= ST_DRAW_ROW;
+                draw_row <= 0;
+                draw_col <= 0;
+            end else begin
+                ddr_obj.acquire <= 1;
+                if (~ddr_obj.busy) begin
+                    ddr_obj.read <= 0;
+                    // shifter module handles reads
                 end
             end
         end
@@ -325,28 +329,26 @@ always @(posedge clk) begin
         ST_DRAW_ROW: begin
             ddr_obj.acquire <= 1;
             if (~ddr_obj.busy) begin
-                ddr_obj.addr <= draw_addr + {13'd0, 1'd0, 4'd0, draw_row, 5'd0, draw_col, 3'b000 };
-                ddr_obj.write <= 1;
-                ddr_obj.burstcnt <= 1;
-                ddr_obj.wdata <= to_16bpp(tile_row[draw_row], draw_col, { 2'b00, latch_color[5:0] });
-                ddr_obj.byteenable <= 8'hff;
-                draw_col <= draw_col + 1;
-                if (draw_col == 3) begin
-                    draw_row <= draw_row + 1;
-                    if (draw_row == 15) begin
+                ddr_obj.write <= 0;
+                if (shifter_ready) begin
+                    ddr_obj.addr <= OBJ_FB_DDR_BASE + {13'd0, draw_buffer, shifter_addr, 3'd0 };
+                    ddr_obj.write <= 1;
+                    ddr_obj.burstcnt <= 1;
+                    ddr_obj.wdata <= shifter_data;
+                    ddr_obj.byteenable <= fb_dirty[{draw_buffer, shifter_addr}] ? shifter_be : 8'hff;
+                    fb_dirty[{draw_buffer, shifter_addr}] <= 1;
+                    shifter_read <= 1;
+
+                    if (shifter_done) begin
                         obj_state <= ST_DRAW_ROW_WAIT;
                     end
                 end
-
-                fb_dirty[fb_dirty_draw_addr] <= 1;
-                fb_dirty_draw_addr <= fb_dirty_base_addr + { 5'd0, draw_row, 5'd0, draw_col };
              end
         end
 
         ST_DRAW_ROW_WAIT: begin
             ddr_obj.acquire <= 1;
             if (~ddr_obj.busy) begin
-                fb_dirty[fb_dirty_draw_addr] <= 1;
                 ddr_obj.write <= 0;
                 obj_state <= ST_READ_START;
             end
@@ -453,9 +455,9 @@ always_ff @(posedge clk) begin
             ddr_fb.acquire <= 1;
             if (~ddr_fb.busy) begin
                 ddr_fb.read <= 1;
-                ddr_fb.burstcnt <= 80; // 320 / 4
-                ddr_fb.addr <= OBJ_FB_DDR_BASE + { 13'd0, scanout_buffer, vcnt + 8'd1, 10'd16 };
-                fb_dirty_scan_addr <= { scanout_buffer, vcnt + 8'd1, 7'd2 };
+                ddr_fb.burstcnt <= 100; // 320 / 4
+                ddr_fb.addr <= OBJ_FB_DDR_BASE + { 13'd0, scanout_buffer, vcnt + 8'd1, 10'd64 };
+                fb_dirty_scan_addr <= { scanout_buffer, vcnt + 8'd1, 7'd8 };
                 burstidx <= 0;
                 scan_state <= SCAN_WAIT_READ;
             end
@@ -475,7 +477,7 @@ always_ff @(posedge clk) begin
                     fb_dirty[fb_dirty_scan_addr] <= 0;
                     fb_dirty_scan_addr <= fb_dirty_scan_addr + 1;
 
-                    if (burstidx + 1 == 80) begin
+                    if (burstidx + 1 == 100) begin
                         scan_state <= SCAN_IDLE;
                     end
                 end
@@ -542,4 +544,173 @@ endmodule
         000b - 000f : unused
 */
 
+module tc0200obj_data_shifter(
+    input clk,
+
+    input reset,
+
+    input bpp6,
+    output [7:0] burstcnt,
+    output reg load_complete,
+
+    input [63:0] din,
+    input load,
+
+    input [11:0] x,
+    input [11:0] y,
+    input        flip_x,
+    input        flip_y,
+    input [7:0] color,
+
+    input             out_read,
+    output reg [63:0] out_data,
+    output reg  [7:0] out_be,
+    output reg        out_ready,
+    output reg [14:0] out_addr,
+    output reg        out_done
+);
+
+function bit [(6 * 4)-1:0] decode_6bpp_rom(input [31:0] d);
+    bit [(6 * 4)-1:0] r;
+    r[5:0]   = {d[17:16], d[3:0]};
+    r[11:6]  = {d[19:18], d[7:4]};
+    r[17:12] = {d[21:20], d[11:8]};
+    r[23:18] = {d[23:22], d[15:12]};
+    return r;
+endfunction
+
+function bit [(6 * 4)-1:0] decode_4bpp_rom(input [15:0] d);
+    bit [(6 * 4)-1:0] r;
+    r[5:0]   = {2'b00, d[3:0]};
+    r[11:6]  = {2'b00, d[7:4]};
+    r[17:12] = {2'b00, d[11:8]};
+    r[23:18] = {2'b00, d[15:12]};
+    return r;
+endfunction
+
+assign burstcnt = bpp6 ? 8'd32 : 8'd16;
+reg [7:0] burstidx;
+
+reg [5:0] pixel[16 * 16];
+reg [5:0] row_data[20];
+
+wire [7:0] y_addr = y[7:0];
+wire [6:0] x_addr = x[8:2];
+wire [1:0] x_shift = x[1:0];
+
+reg [3:0] row;
+reg [2:0] col;
+
+task prepare_row(int next_row);
+    int i;
+    int pa;
+
+    pa = next_row * 16;
+
+    for( i = 0; i < 20; i = i + 1 ) begin
+        row_data[i] <= 6'd0;
+    end
+
+    for( i = 0; i < 16; i = i + 1 ) begin
+        if (flip_x) begin
+            row_data[i + int'(x_shift)] <= pixel[pa + (15 - i)];
+        end else begin
+            row_data[i + int'(x_shift)] <= pixel[pa + i];
+        end
+    end
+endtask
+
+task prepare_draw();
+    int i;
+    out_addr <= { y_addr, x_addr } + { 4'd0, row, 4'd0, col };
+    out_be <= 8'd0;
+    out_data <= 64'd0;
+    out_ready <= 1;
+
+    out_data[15:0] <=  { 4'b00, color[7:2], row_data[0] };
+    out_data[31:16] <= { 4'b00, color[7:2], row_data[1] };
+    out_data[47:32] <= { 4'b00, color[7:2], row_data[2] };
+    out_data[63:48] <= { 4'b00, color[7:2], row_data[3] };
+    out_be[1:0] <= {2{|row_data[0]}};
+    out_be[3:2] <= {2{|row_data[1]}};
+    out_be[5:4] <= {2{|row_data[2]}};
+    out_be[7:6] <= {2{|row_data[3]}};
+
+    for( i = 0; i < 16; i = i + 1 ) begin
+        row_data[i] <= row_data[i+4];
+    end
+
+    col <= col + 1;
+    if (col == 4) begin
+        prepare_row(int'(row) + 1);
+        col <= 0;
+        row <= row + 1;
+        if (row == 15) begin
+            out_done <= 1;
+        end
+    end
+endtask
+
+always_ff @(posedge clk) begin
+    if (reset) begin
+        burstidx <= 0;
+        load_complete <= 0;
+        out_done <= 0;
+        out_ready <= 0;
+        row <= 0;
+        col <= 0;
+    end else begin
+        if (load) begin
+            if (bpp6) begin
+                bit [(6 * 4)-1:0] d;
+                d = decode_6bpp_rom(din[31:0]);
+                pixel[(burstidx * 8) + 0] <= d[(6 * 0) +: 6];
+                pixel[(burstidx * 8) + 1] <= d[(6 * 1) +: 6];
+                pixel[(burstidx * 8) + 2] <= d[(6 * 2) +: 6];
+                pixel[(burstidx * 8) + 3] <= d[(6 * 3) +: 6];
+                d = decode_6bpp_rom(din[63:32]);
+                pixel[(burstidx * 8) + 4] <= d[(6 * 0) +: 6];
+                pixel[(burstidx * 8) + 5] <= d[(6 * 1) +: 6];
+                pixel[(burstidx * 8) + 6] <= d[(6 * 2) +: 6];
+                pixel[(burstidx * 8) + 7] <= d[(6 * 3) +: 6];
+            end else begin
+                bit [(6 * 4)-1:0] d;
+                d = decode_4bpp_rom(din[15:0]);
+                pixel[(burstidx * 16) + 0] <= d[(6 * 0) +: 6];
+                pixel[(burstidx * 16) + 1] <= d[(6 * 1) +: 6];
+                pixel[(burstidx * 16) + 2] <= d[(6 * 2) +: 6];
+                pixel[(burstidx * 16) + 3] <= d[(6 * 3) +: 6];
+                d = decode_4bpp_rom(din[31:16]);
+                pixel[(burstidx * 16) + 4] <= d[(6 * 0) +: 6];
+                pixel[(burstidx * 16) + 5] <= d[(6 * 1) +: 6];
+                pixel[(burstidx * 16) + 6] <= d[(6 * 2) +: 6];
+                pixel[(burstidx * 16) + 7] <= d[(6 * 3) +: 6];
+                d = decode_4bpp_rom(din[47:32]);
+                pixel[(burstidx * 16) + 8] <= d[(6 * 0) +: 6];
+                pixel[(burstidx * 16) + 9] <= d[(6 * 1) +: 6];
+                pixel[(burstidx * 16) + 10] <= d[(6 * 2) +: 6];
+                pixel[(burstidx * 16) + 11] <= d[(6 * 3) +: 6];
+                d = decode_4bpp_rom(din[63:48]);
+                pixel[(burstidx * 16) + 12] <= d[(6 * 0) +: 6];
+                pixel[(burstidx * 16) + 13] <= d[(6 * 1) +: 6];
+                pixel[(burstidx * 16) + 14] <= d[(6 * 2) +: 6];
+                pixel[(burstidx * 16) + 15] <= d[(6 * 3) +: 6];
+            end
+
+            burstidx <= burstidx + 1;
+            if (burstidx == (burstcnt - 1)) begin
+                load_complete <= 1;
+                prepare_row(0);
+            end
+        end
+
+        if (load_complete && ~out_ready) begin
+            prepare_draw();
+        end else if (out_read & ~out_done) begin
+            prepare_draw();
+        end
+    end
+end
+
+endmodule
 

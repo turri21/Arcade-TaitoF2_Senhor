@@ -1,5 +1,13 @@
 MAKEFLAGS+="-j $(shell nproc)"
 
+UNAME=$(shell uname -s)
+ifeq ($(UNAME),Linux)
+	OS := Linux
+endif
+ifeq ($(UNAME),Darwin)
+	OS := OSX
+endif
+
 OBJ_DIR = obj
 VERILATED_DIR = verilated
 
@@ -34,7 +42,11 @@ CPPFLAGS+=-I$(VERILATED_DIR) $(shell pkg-config --cflags verilator)
 CPPFLAGS+=$(shell pkg-config --cflags sdl2)
 CPPFLAGS+=-Iimgui/ -Iimgui/backends/
 
-LDFLAGS=-g -Wl,-U,__Z15vl_time_stamp64v,-U,__Z13sc_time_stampv
+LDFLAGS=-g
+
+ifeq ($(OS),OSX)
+LDFLAGS+=-Wl,-U,__Z15vl_time_stamp64v,-U,__Z13sc_time_stampv
+endif
 
 LDLIBS=$(shell pkg-config --libs sdl2)
 

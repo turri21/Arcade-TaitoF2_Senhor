@@ -73,7 +73,7 @@ typedef struct
     uint16_t e;
 } TC0200OBJ_Inst;
 
-_Static_assert(sizeof(TC0200OBJ_Inst) == 16, "TC0200OBJ mismatch");
+static_assert(sizeof(TC0200OBJ_Inst) == 16, "TC0200OBJ mismatch");
 
 void draw_obj_window();
 

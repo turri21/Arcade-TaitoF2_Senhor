@@ -126,19 +126,19 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    FILE *fp = fopen("cpu.bin", "rb");
-    fread(cpu_sdram.data, 1, 128 * 1024, fp);
-    fclose(fp);
+    //FILE *fp = fopen("cpu.bin", "rb");
+    //fread(cpu_sdram.data, 1, 128 * 1024, fp);
+    //fclose(fp);
 
-    cpu_sdram.load_data("b82-09.10", 0, 2);
-    cpu_sdram.load_data("b82-17.11", 1, 2);
+    cpu_sdram.load_data("./roms/b82-09.ic23", 0, 2);
+    cpu_sdram.load_data("./roms/b82-17.ic11", 1, 2);
 
-    scn_main_sdram.load_data("b82-07.18", 0, 2);
-    scn_main_sdram.load_data("b82-06.19", 1, 2);
+    scn_main_sdram.load_data("./roms/b82-07.ic34", 0, 2);
+    scn_main_sdram.load_data("./roms/b82-06.ic33", 1, 2);
 
-    ddr_memory.load_data("b82-03.5", 0x200000, 4);
-    ddr_memory.load_data("b82-04.4", 0x200001, 4);
-    ddr_memory.load_data("b82-05.3", 0x200002, 4);
+    ddr_memory.load_data("./roms/b82-03.ic9", 0x200000, 4);
+    ddr_memory.load_data("./roms/b82-04.ic8", 0x200001, 4);
+    ddr_memory.load_data("./roms/b82-05.ic7", 0x200002, 4);
 
     strcpy(trace_filename, "sim.fst");
 
@@ -190,7 +190,7 @@ int main(int argc, char **argv)
 
         ImGui::Begin("Simulation Control");
 
-        ImGui::LabelText("Ticks", "%llu", total_ticks);
+        ImGui::LabelText("Ticks", "%zu", total_ticks);
         ImGui::Checkbox("Run", &simulation_run);
         if (ImGui::Button("Step"))
         {
@@ -308,7 +308,8 @@ int main(int argc, char **argv)
         video.draw();
 
         ImGui::Begin("68000");
-        uint32_t pc = top->rootp->F2__DOT__m68000__DOT__PC;
+        uint32_t pc = top->rootp->F2__DOT__m68000__DOT__excUnit__DOT__PcL |
+            (top->rootp->F2__DOT__m68000__DOT__excUnit__DOT__PcH << 16);
         ImGui::LabelText("PC", "%08X", pc);
         Dis68k dis(cpu_sdram.data + pc, cpu_sdram.data + pc + 64, pc);
         char optxt[128];

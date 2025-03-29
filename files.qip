@@ -1,5 +1,18 @@
-set_global_assignment -name VERILOG_FILE rtl/lfsr.v
-set_global_assignment -name SYSTEMVERILOG_FILE rtl/cos.sv
-set_global_assignment -name SYSTEMVERILOG_FILE rtl/mycore.v
-set_global_assignment -name SDC_FILE mycore.sdc
-set_global_assignment -name SYSTEMVERILOG_FILE mycore.sv
+set_global_assignment -name SDC_FILE Arcade-TaitoF2.sdc
+set_global_assignment -name SYSTEMVERILOG_FILE Arcade-TaitoF2.sv
+
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/fx68k/hdl/fx68k.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/fx68k/hdl/fx68kAlu.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/fx68k/hdl/uaddrPla.sv
+
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/system_consts.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/F2.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/tc0100scn.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/tc0110pr.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/tc0220ioc.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/tc0200obj.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/ram.sv
+set_global_assignment -name VERILOG_FILE rtl/jtframe_frac_cen.v
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/memory_stream.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/savestates.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/ddram.sv

@@ -1,6 +1,7 @@
 #include "sim_state.h"
 #include "F2.h"
 #include "sim_memory.h"
+#include "sim.h"
 
 #include <dirent.h>
 #include <algorithm>
@@ -16,15 +17,10 @@ SimState::SimState(F2* top, SimMemory* memory, int offset, int size)
 bool SimState::save_state(const char* filename)
 {
     m_top->ss_do_save = 1;
-    while (m_top->ss_state_out == 0)
-    {
-        tick(1000);
-    }
+    sim_tick_until([&]{ return m_top->ss_state_out != 0; });
+
     m_top->ss_do_save = 0;
-    while (m_top->ss_state_out != 0)
-    {
-        tick(1000);
-    }
+    sim_tick_until([&]{ return m_top->ss_state_out == 0; });
 
     m_memory->save_data(filename, m_offset, m_size);
 
@@ -36,15 +32,10 @@ bool SimState::restore_state(const char* filename)
     m_memory->load_data(filename, m_offset, 1); // Pass stride=1 explicitly
 
     m_top->ss_do_restore = 1;
-    while (m_top->ss_state_out == 0)
-    {
-        tick(1000);
-    }
+    sim_tick_until([&]{ return m_top->ss_state_out != 0; });
+    
     m_top->ss_do_restore = 0;
-    /*while (m_top->ss_state_out != 0)
-    {
-        tick(1000);
-    }*/
+    sim_tick_until([&]{ return m_top->ss_state_out == 0; });
 
     return true;
 }
@@ -74,11 +65,4 @@ std::vector<std::string> SimState::get_f2state_files()
     std::sort(files.begin(), files.end());
     
     return files;
-}
-
-// Note: This implementation is a stub - the actual implementation
-// would need to call the simulation's tick function
-void SimState::tick(int count)
-{
-    sim_tick(count);
 }

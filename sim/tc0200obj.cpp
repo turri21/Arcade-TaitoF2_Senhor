@@ -33,7 +33,7 @@ void draw_obj_window()
         return;
     }
 
-    if( ImGui::BeginTable("obj", 21, ImGuiTableFlags_HighlightHoveredColumn |
+    if( ImGui::BeginTable("obj", 25, ImGuiTableFlags_HighlightHoveredColumn |
                       ImGuiTableFlags_BordersInnerV |
                       ImGuiTableFlags_ScrollY |
                       ImGuiTableFlags_SizingFixedFit |
@@ -58,9 +58,13 @@ void draw_obj_window()
         ImGui::TableSetupColumn("Inc X", colflags);
         ImGui::TableSetupColumn("Latch Color", colflags);
         ImGui::TableSetupColumn("Color", colflags);
+        ImGui::TableSetupColumn("Unk1", colflags);
+        ImGui::TableSetupColumn("Unk2", colflags);
+        ImGui::TableSetupColumn("Unk3", colflags);
         ImGui::TableSetupColumn("Cmd", colflags);
         ImGui::TableSetupColumn("Zoom X", colflags);
         ImGui::TableSetupColumn("Zoom Y", colflags);
+        ImGui::TableSetupColumn("Debug", colflags);
         ImGui::TableSetupScrollFreeze(0, 1);
         ImGui::TableAngledHeadersRow();
 
@@ -91,9 +95,24 @@ void draw_obj_window()
                 ImGui::TableNextColumn(); bullet(inst.inc_x);
                 ImGui::TableNextColumn(); bullet(inst.latch_color);
                 ImGui::TableNextColumn(); ImGui::Text("%02X", inst.color);
+                ImGui::TableNextColumn(); bullet(inst.unk1);
+                ImGui::TableNextColumn(); bullet(inst.unk2);
+                ImGui::TableNextColumn(); bullet(inst.unk3);
                 ImGui::TableNextColumn(); ImGui::Text("%04X", inst.cmd_bits);
                 ImGui::TableNextColumn(); ImGui::Text("%02X", inst.zoom_x);
                 ImGui::TableNextColumn(); ImGui::Text("%02X", inst.zoom_y);
+                ImGui::TableNextColumn();
+                bool is_debug = index == top->obj_debug_idx;
+                char id[16];
+                snprintf(id, 16, "##debug%d", index);
+                if (ImGui::RadioButton(id, is_debug))
+                {
+                    if (is_debug)
+                        top->obj_debug_idx = -1;
+                    else
+                        top->obj_debug_idx = index;
+                }
+
             }
         }
         ImGui::EndTable();
@@ -101,3 +120,4 @@ void draw_obj_window()
 
     ImGui::End();
 }
+

@@ -41,6 +41,7 @@ int trace_depth = 1;
 bool simulation_run = false;
 bool simulation_step = false;
 int simulation_step_size = 100000;
+bool simulation_step_vblank = false;
 uint64_t simulation_reset_until = 100;
 
 void sim_tick(int count = 1)
@@ -79,6 +80,14 @@ void sim_tick(int count = 1)
     }
 }
 
+void sim_tick_until(std::function<bool()> until)
+{
+    while(!until())
+    {
+        sim_tick(1);
+    }
+}
+
 ImU8 scn_mem_read(const ImU8* , size_t off, void*)
 {
     size_t word_off = off >> 1;
@@ -112,8 +121,6 @@ ImU8 obj_ram_read(const ImU8* , size_t off, void*)
 
 int main(int argc, char **argv)
 {
-    int force_ticks = 0;
-
     if( !imgui_init() )
     {
         return -1;
@@ -141,6 +148,7 @@ int main(int argc, char **argv)
 
     top->ss_do_save = 0;
     top->ss_do_restore = 0;
+    top->obj_debug_idx = -1;
     
     // Create state manager
     state_manager = new SimState(top, &ddr_memory, 0, 256 * 1024);
@@ -165,11 +173,18 @@ int main(int argc, char **argv)
 
     while( imgui_begin_frame() )
     {
-        if (simulation_run || simulation_step || (force_ticks > 0))
+        if (simulation_run || simulation_step)
         {
-            sim_tick(force_ticks > 0 ? force_ticks : simulation_step_size);
+            if (simulation_step_vblank)
+            {
+                sim_tick_until([&] { return top->vblank == 0; });
+                sim_tick_until([&] { return top->vblank != 0; });
+            }
+            else
+            {
+                sim_tick(simulation_step_size);
+            }
             video.update_texture();
-            force_ticks = 0;
         }
         simulation_step = false;
 
@@ -183,6 +198,7 @@ int main(int argc, char **argv)
             simulation_run = false;
         }
         ImGui::InputInt("Step Size", &simulation_step_size);
+        ImGui::Checkbox("Step Frame", &simulation_step_vblank);
        
         if (ImGui::Button("Reset"))
         {

@@ -37,6 +37,8 @@ module F2(
     input             ddr_busy,
     input             ddr_read_complete,
 
+    input      [12:0] obj_debug_idx,
+
     input ss_do_save,
     input ss_do_restore,
     output [3:0] ss_state_out
@@ -315,7 +317,7 @@ wire [15:0] obj_dout;
 wire [15:0] objram_data_out;
 wire [11:0] obj_dot;
 
-wire RCSn, BUSY, ORDWEn;
+wire RCSn, BUSY, ORDWEn, DMAn;
 
 wire OBJWEn = BUSY ? ORDWEn : (OBJECTn | cpu_rw);
 wire LOBJRAMn = BUSY ? RCSn : cpu_ds_n[0];
@@ -349,7 +351,7 @@ TC0200OBJ tc0200obj(
     .EBUSY(BUSY),
     .RDWEn(ORDWEn),
 
-    .EDMAn(), // TODO - is dma started by vblank?
+    .EDMAn(DMAn),
 
     .DOT(obj_dot),
 
@@ -362,6 +364,8 @@ TC0200OBJ tc0200obj(
     .VBLn(),
 
     .ddr(ddr_obj),
+
+    .debug_idx(obj_debug_idx),
 
     .ssbus
 );
@@ -516,7 +520,7 @@ assign IPLn = save_req ? ~3'b111 :
 
 always_ff @(posedge clk) begin
     vbl_prev <= VBLOn;
-    dma_prev <= VBLOn;
+    dma_prev <= DMAn;
     save_prev <= ss_do_save;
 
     if (reset) begin
@@ -526,7 +530,7 @@ always_ff @(posedge clk) begin
         if (vbl_prev & ~VBLOn) begin
             int_req1 <= 1;
         end
-        if (~dma_prev & VBLOn) begin
+        if (~dma_prev & DMAn) begin
             int_req2 <= 1;
         end
 

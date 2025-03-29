@@ -25,6 +25,8 @@ module TC0200OBJ #(parameter SS_IDX=-1) (
     output reg HBLn,
     output reg VBLn,
 
+    input [12:0] debug_idx,
+
     ddr_if.to_host ddr,
 
     ssbus_if.slave ssbus
@@ -79,7 +81,7 @@ wire        inst_use_latch_y     =  work_buffer[4][12];
 wire        inst_inc_y           =  work_buffer[4][13];
 wire        inst_use_latch_x     =  work_buffer[4][14];
 wire        inst_inc_x           =  work_buffer[4][15];
-
+reg         inst_debug;
 
 typedef enum
 {
@@ -148,11 +150,11 @@ tc0200obj_data_shifter shifter(
     .out_addr(shifter_addr),
     .out_done(shifter_done),
 
-    .din(ddr_obj.rdata),
+    .din(inst_debug ? 64'hffffffffffffffff : ddr_obj.rdata),
     .load(ddr_obj.rdata_ready && (obj_state == ST_READ_TILE_WAIT))
 );
 
-
+reg [17:0] read_pacing;
 always @(posedge clk) begin
     bit [11:0] base_x, base_y;
     ddr_obj.acquire <= 0;
@@ -161,6 +163,10 @@ always @(posedge clk) begin
     prev_vbl_n <= VBLn;
     if (prev_vbl_n & ~VBLn) begin
         vbl_edge <= 1;
+    end
+
+    if (ce_13m) begin
+        read_pacing <= read_pacing + 1;
     end
 
     case(obj_state)
@@ -223,7 +229,8 @@ always @(posedge clk) begin
             endcase
 
         end
-        ST_DRAW_INIT: begin
+        ST_DRAW_INIT: if (ce_13m) begin
+            read_pacing <= 0;
             RA <= 0;
             RDWEn <= 1;
             obj_state <= ST_READ_START;
@@ -233,9 +240,12 @@ always @(posedge clk) begin
             if (RA[12:3] == 835 || vbl_edge) begin
                 obj_state <= ST_IDLE;
             end else begin
-                EBUSY <= 1;
-                ERCSn <= 0;
-                obj_state <= ST_READ;
+                if (read_pacing[17:8] >= RA[12:3]) begin
+                    EBUSY <= 1;
+                    ERCSn <= 0;
+                    obj_state <= ST_READ;
+                    inst_debug <= {1'b0, RA[14:3]} == debug_idx;
+                end
             end
         end
 
@@ -292,7 +302,7 @@ always @(posedge clk) begin
             draw_addr <= OBJ_FB_DDR_BASE + { 13'd0, draw_buffer, latch_y[7:0], latch_x[8:2], 3'b000 };
             fb_dirty_draw_addr <= { draw_buffer, latch_y[7:0], latch_x[8:2] };
             fb_dirty_base_addr <= { draw_buffer, latch_y[7:0], latch_x[8:2] };
-            if (latch_x > 400) begin
+            if (latch_x > 480) begin
                 obj_state <= ST_READ_START;
             end else if (latch_y > 240) begin
                 obj_state <= ST_READ_START;
@@ -455,9 +465,9 @@ always_ff @(posedge clk) begin
             ddr_fb.acquire <= 1;
             if (~ddr_fb.busy) begin
                 ddr_fb.read <= 1;
-                ddr_fb.burstcnt <= 100; // 320 / 4
-                ddr_fb.addr <= OBJ_FB_DDR_BASE + { 13'd0, scanout_buffer, vcnt + 8'd1, 10'd64 };
-                fb_dirty_scan_addr <= { scanout_buffer, vcnt + 8'd1, 7'd8 };
+                ddr_fb.burstcnt <= 110; // 320 / 4
+                ddr_fb.addr <= OBJ_FB_DDR_BASE + { 13'd0, scanout_buffer, vcnt + 8'd24, 10'd64 };
+                fb_dirty_scan_addr <= { scanout_buffer, vcnt + 8'd24, 7'd8 };
                 burstidx <= 0;
                 scan_state <= SCAN_WAIT_READ;
             end
@@ -477,7 +487,7 @@ always_ff @(posedge clk) begin
                     fb_dirty[fb_dirty_scan_addr] <= 0;
                     fb_dirty_scan_addr <= fb_dirty_scan_addr + 1;
 
-                    if (burstidx + 1 == 100) begin
+                    if (burstidx + 1 == 110) begin
                         scan_state <= SCAN_IDLE;
                     end
                 end
@@ -627,10 +637,10 @@ task prepare_draw();
     out_data <= 64'd0;
     out_ready <= 1;
 
-    out_data[15:0] <=  { 4'b00, color[7:2], row_data[0] };
-    out_data[31:16] <= { 4'b00, color[7:2], row_data[1] };
-    out_data[47:32] <= { 4'b00, color[7:2], row_data[2] };
-    out_data[63:48] <= { 4'b00, color[7:2], row_data[3] };
+    out_data[15:0] <=  { 4'd0, color[7:2], row_data[0] };
+    out_data[31:16] <= { 4'd0, color[7:2], row_data[1] };
+    out_data[47:32] <= { 4'd0, color[7:2], row_data[2] };
+    out_data[63:48] <= { 4'd0, color[7:2], row_data[3] };
     out_be[1:0] <= {2{|row_data[0]}};
     out_be[3:2] <= {2{|row_data[1]}};
     out_be[5:4] <= {2{|row_data[2]}};

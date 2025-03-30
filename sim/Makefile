@@ -77,7 +77,13 @@ $(OBJ_DIR)/verilator/%.o: $(VERILATOR_INC)/%.cpp
 
 $(OBJS): $(VERILATED_DIR)/F2__ALL.a
 
-sim: $(OBJS) $(VERILATOR_OBJS) $(VERILATED_DIR)/F2__ALL.a 
+microrom.mem: ../rtl/fx68k/hdl/microrom.mem
+	cp $< $@
+
+nanorom.mem: ../rtl/fx68k/hdl/nanorom.mem
+	cp $< $@
+
+sim: $(OBJS) $(VERILATOR_OBJS) $(VERILATED_DIR)/F2__ALL.a | microrom.mem nanorom.mem
 	$(CXX) -o $@ $^ $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -lpthread -lz
 
 run: sim

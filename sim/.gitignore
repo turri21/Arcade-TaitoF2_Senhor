@@ -1,2 +1,12 @@
 verilated/
 obj/
+roms/
+.cache/
+nanorom.mem
+microrom.mem
+*.f2state
+compile_commands.json
+imgui.ini
+*.fst
+*.vcd
+sim

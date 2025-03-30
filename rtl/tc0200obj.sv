@@ -42,7 +42,6 @@ ddr_mux ddr_mux(
 );
 
 // TODO
-// Data shifting module
 // FB alignment
 
 
@@ -113,7 +112,7 @@ reg fb_dirty_draw_set;
 reg [15:0] fb_dirty_scan_addr;
 wire [15:0] fb_dirty_draw_addr = { draw_buffer, shifter_addr };
 
-dualport_ram #(.WIDTH(1), .WIDTHAD(16)) fb_dirty_buffer
+dualport_ram_unreg #(.WIDTH(1), .WIDTHAD(16)) fb_dirty_buffer
 (
     // Port A
     .clock_a(clk),

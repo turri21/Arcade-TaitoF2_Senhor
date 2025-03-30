@@ -54,7 +54,6 @@ assign q_b = ram[address_b];
 
 always @(posedge clock_b) begin
     if(wren_b) begin
-        q_b      <= data_b;
         ram[address_b] <= data_b;
     end
 end

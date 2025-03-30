@@ -61,6 +61,7 @@ module memory_stream #(parameter COUNT = 8)
     reg [1:0]  chunk_width;
     reg [CHUNK_BITS-1:0] chunk_index;
 
+    reg [31:0] next_chunk_address;
     wire chunk_data_ack = data_ack;
     wire [63:0] chunk_read_data = read_data;
 
@@ -154,7 +155,7 @@ module memory_stream #(parameter COUNT = 8)
                         query_req <= 0;
                         write_req <= 0;
                         state <= READ_MEM_REQ;
-                        chunk_address <= 0;
+                        next_chunk_address <= 0;
                     end else if (&query_delay) begin
                         write_req <= 0;
                         query_req <= 0;
@@ -213,10 +214,11 @@ module memory_stream #(parameter COUNT = 8)
                             end
 
                             chunk_remaining <= chunk_remaining - 1;
-                            chunk_address <= chunk_address + 1;
+                            next_chunk_address <= chunk_address + 1;
                             write_req <= 0;
-                        end else if (~write_req) begin
+                        end else if (~write_req & ~chunk_data_ack) begin
                             write_req <= 1;
+                            chunk_address <= next_chunk_address;
                         end
                     end
                 end
@@ -248,7 +250,7 @@ module memory_stream #(parameter COUNT = 8)
                         chunk_width <= chunk_read_data[33:32];
                         buffer[33:0] <= chunk_read_data[33:0];
                         buffer[56+CHUNK_BITS-1:56] <= chunk_index[CHUNK_BITS-1:0];
-                        chunk_address <= 0;
+                        next_chunk_address <= 0;
                         query_req <= 0;
                         read_req <= 0;
                         state <= WRITE_MEM_REQ;
@@ -310,10 +312,11 @@ module memory_stream #(parameter COUNT = 8)
                             word_counter <= word_counter + 1;
                         end
 
+                        next_chunk_address <= chunk_address + 1;
                         chunk_remaining <= chunk_remaining - 1;
-                        chunk_address <= chunk_address + 1;
                         read_req <= 0;
-                    end else if (~read_req) begin
+                    end else if (~read_req & ~chunk_data_ack) begin
+                        chunk_address <= next_chunk_address;
                         read_req <= 1;
                     end
                 end

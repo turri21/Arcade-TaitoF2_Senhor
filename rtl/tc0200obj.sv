@@ -107,8 +107,31 @@ wire [14:0] dma_addr = {2'b00, dma_cycle[12:3], 3'b000};
 
 reg scanout_buffer = 0;
 wire draw_buffer = ~scanout_buffer;
-reg fb_dirty[2 * 128 * 256];
-reg [15:0] fb_dirty_scan_addr, fb_dirty_draw_addr, fb_dirty_base_addr;
+
+wire fb_dirty_scan, fb_dirty_draw;
+reg fb_dirty_draw_set;
+reg [15:0] fb_dirty_scan_addr;
+wire [15:0] fb_dirty_draw_addr = { draw_buffer, shifter_addr };
+
+dualport_ram #(.WIDTH(1), .WIDTHAD(16)) fb_dirty_buffer
+(
+    // Port A
+    .clock_a(clk),
+    .wren_a(ddr_fb.rdata_ready & ~ddr_fb.busy),
+    .address_a(fb_dirty_scan_addr),
+    .data_a(0),
+    .q_a(fb_dirty_scan),
+
+    // Port B
+    .clock_b(clk),
+    .wren_b(fb_dirty_draw_set),
+    .address_b(fb_dirty_draw_addr),
+    .data_b(1),
+    .q_b(fb_dirty_draw)
+);
+
+
+//reg fb_dirty[2 * 128 * 256];
 
 reg [11:0] master_x, master_y, extra_x, extra_y;
 reg [11:0] latch_x, latch_y;
@@ -159,6 +182,7 @@ always @(posedge clk) begin
     bit [11:0] base_x, base_y;
     ddr_obj.acquire <= 0;
     shifter_read <= 0;
+    fb_dirty_draw_set <= 0;
 
     prev_vbl_n <= VBLn;
     if (prev_vbl_n & ~VBLn) begin
@@ -300,8 +324,6 @@ always @(posedge clk) begin
 
         ST_CHECK_BOUNDS: begin
             draw_addr <= OBJ_FB_DDR_BASE + { 13'd0, draw_buffer, latch_y[7:0], latch_x[8:2], 3'b000 };
-            fb_dirty_draw_addr <= { draw_buffer, latch_y[7:0], latch_x[8:2] };
-            fb_dirty_base_addr <= { draw_buffer, latch_y[7:0], latch_x[8:2] };
             if (latch_x > 480) begin
                 obj_state <= ST_READ_START;
             end else if (latch_y > 240) begin
@@ -345,9 +367,9 @@ always @(posedge clk) begin
                     ddr_obj.write <= 1;
                     ddr_obj.burstcnt <= 1;
                     ddr_obj.wdata <= shifter_data;
-                    ddr_obj.byteenable <= fb_dirty[{draw_buffer, shifter_addr}] ? shifter_be : 8'hff;
-                    fb_dirty[{draw_buffer, shifter_addr}] <= 1;
+                    ddr_obj.byteenable <= fb_dirty_draw ? shifter_be : 8'hff;
                     shifter_read <= 1;
+                    fb_dirty_draw_set <= 1;
 
                     if (shifter_done) begin
                         obj_state <= ST_DRAW_ROW_WAIT;
@@ -392,13 +414,27 @@ wire [7:0] V_EXVBL_RESET = 8'hfa; // from signal trace
 
 reg [8:0] hcnt;
 reg [7:0] vcnt;
-reg [63:0] line_buffer0[128];
-reg [63:0] line_buffer1[128];
 reg [6:0] burstidx;
 
-wire [6:0] lb0_addr = vcnt[0] ? burstidx : (hcnt[8:2] + 6'd4);
-wire [6:0] lb1_addr = ~vcnt[0] ? burstidx : (hcnt[8:2] + 6'd4);
-wire [63:0] lb_dout = vcnt[0] ? line_buffer1[lb1_addr] : line_buffer0[lb0_addr];
+dualport_ram #(.WIDTH(64), .WIDTHAD(8)) line_buffer
+(
+    // Port A
+    .clock_a(clk),
+    .wren_a(ddr_fb.rdata_ready & ~ddr_fb.busy),
+    .address_a({vcnt[0], burstidx}),
+    .data_a(fb_dirty_scan ? ddr_fb.rdata : 64'd0),
+    .q_a(),
+
+    // Port B
+    .clock_b(clk),
+    .wren_b(0),
+    .address_b({~vcnt[0], hcnt[8:2] + 6'd4}),
+    .data_b(0),
+    .q_b(lb_dout)
+);
+
+
+wire [63:0] lb_dout;
 
 reg ex_vbl_n_prev, vbl_n_prev;
 reg ex_vbl_end, vbl_start;
@@ -477,14 +513,8 @@ always_ff @(posedge clk) begin
             if (~ddr_fb.busy) begin
                 ddr_fb.read <= 0;
                 if (ddr_fb.rdata_ready) begin
-                    if (vcnt[0]) begin
-                        line_buffer0[lb0_addr] <= fb_dirty[fb_dirty_scan_addr] ? ddr_fb.rdata : 64'd0;
-                    end else begin
-                        line_buffer1[lb1_addr] <= fb_dirty[fb_dirty_scan_addr] ? ddr_fb.rdata : 64'd0;
-                    end
                     burstidx <= burstidx + 1;
 
-                    fb_dirty[fb_dirty_scan_addr] <= 0;
                     fb_dirty_scan_addr <= fb_dirty_scan_addr + 1;
 
                     if (burstidx + 1 == 110) begin

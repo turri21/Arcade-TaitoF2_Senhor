@@ -13,7 +13,7 @@ module F2(
     output      [7:0] green,
     output      [7:0] blue,
 
-    output reg [31:0] sdr_cpu_addr,
+    output reg [26:0] sdr_cpu_addr,
     input      [15:0] sdr_cpu_q,
     output reg [15:0] sdr_cpu_data,
     output reg [ 1:0] sdr_cpu_be,
@@ -21,7 +21,7 @@ module F2(
     output reg        sdr_cpu_req,
     input             sdr_cpu_ack,
 
-    output reg [31:0] sdr_scn_main_addr,
+    output reg [26:0] sdr_scn_main_addr,
     input      [31:0] sdr_scn_main_q,
     output reg        sdr_scn_main_req,
     input             sdr_scn_main_ack,
@@ -72,18 +72,27 @@ reg ss_read = 0;
 wire ss_busy;
 
 ssbus_if ssbus();
+//ssbuf_if ss_global(), ss_cpu_ram(), ss_obj(), ss_objram(), ss_pri_ram(), ss_scn_main(), ss_scn_ram_0();
+ssbus_if ssb[7]();
+
+ssbus_mux #(.COUNT(7)) ssmux(
+    .clk,
+    .slave(ssbus),
+    .masters(ssb)
+);
 
 always_ff @(posedge clk) begin
-    ssbus.setup(SSIDX_GLOBAL, 1, 2); // 1, 32-bit value
-    if (ssbus.access(0)) begin
-        if (ssbus.read) begin
-            ssbus.read_response(0, { 32'd0, ss_saved_ssp });
-        end else if (ssbus.write) begin
-            ss_restore_ssp <= ssbus.data[31:0];
-            ssbus.write_ack(0);
+    ssb[0].setup(SSIDX_GLOBAL, 1, 2); // 1, 32-bit value
+    if (ssb[0].access(SSIDX_GLOBAL)) begin
+        if (ssb[0].read) begin
+            ssb[0].read_response(SSIDX_GLOBAL, { 32'd0, ss_saved_ssp });
+        end else if (ssb[0].write) begin
+            ss_restore_ssp <= ssb[0].data[31:0];
+            ssb[0].write_ack(SSIDX_GLOBAL);
         end
     end
 end
+
 
 logic [15:0] save_handler[13] = '{
     16'h48e7,
@@ -106,7 +115,7 @@ logic [15:0] save_handler[13] = '{
 
 
 typedef enum bit [3:0] {
-    SST_IDLE = 0,
+    SST_IDLE,
     SST_START_SAVE,
     SST_WAIT_SAVE,
     SST_SAVE_PAUSED_SETTLE,
@@ -326,14 +335,14 @@ wire [14:0] OBJ_ADD = BUSY ? obj_ram_addr : cpu_addr[14:0];
 wire [15:0] OBJ_DATA = BUSY ? obj_dout : cpu_data_out;
 assign CPUENn = BUSY ? ~OBJECTn : 0;
 
-m68k_ram_unreg #(.WIDTHAD(15), .SS_IDX(SSIDX_OBJ_RAM)) objram(
+m68k_ram_reg #(.WIDTHAD(15), .SS_IDX(SSIDX_OBJ_RAM)) objram(
     .clock(clk),
     .address(OBJ_ADD),
     .we_lds_n(OBJWEn | LOBJRAMn),
     .we_uds_n(OBJWEn | UOBJRAMn),
     .data(OBJ_DATA),
     .q(objram_data_out),
-    .ssbus(ssbus)
+    .ssbus(ssb[2])
 );
 
 TC0200OBJ tc0200obj(
@@ -367,7 +376,7 @@ TC0200OBJ tc0200obj(
 
     .debug_idx(obj_debug_idx),
 
-    .ssbus
+    .ssbus(ssb[3])
 );
 
 
@@ -382,14 +391,14 @@ wire scn_main_ram_ce_0_n, scn_main_ram_ce_1_n;
 
 wire [14:0] scn_main_dot_color;
 
-m68k_ram_unreg #(.WIDTHAD(15), .SS_IDX(SSIDX_SCN_RAM_0)) scn_ram_0(
+m68k_ram_reg #(.WIDTHAD(15), .SS_IDX(SSIDX_SCN_RAM_0)) scn_ram_0(
     .clock(clk),
     .address(scn_main_ram_addr),
     .we_lds_n(scn_main_ram_ce_0_n | scn_main_ram_we_lo_n),
     .we_uds_n(scn_main_ram_ce_0_n | scn_main_ram_we_up_n),
     .data(scn_main_ram_dout),
     .q(scn_main_ram_din),
-    .ssbus(ssbus)
+    .ssbus(ssb[4])
 );
 
 wire HSYNn;
@@ -407,7 +416,7 @@ assign green = {pri_ram_din[9:5], pri_ram_din[9:7]};
 assign red = {pri_ram_din[4:0], pri_ram_din[4:2]};
 
 wire [20:0] scn_main_rom_address;
-assign sdr_scn_main_addr = { 11'b0, scn_main_rom_address[20:0] };
+assign sdr_scn_main_addr = { 6'b0, scn_main_rom_address[20:0] };
 
 TC0100SCN #(.SS_IDX(SSIDX_SCN_0)) scn_main(
     .clk(clk),
@@ -452,7 +461,7 @@ TC0100SCN #(.SS_IDX(SSIDX_SCN_0)) scn_main(
     .IHLD(0), // FIXME - confirm inputs
     .IVLD(0),
 
-    .ssbus
+    .ssbus(ssb[5])
 );
 
 
@@ -461,14 +470,14 @@ wire [12:0] pri_ram_addr;
 wire [15:0] pri_ram_din, pri_ram_dout;
 wire pri_ram_we_l_n, pri_ram_we_h_n;
 
-m68k_ram_unreg #(.WIDTHAD(12), .SS_IDX(SSIDX_PRI_RAM)) pri_ram(
+m68k_ram_reg #(.WIDTHAD(12), .SS_IDX(SSIDX_PRI_RAM)) pri_ram(
     .clock(clk),
     .address(pri_ram_addr[12:1]),
     .we_lds_n(pri_ram_we_l_n),
     .we_uds_n(pri_ram_we_h_n),
     .data(pri_ram_dout),
     .q(pri_ram_din),
-    .ssbus(ssbus)
+    .ssbus(ssb[6])
 );
 
 TC0110PR tc0110pr(
@@ -606,33 +615,33 @@ reg ss_sdr_active;
 always_ff @(posedge clk) begin
     prev_ds_n <= &cpu_ds_n;
 
-    ssbus.setup(SSIDX_CPU_RAM, 32'h8000, 1);
+    ssb[1].setup(SSIDX_CPU_RAM, 32'h8000, 1);
 
-    if (ssbus.access(SSIDX_CPU_RAM)) begin
-        if (ssbus.read) begin
+    if (ssb[1].access(SSIDX_CPU_RAM)) begin
+        if (ssb[1].read) begin
             if (~ss_sdr_active) begin
-                sdr_cpu_addr <= 32'h100000 + { 9'b0, ssbus.addr[21:0], 1'b0 };
+                sdr_cpu_addr <= 27'h100000 + { 4'b0, ssb[1].addr[21:0], 1'b0 };
                 sdr_cpu_be <= 2'b11;
                 sdr_cpu_rw <= 1;
                 sdr_cpu_req <= ~sdr_cpu_req;
                 ss_sdr_active <= 1;
             end else if (sdr_cpu_req == sdr_cpu_ack) begin
-                ssbus.read_response(SSIDX_CPU_RAM, {48'b0, sdr_cpu_q});
+                ssb[1].read_response(SSIDX_CPU_RAM, {48'b0, sdr_cpu_q});
             end
-        end else if (ssbus.write) begin
+        end else if (ssb[1].write) begin
             if (~ss_sdr_active) begin
-                sdr_cpu_addr <= 32'h100000 + { 9'b0, ssbus.addr[21:0], 1'b0 };
+                sdr_cpu_addr <= 27'h100000 + { 4'b0, ssb[1].addr[21:0], 1'b0 };
                 sdr_cpu_be <= 2'b11;
                 sdr_cpu_rw <= 0;
                 sdr_cpu_req <= ~sdr_cpu_req;
-                sdr_cpu_data <= ssbus.data[15:0];
+                sdr_cpu_data <= ssb[1].data[15:0];
                 ss_sdr_active <= 1;
             end else if (sdr_cpu_req == sdr_cpu_ack) begin
-                ssbus.write_ack(SSIDX_CPU_RAM);
+                ssb[1].write_ack(SSIDX_CPU_RAM);
             end
         end
     end else if (~(ROMn & WORKn) & prev_ds_n) begin
-        sdr_cpu_addr <= { 8'b0, cpu_word_addr };
+        sdr_cpu_addr <= { 3'b0, cpu_word_addr };
         sdr_cpu_data <= cpu_data_out;
         sdr_cpu_be <= ~cpu_ds_n;
         sdr_cpu_rw <= cpu_rw;

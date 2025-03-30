@@ -75,7 +75,7 @@ $(OBJ_DIR)/verilator/%.o: $(VERILATOR_INC)/%.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) -o $@ -c $< $(CPPFLAGS)
 
-$(OBJ_DIR)/sim.o: $(VERILATED_DIR)/F2__ALL.a
+$(OBJS): $(VERILATED_DIR)/F2__ALL.a
 
 sim: $(OBJS) $(VERILATOR_OBJS) $(VERILATED_DIR)/F2__ALL.a 
 	$(CXX) -o $@ $^ $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -lpthread -lz

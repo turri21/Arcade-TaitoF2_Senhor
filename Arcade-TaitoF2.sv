@@ -178,8 +178,6 @@ assign ADC_BUS  = 'Z;
 assign USER_OUT = '1;
 assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
-assign {SDRAM_DQ, SDRAM_A, SDRAM_BA, SDRAM_CLK, SDRAM_CKE, SDRAM_DQML, SDRAM_DQMH, SDRAM_nWE, SDRAM_nCAS, SDRAM_nRAS, SDRAM_nCS} = 'Z;
-assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = '0;
 
 assign VGA_SL = 0;
 assign VGA_F1 = 0;
@@ -259,17 +257,70 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 
 ///////////////////////   CLOCKS   ///////////////////////////////
 
-wire clk_sys;
+wire clk_sys, clk_sdr, pll_locked;
 pll pll
 (
     .refclk(CLK_50M),
     .rst(0),
-    .outclk_0(clk_sys)
+    .locked(pll_locked),
+    .outclk_0(clk_sdr),
+    .outclk_1(clk_sys)
 );
 
 wire reset = RESET | status[0] | buttons[1];
 
-wire [1:0] col = status[4:3];
+wire [26:0] sdr_ch1_addr, sdr_ch2_addr, sdr_ch3_addr, sdr_ch4_addr;
+wire sdr_ch1_req, sdr_ch2_req, sdr_ch3_req, sdr_ch4_req;
+wire sdr_ch1_ack, sdr_ch2_ack, sdr_ch3_ack, sdr_ch4_ack;
+wire [31:0] sdr_ch1_dout;
+wire [63:0] sdr_ch3_dout;
+wire [15:0] sdr_ch3_din;
+wire [1:0] sdr_ch3_be;
+wire sdr_ch3_rnw;
+
+sdram sdram
+(
+    .init(~pll_locked),        // reset to initialize RAM
+    .clk(clk_sdr),         // clock 64MHz
+
+    .doRefresh(0),
+
+    .SDRAM_DQ,    // 16 bit bidirectional data bus
+    .SDRAM_A,     // 13 bit multiplexed address bus
+    .SDRAM_DQML,  // two byte masks
+    .SDRAM_DQMH,  //
+    .SDRAM_BA,    // two banks
+    .SDRAM_nCS,   // a single chip select
+    .SDRAM_nWE,   // write enable
+    .SDRAM_nRAS,  // row address select
+    .SDRAM_nCAS,  // columns address select
+    .SDRAM_CKE,   // clock enable
+    .SDRAM_CLK,   // clock for chip
+
+    .ch1_addr(sdr_ch1_addr),    // 25 bit address for 8bit mode. addr[0] = 0 for 16bit mode for correct operations.
+    .ch1_dout(sdr_ch1_dout),    // data output to cpu
+    .ch1_req(sdr_ch1_req),     // request
+    .ch1_ack(sdr_ch1_ack),
+
+    .ch2_addr(0),
+    .ch2_dout(),
+    .ch2_req(0),
+    .ch2_ack(),
+
+    .ch3_addr(sdr_ch3_addr),
+    .ch3_dout(sdr_ch3_dout),
+    .ch3_din(sdr_ch3_din),
+    .ch3_be(sdr_ch3_be),
+    .ch3_req(sdr_ch3_req),
+    .ch3_rnw(sdr_ch3_rnw),     // 1 - read, 0 - write
+    .ch3_ack(sdr_ch3_ack),
+
+    .ch4_addr(0),
+    .ch4_dout(),
+    .ch4_req(0),
+    .ch4_ack()
+);
+
 
 wire HBlank;
 wire HSync;
@@ -278,36 +329,60 @@ wire VSync;
 wire ce_pix;
 wire [7:0] video;
 
-mycore mycore
-(
+wire [31:0] DDRAM_ADDR_32;
+assign DDRAM_ADDR = DDRAM_ADDR_32[31:3];
+
+F2 F2(
     .clk(clk_sys),
     .reset(reset),
 
-    .pal(status[2]),
-    .scandouble(forced_scandoubler),
+    .ce_pixel(ce_pix),
+    .hsync(HSync),
+    .hblank(HBlank),
+    .vsync(VSync),
+    .vblank(VBlank),
+    .red(VGA_R),
+    .green(VGA_G),
+    .blue(VGA_B),
 
-    .ce_pix(ce_pix),
+    .sdr_cpu_addr(sdr_ch3_addr),
+    .sdr_cpu_q(sdr_ch3_dout[15:0]),
+    .sdr_cpu_data(sdr_ch3_din),
+    .sdr_cpu_be(sdr_ch3_be),
+    .sdr_cpu_rw(sdr_ch3_rnw),     // 1 - read, 0 - write
+    .sdr_cpu_req(sdr_ch3_req),
+    .sdr_cpu_ack(sdr_ch3_ack),
 
-    .HBlank(HBlank),
-    .HSync(HSync),
-    .VBlank(VBlank),
-    .VSync(VSync),
+    .sdr_scn_main_addr(sdr_ch1_addr),
+    .sdr_scn_main_q(sdr_ch1_dout),
+    .sdr_scn_main_req(sdr_ch1_req),
+    .sdr_scn_main_ack(sdr_ch1_ack),
 
-    .video(video)
+    // Memory stream interface
+    .ddr_addr(DDRAM_ADDR_32),
+    .ddr_wdata(DDRAM_DIN),
+    .ddr_rdata(DDRAM_DOUT),
+    .ddr_read(DDRAM_RD),
+    .ddr_write(DDRAM_WE),
+    .ddr_burstcnt(DDRAM_BURSTCNT),
+    .ddr_byteenable(DDRAM_BE),
+    .ddr_busy(DDRAM_BUSY),
+    .ddr_read_complete(DDRAM_DOUT_READY),
+
+    .obj_debug_idx(13'h1fff),
+
+    .ss_do_save(0),
+    .ss_do_restore(0),
+    .ss_state_out()
 );
 
+
 assign CLK_VIDEO = clk_sys;
+assign DDRAM_CLK = clk_sys;
 assign CE_PIXEL = ce_pix;
 
 assign VGA_DE = ~(HBlank | VBlank);
 assign VGA_HS = HSync;
 assign VGA_VS = VSync;
-assign VGA_G  = (!col || col == 2) ? video : 8'd0;
-assign VGA_R  = (!col || col == 1) ? video : 8'd0;
-assign VGA_B  = (!col || col == 3) ? video : 8'd0;
-
-reg  [26:0] act_cnt;
-always @(posedge clk_sys) act_cnt <= act_cnt + 1'd1;
-assign LED_USER    = act_cnt[26]  ? act_cnt[25:18]  > act_cnt[7:0]  : act_cnt[25:18]  <= act_cnt[7:0];
 
 endmodule

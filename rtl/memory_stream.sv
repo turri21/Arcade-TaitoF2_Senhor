@@ -3,16 +3,16 @@ module memory_stream #(parameter COUNT = 8)
     input               clk,
     input               reset,
 
-    ddr_if.to_host    ddr,
+    ddr_if.to_host      ddr,
 
     // 8-bit stream interface for reading from memory
     output reg          write_req,
     output reg [63:0]   write_data,
-    input  [COUNT-1:0]  data_ack,
+    input               data_ack,
 
     // 8-bit stream interface for writing to memory
     output reg          read_req,
-    input      [63:0]   read_data[COUNT],
+    input      [63:0]   read_data,
 
     // Control signals
     input      [31:0]   start_addr,
@@ -22,7 +22,7 @@ module memory_stream #(parameter COUNT = 8)
 
     output reg          query_req,
     output reg [31:0]   chunk_address,
-    output [COUNT-1:0] chunk_select,
+    output      [7:0]   chunk_select,
 
     output              busy
 );
@@ -49,7 +49,7 @@ module memory_stream #(parameter COUNT = 8)
 
     parameter CHUNK_BITS = $clog2(COUNT);
 
-    logic [2:0] word_end[4] = { 3'b111, 3'b011, 3'b001, 3'b000 };
+    logic [2:0] word_end[4] = '{ 3'b111, 3'b011, 3'b001, 3'b000 };
 
     // Counters for reading/writing
     reg [31:0] end_addr;
@@ -61,13 +61,13 @@ module memory_stream #(parameter COUNT = 8)
     reg [1:0]  chunk_width;
     reg [CHUNK_BITS-1:0] chunk_index;
 
-    wire chunk_data_ack = data_ack[chunk_index];
-    wire [63:0] chunk_read_data = read_data[chunk_index];
+    wire chunk_data_ack = data_ack;
+    wire [63:0] chunk_read_data = read_data;
 
     always_comb begin
         chunk_select = 0;
         if (busy) begin
-            chunk_select[chunk_index] = 1;
+            chunk_select = { 5'b0, chunk_index };
         end
     end
 

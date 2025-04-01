@@ -42,21 +42,27 @@ module dualport_ram_unreg #(
 reg [WIDTH-1:0] ram[2**WIDTHAD] /* verilator public_flat */;
 
 // Port A
-assign q_a = wren_a ? data_a : ram[address_a];
+wire [WIDTH-1:0] q1_a = wren_a ? data_a : ram[address_a];
+reg [WIDTH-1:0] q2_a;
+assign q_a = q2_a;
 
 always @(posedge clock_a) begin
     if (wren_a) begin
         ram[address_a] <= data_a;
     end
+    q2_a <= q1_a;
 end
 
 // Port B
-assign q_b = wren_b ? data_b : ram[address_b];
+wire [WIDTH-1:0] q1_b = wren_b ? data_b : ram[address_b];
+reg [WIDTH-1:0] q2_b;
+assign q_b = q2_b;
 
 always @(posedge clock_b) begin
     if(wren_b) begin
         ram[address_b] <= data_b;
     end
+    q2_b <= q1_b;
 end
 
 `else
@@ -280,6 +286,7 @@ wire [WIDTHAD-1:0] addr = ssbus.access(SS_IDX) ? ssbus.addr[WIDTHAD-1:0] : addre
 wire [15:0] q_a;
 wire [31:0] SIZE = 2**WIDTHAD;
 
+reg read_delay;
 always @(posedge clock) begin
     ssbus.setup(SS_IDX, SIZE, 1);
 
@@ -287,8 +294,13 @@ always @(posedge clock) begin
         if (ssbus.write) begin
             ssbus.write_ack(SS_IDX);
         end else if (ssbus.read) begin
-            ssbus.read_response(SS_IDX, { 48'd0, q_a });
+            if (read_delay) begin
+                ssbus.read_response(SS_IDX, { 48'd0, q_a });
+            end
+            read_delay <= 1;
         end
+    end else begin
+        read_delay <= 0;
     end
 
     q <= q_a;

@@ -36,11 +36,16 @@ module memory_stream #(parameter COUNT = 8)
         WRITE_GATHER,
         WRITE_MEM_REQ,
         WRITE_MEM_FINAL_REQ,
+        WRITE_MEM_FINAL_WAIT,
         WRITE_MEM_WAIT,
         QUERY_GATHER_FIRST,
         QUERY_GATHER_NEXT,
         QUERY_GATHER_WAIT,
-        QUERY_SCATTER_WAIT
+        QUERY_SCATTER_WAIT,
+        READ_HEADER,
+        READ_HEADER_WAIT,
+        WRITE_HEADER,
+        WRITE_HEADER_WAIT
     } state_t;
 
     state_t state;
@@ -60,10 +65,13 @@ module memory_stream #(parameter COUNT = 8)
     reg [3:0]  query_delay;
     reg [1:0]  chunk_width;
     reg [CHUNK_BITS-1:0] chunk_index;
+    reg        is_reading;
 
     reg [31:0] next_chunk_address;
     wire chunk_data_ack = data_ack;
     wire [63:0] chunk_read_data = read_data;
+
+    reg [63:0] header_data;
 
     always_comb begin
         chunk_select = 0;
@@ -85,6 +93,7 @@ module memory_stream #(parameter COUNT = 8)
             word_counter <= 0;
             query_req <= 0;
             chunk_index <= 0;
+            is_reading <= 0;
         end
         else begin
             case (state)
@@ -99,18 +108,63 @@ module memory_stream #(parameter COUNT = 8)
                     read_req <= 0;
                     chunk_index <= 0;
                     chunk_remaining <= 0;
-                    current_addr <= start_addr;
+                    current_addr <= start_addr + 32'd8;
                     end_addr <= start_addr + length;
                     word_counter <= 0;
                     buffer <= 64'h0;
 
                     // Check for start signals
                     if (read_start) begin
-                        state <= READ_MEM_REQ;
+                        state <= READ_HEADER;
+                        is_reading <= 1;
                         ddr.acquire <= 1;
                     end else if (write_start) begin
-                        state <= QUERY_GATHER_FIRST;
+                        state <= READ_HEADER;
+                        is_reading <= 0;
                         ddr.acquire <= 1;
+                    end
+                end
+
+                READ_HEADER: begin
+                    if (~ddr.busy) begin
+                        ddr.read <= 1;
+                        ddr.addr <= start_addr;
+                        state <= READ_HEADER_WAIT;
+                    end
+                end
+
+                READ_HEADER_WAIT: begin
+                    if (~ddr.busy) begin
+                        ddr.read <= 0;
+                        if (ddr.rdata_ready) begin
+                            header_data <= ddr.rdata;
+
+                            if (is_reading) begin
+                                end_addr <= current_addr + { ddr.rdata[61:32], 2'b00 };
+                                state <= READ_MEM_REQ;
+                            end else begin
+                                state <= QUERY_GATHER_FIRST;
+                            end
+                        end
+                    end
+                end
+
+                WRITE_HEADER: begin
+                    bit [31:0] len;
+                    if (~ddr.busy) begin
+                        ddr.write <= 1;
+                        ddr.addr <= start_addr;
+                        len = current_addr - (start_addr + 32'd8);
+                        ddr.wdata[63:32] <= { 2'b00, len[31:2] };
+                        ddr.wdata[31:0] <= header_data[31:0] + 32'd1;
+                        state <= WRITE_HEADER_WAIT;
+                    end
+                end
+
+                WRITE_HEADER_WAIT: begin
+                    if (~ddr.busy) begin
+                        ddr.write <= 0;
+                        state <= IDLE;
                     end
                 end
 
@@ -340,9 +394,18 @@ module memory_stream #(parameter COUNT = 8)
                         ddr.addr <= current_addr & 32'hFFFFFFF8; // Align to 8-byte boundary
                         ddr.wdata <= ~64'd0;
                         ddr.write <= 1;
-                        state <= IDLE;
+                        current_addr <= current_addr + 32'd8;
+                        state <= WRITE_MEM_FINAL_WAIT;
                     end
                 end
+
+                WRITE_MEM_FINAL_WAIT: begin
+                    if (!ddr.busy) begin
+                        ddr.write <= 0;
+                        state <= WRITE_HEADER;
+                    end
+                end
+
 
                 WRITE_MEM_WAIT: begin
                     if (!ddr.busy) begin

@@ -17,3 +17,4 @@ set_global_assignment -name VERILOG_FILE rtl/jtframe_frac_cen.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/memory_stream.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/savestates.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/ddram.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/rom_loader.sv

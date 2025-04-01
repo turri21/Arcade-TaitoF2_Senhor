@@ -42,7 +42,7 @@ module dualport_ram_unreg #(
 reg [WIDTH-1:0] ram[2**WIDTHAD] /* verilator public_flat */;
 
 // Port A
-assign q_a = ram[address_a];
+assign q_a = wren_a ? data_a : ram[address_a];
 
 always @(posedge clock_a) begin
     if (wren_a) begin
@@ -51,7 +51,7 @@ always @(posedge clock_a) begin
 end
 
 // Port B
-assign q_b = ram[address_b];
+assign q_b = wren_b ? data_b : ram[address_b];
 
 always @(posedge clock_b) begin
     if(wren_b) begin
@@ -453,7 +453,7 @@ module singleport_ram #(
 
 );
 
-altsyncram	altsyncram_component (
+altsyncram    altsyncram_component (
             .address_a (address),
             .clock0 (clock),
             .data_a (data),
@@ -508,7 +508,7 @@ module singleport_unreg_ram #(
     output  wire    [width-1:0]    q
 );
 
-altsyncram	altsyncram_component (
+altsyncram    altsyncram_component (
             .address_a (address),
             .clock0 (clock),
             .data_a (data),

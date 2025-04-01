@@ -27,6 +27,7 @@ module F2(
     input             sdr_scn_main_ack,
 
     // Memory stream interface
+    output            ddr_acquire,
     output     [31:0] ddr_addr,
     output     [63:0] ddr_wdata,
     input      [63:0] ddr_rdata,
@@ -55,6 +56,7 @@ assign ddr_byteenable = ddr.byteenable;
 assign ddr.rdata = ddr_rdata;
 assign ddr.busy = ddr_busy;
 assign ddr.rdata_ready = ddr_read_complete;
+assign ddr_acquire = ddr.acquire;
 
 ddr_if ddr_ss(), ddr_obj();
 
@@ -416,7 +418,7 @@ assign green = {pri_ram_din[9:5], pri_ram_din[9:7]};
 assign red = {pri_ram_din[4:0], pri_ram_din[4:2]};
 
 wire [20:0] scn_main_rom_address;
-assign sdr_scn_main_addr = { 6'b0, scn_main_rom_address[20:0] };
+assign sdr_scn_main_addr = SCN0_ROM_SDR_BASE[26:0] + { 6'b0, scn_main_rom_address[20:0] };
 
 TC0100SCN #(.SS_IDX(SSIDX_SCN_0)) scn_main(
     .clk(clk),
@@ -620,7 +622,7 @@ always_ff @(posedge clk) begin
     if (ssb[1].access(SSIDX_CPU_RAM)) begin
         if (ssb[1].read) begin
             if (~ss_sdr_active) begin
-                sdr_cpu_addr <= 27'h100000 + { 4'b0, ssb[1].addr[21:0], 1'b0 };
+                sdr_cpu_addr <= WORK_RAM_SDR_BASE[26:0] + { 4'b0, ssb[1].addr[21:0], 1'b0 };
                 sdr_cpu_be <= 2'b11;
                 sdr_cpu_rw <= 1;
                 sdr_cpu_req <= ~sdr_cpu_req;
@@ -630,7 +632,7 @@ always_ff @(posedge clk) begin
             end
         end else if (ssb[1].write) begin
             if (~ss_sdr_active) begin
-                sdr_cpu_addr <= 27'h100000 + { 4'b0, ssb[1].addr[21:0], 1'b0 };
+                sdr_cpu_addr <= WORK_RAM_SDR_BASE[26:0] + { 4'b0, ssb[1].addr[21:0], 1'b0 };
                 sdr_cpu_be <= 2'b11;
                 sdr_cpu_rw <= 0;
                 sdr_cpu_req <= ~sdr_cpu_req;
@@ -641,7 +643,7 @@ always_ff @(posedge clk) begin
             end
         end
     end else if (~(ROMn & WORKn) & prev_ds_n) begin
-        sdr_cpu_addr <= { 3'b0, cpu_word_addr };
+        sdr_cpu_addr <= CPU_ROM_SDR_BASE[26:0] + { 3'b0, cpu_word_addr };
         sdr_cpu_data <= cpu_data_out;
         sdr_cpu_be <= ~cpu_ds_n;
         sdr_cpu_rw <= cpu_rw;

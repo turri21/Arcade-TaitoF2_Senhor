@@ -204,30 +204,21 @@ assign VIDEO_ARY = (!ar) ? 12'd3 : 12'd0;
 
 `include "build_id.v"
 localparam CONF_STR = {
-    "TaitoF2;;",
+    "TaitoF2;SS3E000000:200000;",
     "-;",
     "O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
-    "O[2],TV Mode,NTSC,PAL;",
-    "O[4:3],Noise,White,Red,Green,Blue;",
-    "-;",
-    "P1,Test Page 1;",
-    "P1-;",
-    "P1-, -= Options in page 1 =-;",
-    "P1-;",
-    "P1O[5],Option 1-1,Off,On;",
-    "d0P1F1,BIN;",
-    "H0P1O[10],Option 1-2,Off,On;",
-    "-;",
-    "P2,Test Page 2;",
-    "P2-;",
-    "P2-, -= Options in page 2 =-;",
-    "P2-;",
-    "P2S0,DSK;",
-    "P2O[7:6],Option 2,1,2,3,4;",
-    "-;",
+    "R[64],Save State 1;",
+    "R[65],Save State 2;",
+    "R[66],Save State 3;",
+    "R[67],Save State 4;",
+    "R[68],Load State 1;",
+    "R[69],Load State 2;",
+    "R[70],Load State 3;",
+    "R[71],Load State 4;",
     "-;",
     "T[0],Reset;",
     "R[0],Reset and close OSD;",
+    "DEFMRA,/_Development/F2.mra;",
     "v,0;", // [optional] config version 0-99.
             // If CONF_STR options are changed in incompatible way, then change version number too,
               // so all options will get default values on first start.
@@ -239,18 +230,67 @@ wire   [1:0] buttons;
 wire [127:0] status;
 wire  [10:0] ps2_key;
 
+wire [3:0] save_state_req = status[67:64];
+wire [3:0] load_state_req = status[71:68];
+
+wire ioctl_rom_wait;
+/*wire ioctl_hs_upload_req;
+wire ioctl_m107_upload_req;
+wire [7:0] ioctl_hs_din;
+wire [7:0] ioctl_m107_din;*/
+
+wire        ioctl_download;
+wire        ioctl_upload;
+wire        ioctl_upload_req = 0; //ioctl_hs_upload_req | ioctl_m107_upload_req;
+wire  [7:0] ioctl_index;
+wire  [7:0] ioctl_upload_index;
+wire        ioctl_wr;
+wire        ioctl_rd;
+wire [24:0] ioctl_addr;
+wire  [7:0] ioctl_dout;
+wire  [7:0] ioctl_din = 0; // = ioctl_m107_din | ioctl_hs_din;
+wire        ioctl_wait = ioctl_rom_wait;
+
+wire [15:0] joystick_p1, joystick_p2, joystick_p3, joystick_p4;
+
+wire [21:0] gamma_bus;
+wire        direct_video;
+wire        video_rotated;
+
+wire        autosave = 0; //status[8];
+
 hps_io #(.CONF_STR(CONF_STR)) hps_io
 (
     .clk_sys(clk_sys),
     .HPS_BUS(HPS_BUS),
     .EXT_BUS(),
-    .gamma_bus(),
+    .gamma_bus(gamma_bus),
+    .direct_video(direct_video),
 
     .forced_scandoubler(forced_scandoubler),
+    .new_vmode(0),
+    .video_rotated(video_rotated),
 
     .buttons(buttons),
     .status(status),
-    .status_menumask({status[5]}),
+    .status_menumask({direct_video}),
+
+    .ioctl_download(ioctl_download),
+    .ioctl_upload(ioctl_upload),
+    .ioctl_upload_index(ioctl_upload_index),
+    .ioctl_upload_req(ioctl_upload_req & autosave),
+    .ioctl_wr(ioctl_wr),
+    .ioctl_rd(ioctl_rd),
+    .ioctl_addr(ioctl_addr),
+    .ioctl_dout(ioctl_dout),
+    .ioctl_din(ioctl_din),
+    .ioctl_index(ioctl_index),
+    .ioctl_wait(ioctl_wait),
+
+    .joystick_0(joystick_p1),
+    .joystick_1(joystick_p2),
+    .joystick_2(joystick_p3),
+    .joystick_3(joystick_p4),
 
     .ps2_key(ps2_key)
 );
@@ -267,16 +307,30 @@ pll pll
     .outclk_1(clk_sys)
 );
 
-wire reset = RESET | status[0] | buttons[1];
+wire reset = RESET | status[0] | buttons[1] | rom_load_busy;
 
-wire [26:0] sdr_ch1_addr, sdr_ch2_addr, sdr_ch3_addr, sdr_ch4_addr;
-wire sdr_ch1_req, sdr_ch2_req, sdr_ch3_req, sdr_ch4_req;
-wire sdr_ch1_ack, sdr_ch2_ack, sdr_ch3_ack, sdr_ch4_ack;
+wire [26:0] sdr_ch1_addr, sdr_ch2_addr, sdr_ch4_addr;
+wire sdr_ch1_req, sdr_ch2_req, sdr_ch4_req;
+wire sdr_ch1_ack, sdr_ch2_ack, sdr_ch4_ack;
 wire [31:0] sdr_ch1_dout;
+
 wire [63:0] sdr_ch3_dout;
-wire [15:0] sdr_ch3_din;
-wire [1:0] sdr_ch3_be;
-wire sdr_ch3_rnw;
+wire sdr_ch3_ack;
+
+wire [26:0] sdr_cpu_addr, sdr_rom_addr;
+wire [15:0] sdr_cpu_din, sdr_rom_din;
+wire [1:0] sdr_cpu_be, sdr_rom_be;
+wire sdr_cpu_req, sdr_rom_req;
+wire sdr_cpu_rw, sdr_rom_rw;
+
+wire [26:0] sdr_ch3_addr = rom_load_busy ? sdr_rom_addr : sdr_cpu_addr;
+wire [15:0] sdr_ch3_din = rom_load_busy ? sdr_rom_din : sdr_cpu_din;
+wire [63:0] sdr_cpu_dout = sdr_ch3_dout;
+wire [1:0] sdr_ch3_be = rom_load_busy ? sdr_rom_be : sdr_cpu_be;
+wire sdr_ch3_req = rom_load_busy ? sdr_rom_req : sdr_cpu_req;
+wire sdr_cpu_ack = rom_load_busy ? sdr_cpu_req : sdr_ch3_ack; // FIXME, wtf to do with this in unknown state?
+wire sdr_rom_ack = rom_load_busy ? sdr_ch3_ack : sdr_rom_req;
+wire sdr_ch3_rnw = rom_load_busy ? sdr_rom_rw  : sdr_cpu_rw;
 
 sdram sdram
 (
@@ -321,6 +375,73 @@ sdram sdram
     .ch4_ack()
 );
 
+ddr_if ddr_host(), ddr_romload(), ddr_romload_adaptor(), ddr_romload_loader(), ddr_f2();
+
+ddr_mux ddr_mux(
+    .clk(clk_sys),
+    .x(ddr_host),
+    .a(ddr_f2),
+    .b(ddr_romload)
+);
+
+ddr_mux ddr_mux2(
+    .clk(clk_sys),
+    .x(ddr_romload),
+    .a(ddr_romload_adaptor),
+    .b(ddr_romload_loader)
+);
+
+wire rom_load_busy;
+wire rom_data_wait;
+wire rom_data_strobe;
+wire [7:0] rom_data;
+
+board_cfg_t board_cfg;
+
+ddr_rom_loader_adaptor ddr_rom_loader(
+    .clk(clk_sys),
+
+    .ioctl_download,
+    .ioctl_addr,
+    .ioctl_index,
+    .ioctl_wr,
+    .ioctl_data(ioctl_dout),
+    .ioctl_wait(ioctl_rom_wait),
+
+    .busy(rom_load_busy),
+
+    .data_wait(rom_data_wait),
+    .data_strobe(rom_data_strobe),
+    .data(rom_data),
+
+    .ddr(ddr_romload_adaptor)
+);
+
+rom_loader rom_loader(
+    .sys_clk(clk_sys),
+    .ram_clk(clk_sdr),
+
+    .ioctl_wr(rom_data_strobe),
+    .ioctl_data(rom_data),
+    .ioctl_wait(rom_data_wait),
+
+    .sdr_addr(sdr_rom_addr),
+    .sdr_data(sdr_rom_din),
+    .sdr_be(sdr_rom_be),
+    .sdr_req(sdr_rom_req),
+    .sdr_ack(sdr_rom_ack),
+    .sdr_rw(sdr_rom_rw),
+
+    .ddr(ddr_romload_loader),
+
+    .bram_addr(),
+    .bram_data(),
+    .bram_cs(),
+    .bram_wr(),
+
+    .board_cfg(board_cfg)
+);
+
 
 wire HBlank;
 wire HSync;
@@ -329,8 +450,17 @@ wire VSync;
 wire ce_pix;
 wire [7:0] video;
 
-wire [31:0] DDRAM_ADDR_32;
-assign DDRAM_ADDR = DDRAM_ADDR_32[31:3];
+wire [31:0] DDRAM_ADDR_32 = ddr_host.addr;
+
+assign DDRAM_ADDR = ddr_host.addr[31:3];
+assign DDRAM_BE = ddr_host.byteenable;
+assign DDRAM_WE = ddr_host.write;
+assign DDRAM_RD = ddr_host.read;
+assign DDRAM_DIN = ddr_host.wdata;
+assign DDRAM_BURSTCNT = ddr_host.burstcnt;
+assign ddr_host.rdata = DDRAM_DOUT;
+assign ddr_host.rdata_ready = DDRAM_DOUT_READY;
+assign ddr_host.busy = DDRAM_BUSY;
 
 F2 F2(
     .clk(clk_sys),
@@ -345,13 +475,13 @@ F2 F2(
     .green(VGA_G),
     .blue(VGA_B),
 
-    .sdr_cpu_addr(sdr_ch3_addr),
-    .sdr_cpu_q(sdr_ch3_dout[15:0]),
-    .sdr_cpu_data(sdr_ch3_din),
-    .sdr_cpu_be(sdr_ch3_be),
-    .sdr_cpu_rw(sdr_ch3_rnw),     // 1 - read, 0 - write
-    .sdr_cpu_req(sdr_ch3_req),
-    .sdr_cpu_ack(sdr_ch3_ack),
+    .sdr_cpu_addr(sdr_cpu_addr),
+    .sdr_cpu_q(sdr_cpu_dout[15:0]),
+    .sdr_cpu_data(sdr_cpu_din),
+    .sdr_cpu_be(sdr_cpu_be),
+    .sdr_cpu_rw(sdr_cpu_rw),     // 1 - read, 0 - write
+    .sdr_cpu_req(sdr_cpu_req),
+    .sdr_cpu_ack(sdr_cpu_ack),
 
     .sdr_scn_main_addr(sdr_ch1_addr),
     .sdr_scn_main_q(sdr_ch1_dout),
@@ -359,20 +489,21 @@ F2 F2(
     .sdr_scn_main_ack(sdr_ch1_ack),
 
     // Memory stream interface
-    .ddr_addr(DDRAM_ADDR_32),
-    .ddr_wdata(DDRAM_DIN),
-    .ddr_rdata(DDRAM_DOUT),
-    .ddr_read(DDRAM_RD),
-    .ddr_write(DDRAM_WE),
-    .ddr_burstcnt(DDRAM_BURSTCNT),
-    .ddr_byteenable(DDRAM_BE),
-    .ddr_busy(DDRAM_BUSY),
-    .ddr_read_complete(DDRAM_DOUT_READY),
+    .ddr_acquire(ddr_f2.acquire),
+    .ddr_addr(ddr_f2.addr),
+    .ddr_wdata(ddr_f2.wdata),
+    .ddr_rdata(ddr_f2.rdata),
+    .ddr_read(ddr_f2.read),
+    .ddr_write(ddr_f2.write),
+    .ddr_burstcnt(ddr_f2.burstcnt),
+    .ddr_byteenable(ddr_f2.byteenable),
+    .ddr_busy(ddr_f2.busy),
+    .ddr_read_complete(ddr_f2.rdata_ready),
 
     .obj_debug_idx(13'h1fff),
 
-    .ss_do_save(0),
-    .ss_do_restore(0),
+    .ss_do_save(save_state_req[0]),
+    .ss_do_restore(load_state_req[0]),
     .ss_state_out()
 );
 

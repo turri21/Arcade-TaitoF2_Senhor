@@ -130,11 +130,11 @@ int main(int argc, char **argv)
     //fread(cpu_sdram.data, 1, 128 * 1024, fp);
     //fclose(fp);
 
-    cpu_sdram.load_data("./roms/b82-09.ic23", 0, 2);
-    cpu_sdram.load_data("./roms/b82-17.ic11", 1, 2);
+    cpu_sdram.load_data("./roms/b82-09.ic23", 1, 2);
+    cpu_sdram.load_data("./roms/b82-17.ic11", 0, 2);
 
-    scn_main_sdram.load_data("./roms/b82-07.ic34", 0, 2);
-    scn_main_sdram.load_data("./roms/b82-06.ic33", 1, 2);
+    scn_main_sdram.load_data("./roms/b82-07.ic34", 1, 2);
+    scn_main_sdram.load_data("./roms/b82-06.ic33", 0, 2);
 
     ddr_memory.load_data("./roms/b82-03.ic9", 0x200000, 4);
     ddr_memory.load_data("./roms/b82-04.ic8", 0x200001, 4);

@@ -30,13 +30,13 @@ public:
 
         if (rw)
         {
-            *dout = (data[addr] << 8) | data[addr + 1];
+            *dout = (data[addr + 1] << 8) | data[addr];
             *ack = req;
         }
         else
         {
-            if (be & 1) data[addr + 1] = din & 0xff;
-            if (be & 2) data[addr] = (din >> 8) & 0xff;
+            if (be & 1) data[addr + 0] = din & 0xff;
+            if (be & 2) data[addr + 1] = (din >> 8) & 0xff;
             *ack = req;
         }
     }
@@ -50,15 +50,15 @@ public:
 
         if (rw)
         {
-            *dout = (data[addr] << 24) | (data[addr + 1] << 16) | (data[addr + 2] << 8) | (data[addr + 3]);
+            *dout = (data[addr + 3] << 24) | (data[addr + 2] << 16) | (data[addr + 1] << 8) | (data[addr + 0]);
             *ack = req;
         }
         else
         {
-            if (be & 1) data[addr + 3] = din & 0xff;
-            if (be & 2) data[addr + 2] = (din >> 8) & 0xff;
-            if (be & 4) data[addr + 1] = (din >> 16) & 0xff;
-            if (be & 8) data[addr + 0] = (din >> 24) & 0xff;
+            if (be & 1) data[addr + 0] = din & 0xff;
+            if (be & 2) data[addr + 1] = (din >> 8) & 0xff;
+            if (be & 4) data[addr + 2] = (din >> 16) & 0xff;
+            if (be & 8) data[addr + 3] = (din >> 24) & 0xff;
             *ack = req;
         }
     }

@@ -441,7 +441,7 @@ dualport_ram_unreg #(.WIDTH(64), .WIDTHAD(8)) line_buffer
     .clock_a(clk),
     .wren_a(line_buffer_write),
     .address_a(line_buffer_write_addr),
-    .data_a(line_buffer_wdata),
+    .data_a(fb_dirty_scan ? line_buffer_wdata : 64'd0),
     .q_a(),
 
     // Port B
@@ -539,7 +539,7 @@ always_ff @(posedge clk) begin
                 ddr_fb.read <= 0;
                 if (ddr_fb.rdata_ready) begin
                     line_buffer_write <= 1;
-                    line_buffer_wdata <= fb_dirty_scan ? ddr_fb.rdata : 64'd0; // FIXME fb_dirty_scan seems like it should be off by 1 here 
+                    line_buffer_wdata <= ddr_fb.rdata;
                     line_buffer_write_addr <= {vcnt[0], burstidx};
                     burstidx <= burstidx + 1;
 

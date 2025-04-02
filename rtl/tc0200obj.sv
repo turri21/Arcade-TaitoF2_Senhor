@@ -94,8 +94,9 @@ typedef enum
     ST_CHECK_BOUNDS,
     ST_READ_TILE,
     ST_READ_TILE_WAIT,
-    ST_DRAW_ROW,
-    ST_DRAW_ROW_WAIT
+    ST_DRAW_TILE1,
+    ST_DRAW_TILE2,
+    ST_DRAW_TILE3
 } draw_state_t;
 
 draw_state_t obj_state = ST_IDLE;
@@ -107,20 +108,14 @@ wire [14:0] dma_addr = {2'b00, dma_cycle[12:3], 3'b000};
 reg scanout_buffer = 0;
 wire draw_buffer = ~scanout_buffer;
 
-wire fb_dirty_scan, fb_dirty_draw;
-reg fb_dirty_draw_set;
+wire fb_dirty_scan, fb_dirty_is_set;
 reg fb_dirty_scan_clear;
 reg [15:0] fb_dirty_scan_addr;
 wire [15:0] fb_dirty_draw_addr = { draw_buffer, shifter_addr };
 
-reg [6:0] fb_dirty_deferred_head;
-reg [6:0] fb_dirty_deferred_tail;
-wire [15:0] fb_dirty_deferred_addr;
-reg [15:0] fb_dirty_deferred_addr2;
+reg fb_dirty_set;
+reg [15:0] fb_dirty_set_addr;
 
-reg fb_dirty_deferred_write;
-reg [6:0] fb_dirty_deferred_write_addr;
-reg [15:0] fb_dirty_deferred_write_data;
 dualport_ram_unreg #(.WIDTH(1), .WIDTHAD(16)) fb_dirty_buffer
 (
     // Port A
@@ -132,33 +127,11 @@ dualport_ram_unreg #(.WIDTH(1), .WIDTHAD(16)) fb_dirty_buffer
 
     // Port B
     .clock_b(clk),
-    .wren_b(fb_dirty_draw_set),
-    .address_b(fb_dirty_draw_set ? fb_dirty_deferred_addr2 : fb_dirty_draw_addr),
+    .wren_b(fb_dirty_set),
+    .address_b(fb_dirty_set ? fb_dirty_set_addr : fb_dirty_draw_addr),
     .data_b(1),
-    .q_b(fb_dirty_draw)
+    .q_b(fb_dirty_is_set)
 );
-
-// TODO - doesn't need to be dual port
-dualport_ram #(.WIDTH(16), .WIDTHAD(7)) fb_dirty_deferred_buffer
-(
-    // Port A
-    .clock_a(clk),
-    .wren_a(fb_dirty_deferred_write),
-    .address_a(fb_dirty_deferred_write_addr),
-    .data_a(fb_dirty_deferred_write_data),
-    .q_a(),
-
-    // Port B
-    .clock_b(clk),
-    .wren_b(0),
-    .address_b(fb_dirty_deferred_tail),
-    .data_b(0),
-    .q_b(fb_dirty_deferred_addr)
-);
-
-
-
-//reg fb_dirty[2 * 128 * 256];
 
 reg [11:0] master_x, master_y, extra_x, extra_y;
 reg [11:0] latch_x, latch_y;
@@ -210,8 +183,6 @@ reg test_pause = 0;
 always @(posedge clk) begin
     bit [11:0] base_x, base_y;
     ddr_obj.acquire <= 0;
-    shifter_read <= 0;
-    fb_dirty_draw_set <= 0;
 
     prev_vbl_n <= VBLn;
     if (prev_vbl_n & ~VBLn) begin
@@ -221,17 +192,6 @@ always @(posedge clk) begin
     if (ce_13m) begin
         read_pacing <= read_pacing + 1;
     end
-
-    fb_dirty_deferred_write <= 0;
-
-    if (obj_state != ST_DRAW_ROW) begin
-        if (fb_dirty_deferred_tail != fb_dirty_deferred_head) begin
-            fb_dirty_deferred_addr2 <= fb_dirty_deferred_addr;
-            fb_dirty_deferred_tail <= fb_dirty_deferred_tail + 1;
-            fb_dirty_draw_set <= 1;
-        end
-    end
-
 
     case(obj_state)
         ST_IDLE: begin
@@ -386,11 +346,9 @@ always @(posedge clk) begin
 
         ST_READ_TILE_WAIT: begin
             if (read_tile_complete) begin
-                if (fb_dirty_deferred_tail == fb_dirty_deferred_head) begin
-                    obj_state <= ST_DRAW_ROW;
-                    draw_row <= 0;
-                    draw_col <= 0;
-               end
+                obj_state <= ST_DRAW_TILE1;
+                draw_row <= 0;
+                draw_col <= 0;
             end else begin
                 ddr_obj.acquire <= 1;
                 if (~ddr_obj.busy) begin
@@ -400,44 +358,49 @@ always @(posedge clk) begin
             end
         end
 
-        ST_DRAW_ROW: begin
+        // TODO
+        // Possible to squeeze this down to less cycles. Currently this work
+        // is spread out across three cycles so that we can read from the
+        // dirty buffer and write to it. The writes could be deferred which
+        // would remove a cycle. The DDR writes could also be deferred and
+        // batched, resulting in less time with the DDR bus acquired.
+        ST_DRAW_TILE1: begin
             ddr_obj.acquire <= 1;
-            if (~ddr_obj.busy) begin
-                ddr_obj.write <= 0;
-                if (shifter_ready) begin
-                    if (test_pause) begin
-                        ddr_obj.addr <= OBJ_FB_DDR_BASE + {13'd0, draw_buffer, shifter_addr, 3'd0 };
-                        ddr_obj.write <= 1;
-                        ddr_obj.burstcnt <= 1;
-                        ddr_obj.wdata <= shifter_data;
-                        ddr_obj.byteenable <= fb_dirty_draw ? shifter_be : 8'hff;
-                        shifter_read <= 1;
-                        if (~fb_dirty_draw) begin
-                            fb_dirty_deferred_head <= fb_dirty_deferred_head + 1;
-                            fb_dirty_deferred_write <= 1;
-                            fb_dirty_deferred_write_data <= fb_dirty_draw_addr;
-                            fb_dirty_deferred_write_addr <= fb_dirty_deferred_head;
-                        end
-
-                        if (shifter_done) begin
-                            obj_state <= ST_DRAW_ROW_WAIT;
-                        end
-                        test_pause <= 0;
-                    end else begin
-                        test_pause <= 1;
-                    end
-                end
-             end
-        end
-
-        ST_DRAW_ROW_WAIT: begin
-            ddr_obj.acquire <= 1;
-            if (~ddr_obj.busy) begin
-                ddr_obj.write <= 0;
-                obj_state <= ST_READ_START;
+            if (shifter_ready) begin
+                // one cycle delay waiting for fb_dirty_is_set to become valid
+                obj_state <= ST_DRAW_TILE2;
             end
         end
 
+        ST_DRAW_TILE2: begin
+            ddr_obj.acquire <= 1;
+            if (~ddr_obj.busy) begin
+                shifter_read <= 1;
+                ddr_obj.addr <= OBJ_FB_DDR_BASE + {13'd0, draw_buffer, shifter_addr, 3'd0 };
+                ddr_obj.burstcnt <= 1;
+                ddr_obj.wdata <= shifter_data;
+                ddr_obj.write <= 1;
+                ddr_obj.byteenable <= fb_dirty_is_set ? shifter_be : 8'hff;
+
+                fb_dirty_set_addr <= fb_dirty_draw_addr;
+                fb_dirty_set <= 1;
+                obj_state <= ST_DRAW_TILE3;
+            end
+        end
+
+        ST_DRAW_TILE3: begin
+            ddr_obj.acquire <= 1;
+            fb_dirty_set <= 0;
+            shifter_read <= 0;
+            if (~ddr_obj.busy ) begin
+                ddr_obj.write <= 0;
+                if (shifter_done) begin
+                    obj_state <= ST_READ_START;
+                end else begin
+                    obj_state <= ST_DRAW_TILE1;
+                end
+            end
+        end
 
         default: begin
             obj_state <= ST_IDLE;
@@ -472,7 +435,7 @@ reg line_buffer_write;
 reg [7:0] line_buffer_write_addr;
 reg [63:0] line_buffer_wdata;
 
-dualport_ram #(.WIDTH(64), .WIDTHAD(8)) line_buffer
+dualport_ram_unreg #(.WIDTH(64), .WIDTHAD(8)) line_buffer
 (
     // Port A
     .clock_a(clk),
@@ -576,7 +539,7 @@ always_ff @(posedge clk) begin
                 ddr_fb.read <= 0;
                 if (ddr_fb.rdata_ready) begin
                     line_buffer_write <= 1;
-                    line_buffer_wdata <= fb_dirty_scan ? ddr_fb.rdata : 64'd0;
+                    line_buffer_wdata <= fb_dirty_scan ? ddr_fb.rdata : 64'd0; // FIXME fb_dirty_scan seems like it should be off by 1 here 
                     line_buffer_write_addr <= {vcnt[0], burstidx};
                     burstidx <= burstidx + 1;
 

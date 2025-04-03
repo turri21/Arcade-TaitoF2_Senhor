@@ -13,6 +13,11 @@ module F2(
     output      [7:0] green,
     output      [7:0] blue,
 
+    input       [7:0] joystick_p1,
+    input       [7:0] joystick_p2,
+    input       [1:0] start,
+    input       [1:0] coin,
+
     output reg [26:0] sdr_cpu_addr,
     input      [15:0] sdr_cpu_q,
     output reg [15:0] sdr_cpu_data,
@@ -319,8 +324,10 @@ TC0220IOC tc0220ioc(
     .COINMETER_A(),
     .COINMETER_B(),
 
-    .INB(8'hff),
-    .IN(32'hffffffff)
+    .INB({4'b1111, ~coin, 2'b11}),
+    .IN(~{  start[1], joystick_p2[6:4], joystick_p2[0], joystick_p2[1], joystick_p2[2], joystick_p2[3],
+            start[0], joystick_p1[6:4], joystick_p1[0], joystick_p1[1], joystick_p1[2], joystick_p1[3],
+            16'h0000})
 );
 
 wire [14:0] obj_ram_addr;

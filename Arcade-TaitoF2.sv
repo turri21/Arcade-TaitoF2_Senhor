@@ -475,6 +475,11 @@ F2 F2(
     .green(VGA_G),
     .blue(VGA_B),
 
+    .joystick_p1(joystick_p1[7:0]),
+    .joystick_p2(joystick_p2[7:0]),
+    .start({joystick_p2[8], joystick_p1[8]}),
+    .coin({joystick_p2[9], joystick_p1[9]}),
+
     .sdr_cpu_addr(sdr_cpu_addr),
     .sdr_cpu_q(sdr_cpu_dout[15:0]),
     .sdr_cpu_data(sdr_cpu_din),

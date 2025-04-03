@@ -61,7 +61,7 @@ void sim_tick(int count = 1)
         
         cpu_sdram.update_channel_16(top->sdr_cpu_addr, top->sdr_cpu_req, top->sdr_cpu_rw, top->sdr_cpu_be, top->sdr_cpu_data, &top->sdr_cpu_q, &top->sdr_cpu_ack);
         scn_main_sdram.update_channel_32(top->sdr_scn_main_addr, top->sdr_scn_main_req, 1, 15, 0, &top->sdr_scn_main_q, &top->sdr_scn_main_ack);
-        video.clock(top->ce_pixel != 0, top->hsync != 0, top->vsync != 0, top->red, top->green, top->blue);
+        video.clock(top->ce_pixel != 0, top->hblank != 0, top->vblank != 0, top->red, top->green, top->blue);
         
         // Process memory stream operations
         ddr_memory.clock(top->ddr_addr, top->ddr_wdata, top->ddr_rdata, top->ddr_read, top->ddr_write, top->ddr_busy, top->ddr_read_complete, top->ddr_burstcnt, top->ddr_byteenable);

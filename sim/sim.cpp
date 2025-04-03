@@ -188,122 +188,167 @@ int main(int argc, char **argv)
         }
         simulation_step = false;
 
-        ImGui::Begin("Simulation Control");
-
-        ImGui::LabelText("Ticks", "%zu", total_ticks);
-        ImGui::Checkbox("Run", &simulation_run);
-        if (ImGui::Button("Step"))
+        if (ImGui::Begin("Simulation Control"))
         {
-            simulation_step = true;
-            simulation_run = false;
-        }
-        ImGui::InputInt("Step Size", &simulation_step_size);
-        ImGui::Checkbox("Step Frame", &simulation_step_vblank);
-       
-        if (ImGui::Button("Reset"))
-        {
-            simulation_reset_until = total_ticks + 100;
-        }
-
-        ImGui::Separator();
-        
-        // Save/Restore State Section
-        ImGui::Text("Save/Restore State");
-        
-        static char state_filename[256] = "state.f2state";
-        ImGui::InputText("State Filename", state_filename, sizeof(state_filename));
-        
-        static std::vector<std::string> state_files = state_manager->get_f2state_files();
-        static int selected_state_file = -1;
-        
-        if (ImGui::Button("Save State"))
-        {
-            // Ensure filename has .f2state extension
-            std::string filename = state_filename;
-            if (filename.size() < 8 || filename.substr(filename.size() - 8) != ".f2state")
+            ImGui::LabelText("Ticks", "%zu", total_ticks);
+            ImGui::Checkbox("Run", &simulation_run);
+            if (ImGui::Button("Step"))
             {
-                filename += ".f2state";
-                strncpy(state_filename, filename.c_str(), sizeof(state_filename) - 1);
-                state_filename[sizeof(state_filename) - 1] = '\0';
+                simulation_step = true;
+                simulation_run = false;
+            }
+            ImGui::InputInt("Step Size", &simulation_step_size);
+            ImGui::Checkbox("Step Frame", &simulation_step_vblank);
+           
+            if (ImGui::Button("Reset"))
+            {
+                simulation_reset_until = total_ticks + 100;
+            }
+
+            ImGui::Separator();
+            
+            // Save/Restore State Section
+            ImGui::Text("Save/Restore State");
+            
+            static char state_filename[256] = "state.f2state";
+            ImGui::InputText("State Filename", state_filename, sizeof(state_filename));
+            
+            static std::vector<std::string> state_files = state_manager->get_f2state_files();
+            static int selected_state_file = -1;
+            
+            if (ImGui::Button("Save State"))
+            {
+                // Ensure filename has .f2state extension
+                std::string filename = state_filename;
+                if (filename.size() < 8 || filename.substr(filename.size() - 8) != ".f2state")
+                {
+                    filename += ".f2state";
+                    strncpy(state_filename, filename.c_str(), sizeof(state_filename) - 1);
+                    state_filename[sizeof(state_filename) - 1] = '\0';
+                }
+                
+                if (state_manager->save_state(state_filename))
+                {
+                    // Update file list after successfully saving
+                    state_files = state_manager->get_f2state_files();
+                    // Try to select the newly saved file
+                    for (size_t i = 0; i < state_files.size(); i++)
+                    {
+                        if (state_files[i] == state_filename)
+                        {
+                            selected_state_file = i;
+                            break;
+                        }
+                    }
+                }
             }
             
-            if (state_manager->save_state(state_filename))
+            // Show list of state files
+            if (state_files.size() > 0)
             {
-                // Update file list after successfully saving
-                state_files = state_manager->get_f2state_files();
-                // Try to select the newly saved file
+                ImGui::Text("Available State Files:");
+                ImGui::BeginChild("StateFiles", ImVec2(0, 100), true);
                 for (size_t i = 0; i < state_files.size(); i++)
                 {
-                    if (state_files[i] == state_filename)
+                    if (ImGui::Selectable(state_files[i].c_str(), selected_state_file == (int)i, ImGuiSelectableFlags_AllowDoubleClick))
                     {
-                        selected_state_file = i;
-                        break;
+                        selected_state_file = (int)i;
+                        if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                        {
+                            state_manager->restore_state(state_files[i].c_str());
+                        }
                     }
                 }
-            }
-        }
-        
-        // Show list of state files
-        if (state_files.size() > 0)
-        {
-            ImGui::Text("Available State Files:");
-            ImGui::BeginChild("StateFiles", ImVec2(0, 100), true);
-            for (size_t i = 0; i < state_files.size(); i++)
-            {
-                if (ImGui::Selectable(state_files[i].c_str(), selected_state_file == (int)i, ImGuiSelectableFlags_AllowDoubleClick))
-                {
-                    selected_state_file = (int)i;
-                    if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-                    {
-                        state_manager->restore_state(state_files[i].c_str());
-                    }
-                }
-            }
-            ImGui::EndChild();
-        }
-        else
-        {
-            ImGui::Text("No state files found (*.f2state)");
-        }
-        
-        ImGui::Separator();
-        
-        ImGui::PushItemWidth(100);
-        if(ImGui::InputInt("Trace Depth", &trace_depth, 1, 10,
-                           trace_active ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None))
-        {
-            trace_depth = std::min(std::max(trace_depth, 1), 99);
-        }
-        ImGui::PopItemWidth();
-        ImGui::InputText("Filename", trace_filename, sizeof(trace_filename),
-                         tfp ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None);
-        if(ImGui::Button(tfp ? "Stop Tracing###TraceBtn" : "Start Tracing###TraceBtn"))
-        {
-            if (tfp)
-            {
-                tfp->close();
-                tfp.reset();
+                ImGui::EndChild();
             }
             else
             {
-                if (strlen(trace_filename) > 0)
+                ImGui::Text("No state files found (*.f2state)");
+            }
+            
+            ImGui::Separator();
+            
+            ImGui::PushItemWidth(100);
+            if(ImGui::InputInt("Trace Depth", &trace_depth, 1, 10,
+                               trace_active ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None))
+            {
+                trace_depth = std::min(std::max(trace_depth, 1), 99);
+            }
+            ImGui::PopItemWidth();
+            ImGui::InputText("Filename", trace_filename, sizeof(trace_filename),
+                             tfp ? ImGuiInputTextFlags_ReadOnly : ImGuiInputTextFlags_None);
+            if(ImGui::Button(tfp ? "Stop Tracing###TraceBtn" : "Start Tracing###TraceBtn"))
+            {
+                if (tfp)
                 {
-                    tfp = std::make_unique<VerilatedFstC>();
-                    top->trace(tfp.get(), trace_depth);
-                    tfp->open(trace_filename);
+                    tfp->close();
+                    tfp.reset();
+                }
+                else
+                {
+                    if (strlen(trace_filename) > 0)
+                    {
+                        tfp = std::make_unique<VerilatedFstC>();
+                        top->trace(tfp.get(), trace_depth);
+                        tfp->open(trace_filename);
+                    }
                 }
             }
         }
 
         ImGui::End();
 
-        scn_main_mem.DrawWindow("Screen Mem", nullptr, 64 * 1024);
-        scn_main_rom.DrawWindow("Screen ROM", scn_main_sdram.data, 256 * 1024);
-        color_ram.DrawWindow("Color RAM", nullptr, 8 * 1024);
-        obj_ram.DrawWindow("OBJ RAM", nullptr, 64 * 1024);
-        rom_mem.DrawWindow("ROM", cpu_sdram.data, 1024 * 1024);
-        work_mem.DrawWindow("Work", cpu_sdram.data + (1024 * 1024), 64 * 1024);
-        ddr_mem_editor.DrawWindow("DDR", ddr_memory.memory.data(), ddr_memory.size);
+        if (ImGui::Begin("Memory"))
+        {
+            if (ImGui::BeginTabBar("memory_tabs"))
+            {
+                if (ImGui::BeginTabItem("Screen RAM"))
+                {
+                    scn_main_mem.DrawContents(nullptr, 64 * 1024);
+                    ImGui::EndTabItem();
+                }
+
+                if (ImGui::BeginTabItem("Screen ROM"))
+                {
+                    scn_main_rom.DrawContents(scn_main_sdram.data, 256 * 1024);
+                    ImGui::EndTabItem();
+                }
+
+                if (ImGui::BeginTabItem("Color RAM"))
+                {
+                    color_ram.DrawContents(nullptr, 8 * 1024);
+                    ImGui::EndTabItem();
+                }
+                
+                if (ImGui::BeginTabItem("OBJ RAM"))
+                {
+                    obj_ram.DrawContents(nullptr, 64 * 1024);
+                    ImGui::EndTabItem();
+                }
+                
+                if (ImGui::BeginTabItem("CPU ROM"))
+                {
+                    rom_mem.DrawContents(cpu_sdram.data, 1024 * 1024);
+                    ImGui::EndTabItem();
+                }
+                
+                if (ImGui::BeginTabItem("Work RAM"))
+                {
+                    work_mem.DrawContents(cpu_sdram.data + (1024 * 1024), 64 * 1024);
+                    ImGui::EndTabItem();
+                }
+                
+                if (ImGui::BeginTabItem("DDR"))
+                {
+                    ddr_mem_editor.DrawContents(ddr_memory.memory.data(), ddr_memory.size);
+                    ImGui::EndTabItem();
+                }
+
+                ImGui::EndTabBar();
+            }
+        }
+        ImGui::End();
+
         draw_obj_window();
         video.draw();
 

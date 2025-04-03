@@ -120,9 +120,9 @@ assign VSYNn = vcnt >= 8 && vcnt < 232;
 assign VBLOn = VSYNn;
 
 
-assign SC = |fg0_dot[3:0] ? { 3'd0, fg0_dot } :
-            |bg1_dot[3:0] ? { 3'd0, bg1_dot } :
-            |bg0_dot[3:0] ? { 3'd0, bg0_dot } :
+assign SC = |fg0_dot[3:0] ? { 3'b100, fg0_dot } :
+            |bg1_dot[3:0] ? { 3'b000, bg1_dot } :
+            |bg0_dot[3:0] ? { 3'b000, bg0_dot } :
             { 15'd0 };
 
 wire [5:0] col_count = full_hcnt[9:4];

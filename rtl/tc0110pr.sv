@@ -90,7 +90,12 @@ always_ff @(posedge clk) begin
     end
 
     if (ce_pixel) begin
-        color_addr <= |OB[5:0] ? {OB[11:0], 1'b0} : {SC[11:0], 1'b0};
+        if (SC[14])
+            color_addr <= {SC[11:0], 1'b0};
+        else if (|OB[5:0])
+            color_addr <= {OB[11:0], 1'b0};
+        else
+            color_addr <= {SC[11:0], 1'b0};
     end
 end
 

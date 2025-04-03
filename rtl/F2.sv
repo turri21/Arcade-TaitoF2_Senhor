@@ -369,10 +369,10 @@ TC0200OBJ tc0200obj(
     .EXHBLn(HBLOn),
     .EXVBLn(VBLOn),
 
-    .HSYNCn(),
-    .VSYNCn(),
-    .HBLn(),
-    .VBLn(),
+    .HSYNCn,
+    .VSYNCn,
+    .HBLn,
+    .VBLn,
 
     .ddr(ddr_obj),
 
@@ -403,15 +403,17 @@ m68k_ram_reg #(.WIDTHAD(15), .SS_IDX(SSIDX_SCN_RAM_0)) scn_ram_0(
     .ssbus(ssb[4])
 );
 
-wire HSYNn;
+wire HSYNCn;
+wire VSYNCn;
+wire HBLn;
+wire VBLn;
 wire HBLOn;
-wire VSYNn;
 wire VBLOn;
 
-assign hsync = ~HSYNn;
-assign vsync = ~VSYNn;
-assign hblank = ~HBLOn;
-assign vblank = ~VBLOn;
+assign hsync = ~HSYNCn;
+assign vsync = ~VSYNCn;
+assign hblank = ~HBLn;
+assign vblank = ~VBLn;
 
 assign blue = {pri_ram_din[14:10], pri_ram_din[14:12]};
 assign green = {pri_ram_din[9:5], pri_ram_din[9:7]};
@@ -454,9 +456,9 @@ TC0100SCN #(.SS_IDX(SSIDX_SCN_0)) scn_main(
 
     // Video interface
     .SC(scn_main_dot_color),
-    .HSYNn,
+    .HSYNn(),
     .HBLOn,
-    .VSYNn,
+    .VSYNn(),
     .VBLOn,
     .OLDH(),
     .OLDV(),
@@ -499,8 +501,8 @@ TC0110PR tc0110pr(
     .DACKn(CDTACKn),
 
     // Video Input
-    .HSYn(HSYNn),
-    .VSYn(VSYNn),
+    .HSYn(HSYNCn),
+    .VSYn(VSYNCn),
 
     .SC(scn_main_dot_color),
     .OB({3'b0, obj_dot}),

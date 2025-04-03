@@ -58,6 +58,10 @@ ddr_mux ddr_mux(
 // 1 bit of framebuffer address
 // B_RRRRRRRR_CCCCCCCCCC
 // 0x00000 - 0x7ffff
+//
+
+// horizontal video: htotal=424, hfp=20, hs=64, vbp=20
+// vertical video:   vtotal=262, vfp=16, vs=6,  vbp=16
 
 reg [15:0] work_buffer[8];
 wire [13:0] inst_tile_code       =  work_buffer[0][13:0];
@@ -415,16 +419,16 @@ end
 
 wire [8:0] H_START = 0;
 wire [8:0] H_END = 424 - 1;
-wire [8:0] HS_START = 400;
-wire [8:0] HS_END = 408;
+wire [8:0] HS_START = 340 - 1;
+wire [8:0] HS_END = 404 - 1;
 wire [8:0] HB_START = 320 - 1;
 wire [8:0] HB_END = H_END;
 
-wire [7:0] VS_START = 226;
-wire [7:0] VS_END = 230;
+wire [7:0] VS_START = 240 - 1;
+wire [7:0] VS_END = 246 - 1;
 wire [7:0] VB_START = 224 - 1;
 wire [7:0] VB_END = 255;
-wire [7:0] V_EXVBL_RESET = 8'hfa; // from signal trace
+wire [7:0] V_EXVBL_RESET = 250; // from signal trace
 
 
 reg [8:0] hcnt;
@@ -475,10 +479,13 @@ end
 
 assign ddr_fb.write = 0;
 
+reg ex_hbl_n_prev;
 always_ff @(posedge clk) begin
     if (ce_pixel) begin
         ex_vbl_n_prev <= EXVBLn;
+        ex_hbl_n_prev <= EXHBLn;
         vbl_n_prev <= VBLn;
+
         if (EXVBLn & ~ex_vbl_n_prev) begin
             ex_vbl_end <= 1;
         end
@@ -487,16 +494,20 @@ always_ff @(posedge clk) begin
             scanout_active <= 0;
         end
 
-        hcnt <= hcnt + 1;
-        if (hcnt == H_END) begin
-            hcnt <= H_START;
-            vcnt <= vcnt + 1;
-            scanout_newline <= 1;
+        if (ex_hbl_n_prev & ~EXHBLn) begin
+            hcnt <= HB_START;
+        end else begin
+            hcnt <= hcnt + 1;
+            if (hcnt == H_END) begin
+                hcnt <= H_START;
+                vcnt <= vcnt + 1;
+                scanout_newline <= 1;
 
-            if (ex_vbl_end) begin
-                ex_vbl_end <= 0;
-                scanout_active <= 1;
-                vcnt <= V_EXVBL_RESET;
+                if (ex_vbl_end) begin
+                    ex_vbl_end <= 0;
+                    scanout_active <= 1;
+                    vcnt <= V_EXVBL_RESET;
+                end
             end
         end
 

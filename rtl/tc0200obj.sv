@@ -451,7 +451,7 @@ dualport_ram_unreg #(.WIDTH(64), .WIDTHAD(8)) line_buffer
     // Port B
     .clock_b(clk),
     .wren_b(0),
-    .address_b({~vcnt[0], hcnt[8:2] + 6'd4}),
+    .address_b({~vcnt[0], hcnt[8:2] + 6'd25}),
     .data_b(0),
     .q_b(lb_dout)
 );
@@ -537,9 +537,9 @@ always_ff @(posedge clk) begin
             ddr_fb.acquire <= 1;
             if (~ddr_fb.busy) begin
                 ddr_fb.read <= 1;
-                ddr_fb.burstcnt <= 110; // 320 / 4
-                ddr_fb.addr <= OBJ_FB_DDR_BASE + { 13'd0, scanout_buffer, vcnt + 8'd24, 10'd64 };
-                fb_dirty_scan_addr <= { scanout_buffer, vcnt + 8'd24, 7'd8 };
+                ddr_fb.burstcnt <= 128;
+                ddr_fb.addr <= OBJ_FB_DDR_BASE + { 13'd0, scanout_buffer, vcnt + 8'd22, 10'd0 };
+                fb_dirty_scan_addr <= { scanout_buffer, vcnt + 8'd22, 7'd0 };
                 burstidx <= 0;
                 scan_state <= SCAN_WAIT_READ;
             end
@@ -556,9 +556,9 @@ always_ff @(posedge clk) begin
 
                     fb_dirty_scan_addr <= fb_dirty_scan_addr + 1;
 
-                    if (burstidx + 1 == 110) begin
+                    if (burstidx == 127) begin
                         scan_state <= SCAN_IDLE;
-                        fb_dirty_scan_addr <= { scanout_buffer, vcnt + 8'd24, 7'd0 }; // reset
+                        fb_dirty_scan_addr <= { scanout_buffer, vcnt + 8'd22, 7'd0 }; // reset
                     end
                 end
             end

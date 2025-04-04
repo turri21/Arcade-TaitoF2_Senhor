@@ -56,13 +56,14 @@ HDL_SRC  = ../rtl/fx68k/hdl/verilator/fx68k.sv ../rtl/fx68k/hdl/verilator/fx68kA
 HDL_SRC += ../rtl/system_consts.sv
 HDL_SRC += ../rtl/F2.sv ../rtl/tc0100scn.sv ../rtl/tc0110pr.sv ../rtl/tc0220ioc.sv ../rtl/tc0200obj.sv
 HDL_SRC += ../rtl/ram.sv ../rtl/jtframe_frac_cen.v ../rtl/memory_stream.sv ../rtl/savestates.sv ../rtl/ddram.sv
+HDL_SRC += ../rtl/tv80/tv80s.v ../rtl/tv80/tv80_alu.v ../rtl/tv80/tv80_reg.v ../rtl/tv80/tv80_core.v ../rtl/tv80/tv80_mcode.v
 
 HDL_GEN =
 
 all: sim
 
-$(VERILATED_DIR)/F2.mk: $(HDL_SRC) $(HDL_GEN)
-	$(VERILATOR) $(VERILATOR_ARGS) -o F2 --prefix F2 --top F2 $(HDL_SRC)
+$(VERILATED_DIR)/F2.mk: $(HDL_SRC) $(HDL_GEN) ../rtl/jt12/ver/verilator/gather.f
+	$(VERILATOR) $(VERILATOR_ARGS) -o F2 --prefix F2 --top F2 $(HDL_SRC) -F ../rtl/jt12/ver/verilator/gather.f
 
 $(VERILATED_DIR)/F2__ALL.a: $(VERILATED_DIR)/F2.mk $(HDL_SRC) $(HDL_GEN)
 	$(MAKE) -C $(VERILATED_DIR) -f F2.mk

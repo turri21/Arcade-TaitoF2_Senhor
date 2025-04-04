@@ -133,6 +133,9 @@ int main(int argc, char **argv)
     cpu_sdram.load_data("./roms/b82-09.ic23", 1, 2);
     cpu_sdram.load_data("./roms/b82-17.ic11", 0, 2);
 
+    //cpu_sdram.load_data("b82-09.10", 1, 2);
+    //cpu_sdram.load_data("b82-17.11", 0, 2);
+     
     scn_main_sdram.load_data("./roms/b82-07.ic34", 1, 2);
     scn_main_sdram.load_data("./roms/b82-06.ic33", 0, 2);
 

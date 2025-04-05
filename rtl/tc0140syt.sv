@@ -1,0 +1,228 @@
+module TC0140SYT(
+    input         clk,
+    input         ce_12m,
+    input         ce_4m,
+
+    input         RESn,
+
+    // 68000 interface
+    input   [3:0] MDin,
+    output  reg [3:0] MDout,
+
+    input         MA1,
+
+    input         MCSn,
+    input         MWRn,
+    input         MRDn,
+
+    // Z80 interface
+    input         MREQn,
+    input         RDn,
+    input         WRn,
+
+    input  [15:0] A,
+    input   [3:0] Din,
+    output  reg [3:0] Dout,
+
+    output        ROUTn,
+    output        ROMCS0n,
+    output        ROMCS1n,
+    output        RAMCSn,
+    output        ROMA14,
+    output        ROMA15,
+
+    // YM
+    output        OPXn,
+    input         YAOEn, // not a real signal, on F2 boards these go to the audio ROMs
+    input         YBOEn,
+    input  [23:0] YAA,
+    input  [23:0] YBA,
+    output  [7:0] YAD,
+    output  [7:0] YBD,
+
+    // Peripheral?
+    output        CSAn,
+    output        CSBn,
+
+    output  [2:0] IOA,
+    output        IOC,
+
+    // ROM interface
+    output reg [26:0] sdr_address,
+    input      [15:0] sdr_data,
+    output reg        sdr_req,
+    input             sdr_ack
+);
+
+reg [2:0] rom_bank;
+reg [3:0] slave_idx, master_idx;
+reg [3:0] status_reg;
+reg       reset_reg;
+reg nmi_enabled;
+reg [15:0] slave_data;
+reg [15:0] master_data;
+
+wire bank_req = A[15:14] == 2'b01; // 0x4000-0x7fff
+assign ROMCS0n = A[15]; // 0x0000 - 0x7fff
+assign ROMCS1n = ~(bank_req & rom_bank[1]); // FIXME - guessing
+assign RAMCSn = ~A[15] | ~A[14] | A[13];
+
+assign ROMA14 = bank_req ? rom_bank[0] : 1'b0;
+assign ROMA15 = bank_req ? rom_bank[1] : 1'b0;
+assign OPXn = ~(A[15:8] == 8'he0);
+
+assign ROUTn = RESn & ~reset_reg; // FIXME: don't think this is correct, software reset out
+
+wire reg_access = (A[15:8] == 8'he2) & ~MREQn;
+reg prev_reg_access;
+
+assign YAD = YAA[0] ? sdr_data[15:8] : sdr_data[7:0];
+assign sdr_address = { 4'd0, YAA[23:1] };
+
+always_ff @(posedge clk) begin
+    prev_reg_access <= reg_access;
+    if (~RESn) begin
+        rom_bank <= 3'b000;
+        status_reg <= 0;
+    end else begin
+        if (reg_access & ~prev_reg_access) begin
+            if (~WRn) begin
+                if (A[0]) begin
+                    case(slave_idx)
+                        0: begin
+                            master_data[3:0] <= Din;
+                            slave_idx <= slave_idx + 1;
+                        end
+                        1: begin
+                            master_data[7:4] <= Din;
+                            slave_idx <= slave_idx + 1;
+                            status_reg[2] <= 1;
+                        end
+                        2: begin
+                            master_data[11:8] <= Din;
+                            slave_idx <= slave_idx + 1;
+                        end
+                        3: begin
+                            master_data[15:12] <= Din;
+                            slave_idx <= slave_idx + 1;
+                            status_reg[3] <= 1;
+                        end
+                        5: begin
+                            nmi_enabled <= 0;
+                        end
+                        6: begin
+                            nmi_enabled <= 1;
+                        end
+
+                        default: begin
+                        end
+                    endcase
+                end else begin
+                    slave_idx <= Din;
+                end
+            end
+
+            if (~RDn & A[0]) begin
+                case(slave_idx)
+                    0: begin
+                        Dout <= slave_data[3:0];
+                        slave_idx <= slave_idx + 1;
+                    end
+                    1: begin
+                        Dout <= slave_data[7:4];
+                        slave_idx <= slave_idx + 1;
+                        status_reg[0] <= 0;
+                    end
+                    2: begin
+                        Dout <= slave_data[11:8];
+                        slave_idx <= slave_idx + 1;
+                    end
+                    3: begin
+                        Dout <= slave_data[15:12];
+                        slave_idx <= slave_idx + 1;
+                        status_reg[1] <= 0;
+                    end
+                    4: begin
+                        Dout <= status_reg;
+                    end
+                    default: begin
+                    end
+                endcase
+            end
+        end
+
+        if (A[15:8] == 8'hf2 && ~WRn && ~MREQn) begin
+            rom_bank <= Din[2:0];
+        end
+
+
+        if (ce_12m) begin
+            if (~MCSn & ~MWRn & ~MA1) begin
+                master_idx <= MDin;
+            end
+
+            if (~MCSn & MA1) begin
+                if (~MWRn) begin
+                    case(master_idx)
+                        0: begin
+                            slave_data[3:0] <= MDin;
+                            master_idx <= master_idx + 1;
+                        end
+                        1: begin
+                            slave_data[7:4] <= MDin;
+                            master_idx <= master_idx + 1;
+                            status_reg[0] <= 1;
+                        end
+                        2: begin
+                            slave_data[11:8] <= MDin;
+                            master_idx <= master_idx + 1;
+                        end
+                        3: begin
+                            slave_data[15:12] <= MDin;
+                            master_idx <= master_idx + 1;
+                            status_reg[1] <= 1;
+                        end
+                        4: begin
+                            reset_reg <= MDin[0];
+                        end
+
+                        default: begin
+                        end
+                    endcase
+                end
+
+                if (~MRDn) begin
+                    case(master_idx)
+                        0: begin
+                            MDout <= master_data[3:0];
+                            master_idx <= master_idx + 1;
+                        end
+                        1: begin
+                            MDout <= master_data[7:4];
+                            master_idx <= master_idx + 1;
+                            status_reg[2] <= 0;
+                        end
+                        2: begin
+                            MDout <= master_data[11:8];
+                            master_idx <= master_idx + 1;
+                        end
+                        3: begin
+                            MDout <= master_data[15:12];
+                            master_idx <= master_idx + 1;
+                            status_reg[3] <= 0;
+                        end
+                        4: begin
+                            MDout <= status_reg;
+                        end
+                        default: begin
+                        end
+                    endcase
+                end
+            end
+        end
+    end
+
+    if (~YAOEn && (sdr_req == sdr_ack)) sdr_req <= ~sdr_req;
+end
+
+endmodule

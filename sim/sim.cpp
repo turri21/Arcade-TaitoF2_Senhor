@@ -5,6 +5,7 @@
 #include "verilated_fst_c.h"
 
 #include "imgui_wrap.h"
+#include "implot/implot.h"
 #include "imgui_memory_editor.h"
 #include "sim_sdram.h"
 #include "sim_video.h"
@@ -12,6 +13,7 @@
 #include "sim_state.h"
 #include "tc0200obj.h"
 #include "dis68k/dis68k.h"
+
 
 #include <stdio.h>
 #include <SDL.h>
@@ -28,9 +30,14 @@ std::unique_ptr<VerilatedFstC> tfp;
 
 SimSDRAM cpu_sdram(128 * 1024 * 1024);
 SimSDRAM scn_main_sdram(256 * 1024);
+SimSDRAM audio_sdram(1024 * 1024);
 SimMemory ddr_memory(4 * 1024 * 1024);
 SimVideo video;
 SimState* state_manager = nullptr;
+
+#define NUM_SAMPLES (5 * 1024 * 1024)
+int16_t audio_samples[NUM_SAMPLES];
+int audio_sample_index = 0;
 
 uint64_t total_ticks = 0;
 
@@ -44,6 +51,7 @@ int simulation_step_size = 100000;
 bool simulation_step_vblank = false;
 uint64_t simulation_reset_until = 100;
 
+bool prev_audio_sample = 0;
 void sim_tick(int count = 1)
 {
     for( int i = 0; i < count; i++ )
@@ -60,11 +68,20 @@ void sim_tick(int count = 1)
         }
         
         cpu_sdram.update_channel_16(top->sdr_cpu_addr, top->sdr_cpu_req, top->sdr_cpu_rw, top->sdr_cpu_be, top->sdr_cpu_data, &top->sdr_cpu_q, &top->sdr_cpu_ack);
-        scn_main_sdram.update_channel_32(top->sdr_scn_main_addr, top->sdr_scn_main_req, 1, 15, 0, &top->sdr_scn_main_q, &top->sdr_scn_main_ack);
+        scn_main_sdram.update_channel_32(top->sdr_scn_main_addr, top->sdr_scn_main_req, 1, 0, 0, &top->sdr_scn_main_q, &top->sdr_scn_main_ack);
+        audio_sdram.update_channel_16(top->sdr_audio_addr, top->sdr_audio_req, 1, 0, 0, &top->sdr_audio_q, &top->sdr_audio_ack);
         video.clock(top->ce_pixel != 0, top->hblank != 0, top->vblank != 0, top->red, top->green, top->blue);
         
         // Process memory stream operations
         ddr_memory.clock(top->ddr_addr, top->ddr_wdata, top->ddr_rdata, top->ddr_read, top->ddr_write, top->ddr_busy, top->ddr_read_complete, top->ddr_burstcnt, top->ddr_byteenable);
+
+        if (top->audio_sample == 1 && prev_audio_sample == false)
+        {
+            audio_samples[audio_sample_index + 0] = top->audio_left;
+            audio_samples[audio_sample_index + 1] = top->audio_right;
+            audio_sample_index = (audio_sample_index + 2) % NUM_SAMPLES;
+        }
+        prev_audio_sample = top->audio_sample == 1;
 
         contextp->timeInc(1);
         top->clk = 0;
@@ -126,18 +143,25 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    //FILE *fp = fopen("cpu.bin", "rb");
-    //fread(cpu_sdram.data, 1, 128 * 1024, fp);
-    //fclose(fp);
+    contextp = new VerilatedContext;
+    top = new F2{contextp};
+    tfp = nullptr;
+
+
+    FILE *fp = fopen("./roms/b82_10.ic5", "rb");
+    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 64 * 1024, fp);
+    fclose(fp);
 
     cpu_sdram.load_data("./roms/b82-09.ic23", 1, 2);
     cpu_sdram.load_data("./roms/b82-17.ic11", 0, 2);
 
-    //cpu_sdram.load_data("b82-09.10", 1, 2);
-    //cpu_sdram.load_data("b82-17.11", 0, 2);
+    cpu_sdram.load_data("b82-09.10", 1, 2);
+    cpu_sdram.load_data("b82-17.11", 0, 2);
      
     scn_main_sdram.load_data("./roms/b82-07.ic34", 1, 2);
     scn_main_sdram.load_data("./roms/b82-06.ic33", 0, 2);
+    
+    audio_sdram.load_data("./roms/b82-02.ic1", 0, 1);
 
     ddr_memory.load_data("./roms/b82-03.ic9", 0x200000, 4);
     ddr_memory.load_data("./roms/b82-04.ic8", 0x200001, 4);
@@ -145,14 +169,13 @@ int main(int argc, char **argv)
 
     strcpy(trace_filename, "sim.fst");
 
-    contextp = new VerilatedContext;
-    top = new F2{contextp};
-    tfp = nullptr;
-
     top->ss_do_save = 0;
     top->ss_do_restore = 0;
     top->obj_debug_idx = -1;
-    
+
+    top->joystick_p1 = 0;
+    top->joystick_p2 = 0;
+
     // Create state manager
     state_manager = new SimState(top, &ddr_memory, 0, 256 * 1024);
 
@@ -165,6 +188,8 @@ int main(int argc, char **argv)
     MemoryEditor rom_mem;
     MemoryEditor work_mem;
     MemoryEditor ddr_mem_editor;
+    MemoryEditor sound_ram;
+    MemoryEditor sound_rom;
 
     scn_main_mem.ReadFn = scn_mem_read;
     color_ram.ReadFn = color_ram_read;
@@ -301,6 +326,31 @@ int main(int argc, char **argv)
 
         ImGui::End();
 
+        if (ImGui::Begin("Audio"))
+        {
+            if (ImGui::Button("Save Audio"))
+            {
+                FILE *fout = fopen("audio.raw", "wb");
+                fwrite(audio_samples, sizeof(int16_t) * NUM_SAMPLES, 1, fout);
+                fclose(fout);
+            }
+
+            ImGui::Text("Idx: %u", audio_sample_index);
+
+            /*
+            if (ImPlot::BeginPlot("Left"))
+            {
+                ImPlot::PlotLine("left_plot", audio_samples_left, 512);
+                ImPlot::EndPlot();
+            }
+            if (ImPlot::BeginPlot("Right"))
+            {
+                ImPlot::PlotLine("right_plot", audio_samples_right, 512);
+                ImPlot::EndPlot();
+            }*/
+        }
+        ImGui::End();
+
         if (ImGui::Begin("Memory"))
         {
             if (ImGui::BeginTabBar("memory_tabs"))
@@ -344,6 +394,18 @@ int main(int argc, char **argv)
                 if (ImGui::BeginTabItem("DDR"))
                 {
                     ddr_mem_editor.DrawContents(ddr_memory.memory.data(), ddr_memory.size);
+                    ImGui::EndTabItem();
+                }
+
+                if (ImGui::BeginTabItem("Sound RAM"))
+                {
+                    sound_ram.DrawContents(top->rootp->F2__DOT__sound_ram__DOT__ram.m_storage, 16 * 1024);
+                    ImGui::EndTabItem();
+                }
+
+                if (ImGui::BeginTabItem("Sound ROM"))
+                {
+                    sound_rom.DrawContents(top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 64 * 1024);
                     ImGui::EndTabItem();
                 }
 

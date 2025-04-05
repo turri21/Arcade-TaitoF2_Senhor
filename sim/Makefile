@@ -25,6 +25,8 @@ SRCS = imgui/imgui.cpp \
 		imgui/imgui_widgets.cpp \
 		imgui/backends/imgui_impl_sdl2.cpp \
 		imgui/backends/imgui_impl_sdlrenderer2.cpp \
+		implot/implot.cpp \
+		implot/implot_items.cpp \
 		dis68k/dis68k.cpp \
 		sim_state.cpp \
 		sim.cpp \
@@ -54,7 +56,8 @@ VERILATOR_DEFINES =
 
 HDL_SRC  = ../rtl/fx68k/hdl/verilator/fx68k.sv ../rtl/fx68k/hdl/verilator/fx68kAlu.sv ../rtl/fx68k/hdl/verilator/uaddrPla.sv
 HDL_SRC += ../rtl/system_consts.sv
-HDL_SRC += ../rtl/F2.sv ../rtl/tc0100scn.sv ../rtl/tc0110pr.sv ../rtl/tc0220ioc.sv ../rtl/tc0200obj.sv
+HDL_SRC += ../rtl/F2.sv
+HDL_SRC += ../rtl/tc0100scn.sv ../rtl/tc0110pr.sv ../rtl/tc0220ioc.sv ../rtl/tc0200obj.sv ../rtl/tc0140syt.sv
 HDL_SRC += ../rtl/ram.sv ../rtl/jtframe_frac_cen.v ../rtl/memory_stream.sv ../rtl/savestates.sv ../rtl/ddram.sv
 HDL_SRC += ../rtl/tv80/tv80s.v ../rtl/tv80/tv80_alu.v ../rtl/tv80/tv80_reg.v ../rtl/tv80/tv80_core.v ../rtl/tv80/tv80_mcode.v
 

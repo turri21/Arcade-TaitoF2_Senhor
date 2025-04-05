@@ -10,3 +10,6 @@
 [submodule "rtl/jt12"]
 	path = rtl/jt12
 	url = https://github.com/jotego/jt12.git
+[submodule "sim/implot"]
+	path = sim/implot
+	url = https://github.com/epezent/implot.git

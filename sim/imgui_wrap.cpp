@@ -1,6 +1,9 @@
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
+
+#include "implot/implot.h"
+
 #include <stdio.h>
 #include <SDL.h>
 
@@ -37,6 +40,8 @@ bool imgui_init()
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+    ImPlot::CreateContext();
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();

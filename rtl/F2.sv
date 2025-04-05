@@ -11,7 +11,7 @@ module F2(
     output            vblank,
     output      [7:0] red,
     output      [7:0] green,
-    output      [7:0] blue,
+    output      [7:0]blue,
 
     input       [7:0] joystick_p1,
     input       [7:0] joystick_p2,
@@ -31,6 +31,12 @@ module F2(
     output reg        sdr_scn_main_req,
     input             sdr_scn_main_ack,
 
+    output reg [26:0] sdr_audio_addr,
+    input      [15:0] sdr_audio_q,
+    output reg        sdr_audio_req,
+    input             sdr_audio_ack,
+
+
     // Memory stream interface
     output            ddr_acquire,
     output     [31:0] ddr_addr,
@@ -44,6 +50,10 @@ module F2(
     input             ddr_read_complete,
 
     input      [12:0] obj_debug_idx,
+
+    output     [15:0] audio_left,
+    output     [15:0] audio_right,
+    output            audio_sample,
 
     input ss_do_save,
     input ss_do_restore,
@@ -236,6 +246,7 @@ logic SCREENn;
 logic COLORn;
 logic IOn;
 logic OBJECTn;
+logic SOUNDn /* verilator public_flat */;
 
 wire SDTACKn, CDTACKn, CPUENn;
 
@@ -268,6 +279,16 @@ jtframe_frac_cen #(2) cpu_cen
     .cenb({ce_dummy_6m_180, ce_12m_180})
 );
 
+wire ce_8m, ce_4m;
+jtframe_frac_cen #(2) audio_cen
+(
+    .clk(clk),
+    .cen_in(1),
+    .n(10'd1),
+    .m(10'd5),
+    .cen({ce_4m, ce_8m}),
+    .cenb()
+);
 
 
 //////////////////////////////////
@@ -327,7 +348,7 @@ TC0220IOC tc0220ioc(
     .INB({4'b1111, ~coin, 2'b11}),
     .IN(~{  start[1], joystick_p2[6:4], joystick_p2[0], joystick_p2[1], joystick_p2[2], joystick_p2[3],
             start[0], joystick_p1[6:4], joystick_p1[0], joystick_p1[1], joystick_p1[2], joystick_p1[3],
-            16'h0000})
+            16'b0000_0000_0000_0100})
 );
 
 wire [14:0] obj_ram_addr;
@@ -582,6 +603,7 @@ always_comb begin
     COLORn = 1;
     IOn = 1;
     OBJECTn = 1;
+    SOUNDn = 1;
     SS_SAVEn = 1;
     SS_RESETn = 1;
     SS_VECn = 1;
@@ -603,6 +625,7 @@ always_comb begin
             24'h9xxxxx: OBJECTn = 0;
             24'h2xxxxx: COLORn = 0;
             24'h30xxxx: IOn = 0;
+            24'h32xxxx: SOUNDn = 0;
             24'hff00xx: SS_SAVEn = 0;
         endcase
     end
@@ -615,6 +638,7 @@ assign cpu_data_in = ~ROMn ? sdr_cpu_q :
                      ~OBJECTn ? objram_data_out :
                      ~COLORn ? pri_data_out :
                      ~IOn ? { 8'b0, io_data_out } :
+                     ~SOUNDn ? { 4'd0, syt_cpu_dout, 8'd0 } :
                      ~SS_SAVEn ? save_handler[cpu_addr[3:0]] :
                      ~SS_RESETn ? reset_vector[cpu_addr[1:0]] :
                      ~SS_VECn ? ( cpu_addr[0] ? 16'h0000 : 16'h00ff ) :
@@ -662,6 +686,150 @@ always_ff @(posedge clk) begin
         ss_sdr_active <= 0;
     end
 end
+
+
+//////////////////////////////////
+// AUDIO
+//
+wire [15:0] SND_ADD;
+wire SRAMn, SNWRn, SNRDn, ROMCS0n, ROMCS1n;
+wire ROMA14, ROMA15;
+wire SNRESn;
+wire SNINTn;
+wire SNMREQn;
+wire OP_Tn;
+
+wire [3:0] syt_z80_dout, syt_cpu_dout;
+wire [7:0] z80_dout;
+wire [7:0] ym_dout;
+wire [7:0] sound_ram_q, sound_rom0_q;
+
+wire [23:0] YAA, YBA;
+wire [7:0] YAD, YBD;
+wire AOEn, BOEn;
+
+wire [7:0] z80_din = ~ROMCS0n ? sound_rom0_q :
+                        ~SRAMn ? sound_ram_q :
+                        ~OP_Tn ? ym_dout :
+                        { 4'd0, syt_z80_dout};
+
+
+singleport_ram #(.WIDTH(8), .WIDTHAD(13)) sound_ram(
+    .clock(clk),
+    .wren(~SRAMn & ~SNWRn),
+    .address(SND_ADD[12:0]),
+    .data(z80_dout),
+    .q(sound_ram_q)
+);
+
+singleport_ram #(.WIDTH(8), .WIDTHAD(16)) sound_rom0(
+    .clock(clk),
+    .wren(0),
+    .address({ROMA15, ROMA14, SND_ADD[13:0]}),
+    .data(0),
+    .q(sound_rom0_q)
+);
+
+tv80s z80(
+    .clk(clk),
+    .cen(ce_4m),
+    .reset_n(SNRESn),
+    .wait_n(1),
+    .int_n(SNINTn),
+    .nmi_n(1),
+    .busrq_n(1),
+    .m1_n(),
+    .mreq_n(SNMREQn),
+    .iorq_n(),
+    .rd_n(SNRDn),
+    .wr_n(SNWRn),
+    .rfsh_n(),
+    .halt_n(),
+    .busak_n(),
+    .A(SND_ADD),
+    .di(z80_din),
+    .dout(z80_dout)
+);
+
+jt10 jt10(
+    .rst(~SNRESn),
+    .clk(clk),
+    .cen(ce_8m),
+    .din(z80_dout),
+    .addr(SND_ADD[1:0]),
+    .cs_n(OP_Tn),
+    .wr_n(SNWRn),
+
+    .dout(ym_dout),
+    .irq_n(SNINTn),
+
+    .adpcma_addr(YAA[19:0]),
+    .adpcma_bank(YAA[23:20]),
+    .adpcma_roe_n(AOEn),
+    .adpcma_data(YAD),
+    .adpcmb_addr(YBA[23:0]),
+    .adpcmb_roe_n(BOEn),
+    .adpcmb_data(YBD),
+
+    .psg_A(),
+    .psg_B(),
+    .psg_C(),
+    .fm_snd(),
+
+    .psg_snd(),
+    .snd_right(audio_right),
+    .snd_left(audio_left),
+    .snd_sample(audio_sample),
+    .ch_enable(6'b111111)
+);
+
+TC0140SYT tc0140syt(
+    .clk,
+    .ce_12m,
+    .ce_4m,
+
+    .RESn(~reset), // FIXME
+
+    .MDin(cpu_data_out[11:8]),
+    .MDout(syt_cpu_dout), // FIXME
+    .MA1(cpu_addr[0]),
+    .MCSn(SOUNDn),
+    .MRDn(~cpu_rw),
+    .MWRn(cpu_rw),
+
+    .MREQn(SNMREQn),
+    .RDn(SNRDn),
+    .WRn(SNWRn),
+    .A(SND_ADD),
+    .Din(z80_dout[3:0]),
+    .Dout(syt_z80_dout),
+
+    .ROUTn(SNRESn),
+    .ROMCS0n(ROMCS0n),
+    .ROMCS1n(),
+    .RAMCSn(SRAMn),
+    .ROMA14(ROMA14),
+    .ROMA15(ROMA15),
+
+    .OPXn(OP_Tn),
+    .YAOEn(AOEn),
+    .YBOEn(BOEn),
+    .YAA(YAA),
+    .YBA(YBA),
+    .YAD(YAD),
+    .YBD(YBD),
+
+    .CSAn(),
+    .CSBn(),
+    .IOA(),
+    .IOC(), // FIXME: mute
+
+    .sdr_address(sdr_audio_addr),
+    .sdr_data(sdr_audio_q),
+    .sdr_req(sdr_audio_req),
+    .sdr_ack(sdr_audio_ack)
+);
+
 
 save_state_data save_state_data(
     .clk,

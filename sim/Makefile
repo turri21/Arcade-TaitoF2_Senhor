@@ -1,4 +1,3 @@
-MAKEFLAGS+="-j $(shell nproc)"
 
 UNAME=$(shell uname -s)
 ifeq ($(UNAME),Linux)
@@ -25,8 +24,6 @@ SRCS = imgui/imgui.cpp \
 		imgui/imgui_widgets.cpp \
 		imgui/backends/imgui_impl_sdl2.cpp \
 		imgui/backends/imgui_impl_sdlrenderer2.cpp \
-		implot/implot.cpp \
-		implot/implot_items.cpp \
 		dis68k/dis68k.cpp \
 		sim_state.cpp \
 		sim.cpp \

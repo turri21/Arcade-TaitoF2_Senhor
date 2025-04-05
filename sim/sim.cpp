@@ -5,7 +5,6 @@
 #include "verilated_fst_c.h"
 
 #include "imgui_wrap.h"
-#include "implot/implot.h"
 #include "imgui_memory_editor.h"
 #include "sim_sdram.h"
 #include "sim_video.h"
@@ -28,9 +27,7 @@ VerilatedContext *contextp;
 F2 *top;
 std::unique_ptr<VerilatedFstC> tfp;
 
-SimSDRAM cpu_sdram(128 * 1024 * 1024);
-SimSDRAM scn_main_sdram(256 * 1024);
-SimSDRAM audio_sdram(1024 * 1024);
+SimSDRAM sdram(128 * 1024 * 1024);
 SimMemory ddr_memory(4 * 1024 * 1024);
 SimVideo video;
 SimState* state_manager = nullptr;
@@ -67,9 +64,9 @@ void sim_tick(int count = 1)
             top->reset = 0;
         }
         
-        cpu_sdram.update_channel_16(top->sdr_cpu_addr, top->sdr_cpu_req, top->sdr_cpu_rw, top->sdr_cpu_be, top->sdr_cpu_data, &top->sdr_cpu_q, &top->sdr_cpu_ack);
-        scn_main_sdram.update_channel_32(top->sdr_scn_main_addr, top->sdr_scn_main_req, 1, 0, 0, &top->sdr_scn_main_q, &top->sdr_scn_main_ack);
-        audio_sdram.update_channel_16(top->sdr_audio_addr, top->sdr_audio_req, 1, 0, 0, &top->sdr_audio_q, &top->sdr_audio_ack);
+        sdram.update_channel_16(top->sdr_cpu_addr, top->sdr_cpu_req, top->sdr_cpu_rw, top->sdr_cpu_be, top->sdr_cpu_data, &top->sdr_cpu_q, &top->sdr_cpu_ack);
+        sdram.update_channel_32(top->sdr_scn_main_addr, top->sdr_scn_main_req, 1, 0, 0, &top->sdr_scn_main_q, &top->sdr_scn_main_ack);
+        sdram.update_channel_16(top->sdr_audio_addr, top->sdr_audio_req, 1, 0, 0, &top->sdr_audio_q, &top->sdr_audio_ack);
         video.clock(top->ce_pixel != 0, top->hblank != 0, top->vblank != 0, top->red, top->green, top->blue);
         
         // Process memory stream operations
@@ -152,16 +149,17 @@ int main(int argc, char **argv)
     fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 64 * 1024, fp);
     fclose(fp);
 
-    cpu_sdram.load_data("./roms/b82-09.ic23", 1, 2);
-    cpu_sdram.load_data("./roms/b82-17.ic11", 0, 2);
+    sdram.load_data("./roms/b82-09.ic23", 1, 2);
+    sdram.load_data("./roms/b82-17.ic11", 0, 2);
 
-    cpu_sdram.load_data("b82-09.10", 1, 2);
-    cpu_sdram.load_data("b82-17.11", 0, 2);
+    sdram.load_data("b82-09.10", 1, 2);
+    sdram.load_data("b82-17.11", 0, 2);
      
-    scn_main_sdram.load_data("./roms/b82-07.ic34", 1, 2);
-    scn_main_sdram.load_data("./roms/b82-06.ic33", 0, 2);
+    sdram.load_data("./roms/b82-07.ic34", 0x200001, 2);
+    sdram.load_data("./roms/b82-06.ic33", 0x200000, 2);
     
-    audio_sdram.load_data("./roms/b82-02.ic1", 0, 1);
+    sdram.load_data("./roms/b82-02.ic1",  0x400000, 1);
+    sdram.load_data("./roms/b82-01.ic2",  0x600000, 1);
 
     ddr_memory.load_data("./roms/b82-03.ic9", 0x200000, 4);
     ddr_memory.load_data("./roms/b82-04.ic8", 0x200001, 4);
@@ -336,18 +334,6 @@ int main(int argc, char **argv)
             }
 
             ImGui::Text("Idx: %u", audio_sample_index);
-
-            /*
-            if (ImPlot::BeginPlot("Left"))
-            {
-                ImPlot::PlotLine("left_plot", audio_samples_left, 512);
-                ImPlot::EndPlot();
-            }
-            if (ImPlot::BeginPlot("Right"))
-            {
-                ImPlot::PlotLine("right_plot", audio_samples_right, 512);
-                ImPlot::EndPlot();
-            }*/
         }
         ImGui::End();
 
@@ -358,12 +344,6 @@ int main(int argc, char **argv)
                 if (ImGui::BeginTabItem("Screen RAM"))
                 {
                     scn_main_mem.DrawContents(nullptr, 64 * 1024);
-                    ImGui::EndTabItem();
-                }
-
-                if (ImGui::BeginTabItem("Screen ROM"))
-                {
-                    scn_main_rom.DrawContents(scn_main_sdram.data, 256 * 1024);
                     ImGui::EndTabItem();
                 }
 
@@ -381,13 +361,13 @@ int main(int argc, char **argv)
                 
                 if (ImGui::BeginTabItem("CPU ROM"))
                 {
-                    rom_mem.DrawContents(cpu_sdram.data, 1024 * 1024);
+                    rom_mem.DrawContents(sdram.data, 1024 * 1024);
                     ImGui::EndTabItem();
                 }
                 
                 if (ImGui::BeginTabItem("Work RAM"))
                 {
-                    work_mem.DrawContents(cpu_sdram.data + (1024 * 1024), 64 * 1024);
+                    work_mem.DrawContents(sdram.data + (1024 * 1024), 64 * 1024);
                     ImGui::EndTabItem();
                 }
                 
@@ -421,7 +401,7 @@ int main(int argc, char **argv)
         uint32_t pc = top->rootp->F2__DOT__m68000__DOT__excUnit__DOT__PcL |
             (top->rootp->F2__DOT__m68000__DOT__excUnit__DOT__PcH << 16);
         ImGui::LabelText("PC", "%08X", pc);
-        Dis68k dis(cpu_sdram.data + pc, cpu_sdram.data + pc + 64, pc);
+        Dis68k dis(sdram.data + pc, sdram.data + pc + 64, pc);
         char optxt[128];
         uint32_t addr;
         dis.disasm(&addr, optxt, sizeof(optxt));

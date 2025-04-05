@@ -17,10 +17,11 @@ package system_consts;
     parameter bit [31:0] OBJ_DATA_DDR_BASE = 32'h3810_0000;
 `endif
 
-
     parameter bit [31:0] CPU_ROM_SDR_BASE  = 32'h0000_0000;
     parameter bit [31:0] WORK_RAM_SDR_BASE = 32'h0010_0000;
     parameter bit [31:0] SCN0_ROM_SDR_BASE = 32'h0020_0000;
+    parameter bit [31:0] ADPCMA_ROM_SDR_BASE  = 32'h0040_0000;
+    parameter bit [31:0] ADPCMB_ROM_SDR_BASE  = 32'h0060_0000;
 
     typedef enum bit [3:0] {
         STORAGE_SDR,

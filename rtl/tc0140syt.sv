@@ -1,51 +1,51 @@
 module TC0140SYT(
-    input         clk,
-    input         ce_12m,
-    input         ce_4m,
+    input             clk,
+    input             ce_12m,
+    input             ce_4m,
 
-    input         RESn,
+    input             RESn,
 
     // 68000 interface
-    input   [3:0] MDin,
-    output  reg [3:0] MDout,
+    input       [3:0] MDin,
+    output reg  [3:0] MDout,
 
-    input         MA1,
+    input             MA1,
 
-    input         MCSn,
-    input         MWRn,
-    input         MRDn,
+    input             MCSn,
+    input             MWRn,
+    input             MRDn,
 
     // Z80 interface
-    input         MREQn,
-    input         RDn,
-    input         WRn,
+    input             MREQn,
+    input             RDn,
+    input             WRn,
 
-    input  [15:0] A,
-    input   [3:0] Din,
-    output  reg [3:0] Dout,
+    input      [15:0] A,
+    input       [3:0] Din,
+    output reg  [3:0] Dout,
 
-    output        ROUTn,
-    output        ROMCS0n,
-    output        ROMCS1n,
-    output        RAMCSn,
-    output        ROMA14,
-    output        ROMA15,
+    output            ROUTn,
+    output            ROMCS0n,
+    output            ROMCS1n,
+    output            RAMCSn,
+    output            ROMA14,
+    output            ROMA15,
 
     // YM
-    output        OPXn,
-    input         YAOEn, // not a real signal, on F2 boards these go to the audio ROMs
-    input         YBOEn,
-    input  [23:0] YAA,
-    input  [23:0] YBA,
-    output  [7:0] YAD,
-    output  [7:0] YBD,
+    output            OPXn,
+    input             YAOEn, // not a real signal, on F2 boards these go to the audio ROMs
+    input             YBOEn,
+    input      [23:0] YAA,
+    input      [23:0] YBA,
+    output      [7:0] YAD,
+    output      [7:0] YBD,
 
     // Peripheral?
-    output        CSAn,
-    output        CSBn,
+    output            CSAn,
+    output            CSBn,
 
-    output  [2:0] IOA,
-    output        IOC,
+    output      [2:0] IOA,
+    output            IOC,
 
     // ROM interface
     output reg [26:0] sdr_address,
@@ -75,9 +75,6 @@ assign ROUTn = RESn & ~reset_reg; // FIXME: don't think this is correct, softwar
 
 wire reg_access = (A[15:8] == 8'he2) & ~MREQn;
 reg prev_reg_access;
-
-assign YAD = YAA[0] ? sdr_data[15:8] : sdr_data[7:0];
-assign sdr_address = { 4'd0, YAA[23:1] };
 
 always_ff @(posedge clk) begin
     prev_reg_access <= reg_access;
@@ -221,8 +218,63 @@ always_ff @(posedge clk) begin
             end
         end
     end
+end
 
-    if (~YAOEn && (sdr_req == sdr_ack)) sdr_req <= ~sdr_req;
+// ROM interface
+
+reg [15:0] cha_data, chb_data;
+reg [23:0] cha_addr, chb_addr;
+reg cha_request_pending = 0;
+reg chb_request_pending = 0;
+reg cha_oe_n, chb_oe_n;
+reg [1:0] request_active = 0;
+
+wire cha_oe_edge = ~YAOEn & cha_oe_n;
+wire chb_oe_edge = ~YBOEn & chb_oe_n;
+
+assign YAD = cha_addr[0] ? cha_data[15:8] : cha_data[7:0];
+assign YBD = chb_addr[0] ? chb_data[15:8] : chb_data[7:0];
+
+always_ff @(posedge clk) begin
+    cha_oe_n <= YAOEn;
+    chb_oe_n <= YBOEn;
+
+    if (cha_oe_edge) begin
+        cha_addr <= YAA;
+        if (cha_addr[23:1] != YAA[23:1]) begin
+            cha_request_pending <= 1;
+        end
+    end
+
+    if (chb_oe_edge) begin
+        chb_addr <= YAA;
+        if (chb_addr[23:1] != YBA[23:1]) begin
+            chb_request_pending <= 1;
+        end
+    end
+
+
+    if (sdr_req == sdr_ack) begin
+        if (request_active == 2) begin
+            chb_data <= sdr_data;
+            request_active <= 0;
+        end else if (request_active == 1) begin
+            cha_data <= sdr_data;
+            request_active <= 0;
+        end else begin
+            if (cha_request_pending) begin
+                cha_request_pending <= 0;
+                request_active <= 1;
+                sdr_address <= ADPCMA_ROM_SDR_BASE[26:0] + { 3'd0, cha_addr[23:1], 1'b0 };
+                sdr_req <= ~sdr_req;
+            end else if (chb_request_pending) begin
+                chb_request_pending <= 0;
+                request_active <= 2;
+                sdr_address <= ADPCMB_ROM_SDR_BASE[26:0] + { 3'd0, chb_addr[23:1], 1'b0 };
+                sdr_req <= ~sdr_req;
+            end
+        end
+    end
 end
 
 endmodule

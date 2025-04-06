@@ -12,11 +12,11 @@ interface ssbus_if();
         return (select == idx[7:0]) & ~query & (read | write);
     endfunction
 
-    task setup(int idx, input [31:0] count, input [1:0] width);
+    task setup(int idx, input [31:0] count, int width);
         ack <= 0;
         if (select == idx[7:0]) begin
             if (query) begin
-                data_out <= { idx[7:0], 22'b0, width, count };
+                data_out <= { idx[7:0], 22'b0, width[1:0], count };
                 ack <= 1;
             end
         end

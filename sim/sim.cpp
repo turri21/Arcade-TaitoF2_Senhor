@@ -152,8 +152,8 @@ int main(int argc, char **argv)
     sdram.load_data("./roms/b82-09.ic23", 1, 2);
     sdram.load_data("./roms/b82-17.ic11", 0, 2);
 
-    sdram.load_data("b82-09.10", 1, 2);
-    sdram.load_data("b82-17.11", 0, 2);
+    //sdram.load_data("b82-09.10", 1, 2);
+    //sdram.load_data("b82-17.11", 0, 2);
      
     sdram.load_data("./roms/b82-07.ic34", 0x200001, 2);
     sdram.load_data("./roms/b82-06.ic33", 0x200000, 2);

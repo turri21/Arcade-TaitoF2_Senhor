@@ -1,8 +1,8 @@
 import system_consts::*;
 
 module F2(
-    input clk,
-    input reset,
+    input             clk,
+    input             reset,
 
     output            ce_pixel,
     output            hsync,
@@ -55,9 +55,9 @@ module F2(
     output     [15:0] audio_right,
     output            audio_sample,
 
-    input ss_do_save,
-    input ss_do_restore,
-    output [3:0] ss_state_out,
+    input             ss_do_save,
+    input             ss_do_restore,
+    output      [3:0] ss_state_out,
 
     input      [23:0] bram_addr,
     input       [7:0] bram_data,
@@ -369,13 +369,33 @@ wire [14:0] OBJ_ADD = BUSY ? obj_ram_addr : cpu_addr[14:0];
 wire [15:0] OBJ_DATA = BUSY ? obj_dout : cpu_data_out;
 assign CPUENn = BUSY ? ~OBJECTn : 0;
 
-m68k_ram #(.WIDTHAD(15), .SS_IDX(SSIDX_OBJ_RAM)) objram(
+wire [14:0] objram_addr;
+wire [15:0] objram_data;
+wire objram_lds_n, objram_uds_n;
+
+m68k_ram #(.WIDTHAD(15)) objram(
     .clock(clk),
-    .address(OBJ_ADD),
-    .we_lds_n(OBJWEn | LOBJRAMn),
-    .we_uds_n(OBJWEn | UOBJRAMn),
-    .data(OBJ_DATA),
+    .address(objram_addr),
+    .we_lds_n(objram_lds_n),
+    .we_uds_n(objram_uds_n),
+    .data(objram_data),
+    .q(objram_data_out)
+);
+
+m68k_ram_ss_adaptor #(.WIDTHAD(15), .SS_IDX(SSIDX_OBJ_RAM)) objram_ss(
+    .clk,
+    .addr_in(OBJ_ADD),
+    .lds_n_in(OBJWEn | LOBJRAMn),
+    .uds_n_in(OBJWEn | UOBJRAMn),
+    .data_in(OBJ_DATA),
+
     .q(objram_data_out),
+
+    .addr_out(objram_addr),
+    .lds_n_out(objram_lds_n),
+    .uds_n_out(objram_uds_n),
+    .data_out(objram_data),
+
     .ssbus(ssb[2])
 );
 
@@ -425,15 +445,36 @@ wire scn_main_ram_ce_0_n, scn_main_ram_ce_1_n;
 
 wire [14:0] scn_main_dot_color;
 
-m68k_ram #(.WIDTHAD(15), .SS_IDX(SSIDX_SCN_RAM_0)) scn_ram_0(
+wire [14:0] scn_ram_0_addr;
+wire [15:0] scn_ram_0_data;
+wire scn_ram_0_lds_n, scn_ram_0_uds_n;
+
+m68k_ram #(.WIDTHAD(15)) scn_ram_0(
     .clock(clk),
-    .address(scn_main_ram_addr),
-    .we_lds_n(scn_main_ram_ce_0_n | scn_main_ram_we_lo_n),
-    .we_uds_n(scn_main_ram_ce_0_n | scn_main_ram_we_up_n),
-    .data(scn_main_ram_dout),
+    .address(scn_ram_0_addr),
+    .we_lds_n(scn_ram_0_lds_n),
+    .we_uds_n(scn_ram_0_uds_n),
+    .data(scn_ram_0_data),
+    .q(scn_main_ram_din)
+);
+
+m68k_ram_ss_adaptor #(.WIDTHAD(15), .SS_IDX(SSIDX_SCN_RAM_0)) scn_ram_0_ss(
+    .clk,
+    .addr_in(scn_main_ram_addr),
+    .lds_n_in(scn_main_ram_ce_0_n | scn_main_ram_we_lo_n),
+    .uds_n_in(scn_main_ram_ce_0_n | scn_main_ram_we_up_n),
+    .data_in(scn_main_ram_dout),
+
     .q(scn_main_ram_din),
+
+    .addr_out(scn_ram_0_addr),
+    .lds_n_out(scn_ram_0_lds_n),
+    .uds_n_out(scn_ram_0_uds_n),
+    .data_out(scn_ram_0_data),
+
     .ssbus(ssb[4])
 );
+
 
 wire HSYNCn;
 wire VSYNCn;
@@ -506,15 +547,36 @@ wire [12:0] pri_ram_addr;
 wire [15:0] pri_ram_din, pri_ram_dout;
 wire pri_ram_we_l_n, pri_ram_we_h_n;
 
-m68k_ram #(.WIDTHAD(12), .SS_IDX(SSIDX_PRI_RAM)) pri_ram(
+wire [15:0] pri_ram_data;
+wire [11:0] pri_ram_address;
+wire pri_ram_lds_n, pri_ram_uds_n;
+
+m68k_ram #(.WIDTHAD(12)) pri_ram(
     .clock(clk),
-    .address(pri_ram_addr[12:1]),
-    .we_lds_n(pri_ram_we_l_n),
-    .we_uds_n(pri_ram_we_h_n),
-    .data(pri_ram_dout),
+    .address(pri_ram_address),
+    .we_lds_n(pri_ram_lds_n),
+    .we_uds_n(pri_ram_uds_n),
+    .data(pri_ram_data),
+    .q(pri_ram_din)
+);
+
+m68k_ram_ss_adaptor #(.WIDTHAD(12), .SS_IDX(SSIDX_PRI_RAM)) pri_ram_ss(
+    .clk,
+    .addr_in(pri_ram_addr[12:1]),
+    .lds_n_in(pri_ram_we_l_n),
+    .uds_n_in(pri_ram_we_h_n),
+    .data_in(pri_ram_dout),
+
     .q(pri_ram_din),
+
+    .addr_out(pri_ram_address),
+    .lds_n_out(pri_ram_lds_n),
+    .uds_n_out(pri_ram_uds_n),
+    .data_out(pri_ram_data),
+
     .ssbus(ssb[6])
 );
+
 
 TC0110PR tc0110pr(
     .clk,
@@ -707,7 +769,9 @@ wire [3:0] syt_z80_dout, syt_cpu_dout;
 wire [7:0] z80_dout;
 wire [7:0] ym_dout;
 wire [7:0] sound_ram_q, sound_rom0_q;
-
+wire       sound_ram_wren;
+wire [7:0] sound_ram_data;
+wire [12:0] sound_ram_addr;
 wire [23:0] YAA, YBA;
 wire [7:0] YAD, YBD;
 wire AOEn, BOEn;
@@ -718,24 +782,38 @@ wire [7:0] z80_din = ~ROMCS0n ? sound_rom0_q :
                         { 4'd0, syt_z80_dout};
 
 
-singleport_ram #(.WIDTH(8), .WIDTHAD(13), .SS_IDX(SSIDX_AUDIO_RAM)) sound_ram(
-    .clock(clk),
-    .wren(~SRAMn & ~SNWRn),
-    .address(SND_ADD[12:0]),
-    .data(z80_dout),
+ram_ss_adaptor #(.WIDTH(8), .WIDTHAD(13), .SS_IDX(SSIDX_AUDIO_RAM)) sound_ram_ss(
+    .clk,
+
+    .wren_in(~SRAMn & ~SNWRn),
+    .addr_in(SND_ADD[12:0]),
+    .data_in(z80_dout),
+
+    .wren_out(sound_ram_wren),
+    .addr_out(sound_ram_addr),
+    .data_out(sound_ram_data),
+
     .q(sound_ram_q),
+
     .ssbus(ssb[7])
 );
 
-wire sound_rom0_wr = bram_wr & |(bram_addr & AUDIO_ROM_BLOCK_BASE);
+singleport_ram #(.WIDTH(8), .WIDTHAD(13)) sound_ram(
+    .clock(clk),
+    .wren(sound_ram_wren),
+    .address(sound_ram_addr),
+    .data(sound_ram_data),
+    .q(sound_ram_q)
+);
+
+wire sound_rom0_wr = bram_wr & |(bram_addr[23:0] & AUDIO_ROM_BLOCK_BASE[23:0]);
 
 singleport_ram #(.WIDTH(8), .WIDTHAD(16)) sound_rom0(
     .clock(clk),
     .wren(sound_rom0_wr),
     .address(sound_rom0_wr ? bram_addr[15:0] : {ROMA15, ROMA14, SND_ADD[13:0]}),
     .data(bram_data),
-    .q(sound_rom0_q),
-    .ssbus()
+    .q(sound_rom0_q)
 );
 
 tv80s z80(

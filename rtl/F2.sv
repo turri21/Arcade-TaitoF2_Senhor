@@ -11,7 +11,7 @@ module F2(
     output            vblank,
     output      [7:0] red,
     output      [7:0] green,
-    output      [7:0]blue,
+    output      [7:0] blue,
 
     input       [7:0] joystick_p1,
     input       [7:0] joystick_p2,
@@ -57,7 +57,11 @@ module F2(
 
     input ss_do_save,
     input ss_do_restore,
-    output [3:0] ss_state_out
+    output [3:0] ss_state_out,
+
+    input      [23:0] bram_addr,
+    input       [7:0] bram_data,
+    input             bram_wr
 );
 
 
@@ -90,9 +94,9 @@ wire ss_busy;
 
 ssbus_if ssbus();
 //ssbuf_if ss_global(), ss_cpu_ram(), ss_obj(), ss_objram(), ss_pri_ram(), ss_scn_main(), ss_scn_ram_0();
-ssbus_if ssb[7]();
+ssbus_if ssb[8]();
 
-ssbus_mux #(.COUNT(7)) ssmux(
+ssbus_mux #(.COUNT(8)) ssmux(
     .clk,
     .slave(ssbus),
     .masters(ssb)
@@ -348,7 +352,7 @@ TC0220IOC tc0220ioc(
     .INB({4'b1111, ~coin, 2'b11}),
     .IN(~{  start[1], joystick_p2[6:4], joystick_p2[0], joystick_p2[1], joystick_p2[2], joystick_p2[3],
             start[0], joystick_p1[6:4], joystick_p1[0], joystick_p1[1], joystick_p1[2], joystick_p1[3],
-            16'b0000_0000_0000_0100})
+            16'b0000_0000_0000_0000})
 );
 
 wire [14:0] obj_ram_addr;
@@ -365,7 +369,7 @@ wire [14:0] OBJ_ADD = BUSY ? obj_ram_addr : cpu_addr[14:0];
 wire [15:0] OBJ_DATA = BUSY ? obj_dout : cpu_data_out;
 assign CPUENn = BUSY ? ~OBJECTn : 0;
 
-m68k_ram_reg #(.WIDTHAD(15), .SS_IDX(SSIDX_OBJ_RAM)) objram(
+m68k_ram #(.WIDTHAD(15), .SS_IDX(SSIDX_OBJ_RAM)) objram(
     .clock(clk),
     .address(OBJ_ADD),
     .we_lds_n(OBJWEn | LOBJRAMn),
@@ -421,7 +425,7 @@ wire scn_main_ram_ce_0_n, scn_main_ram_ce_1_n;
 
 wire [14:0] scn_main_dot_color;
 
-m68k_ram_reg #(.WIDTHAD(15), .SS_IDX(SSIDX_SCN_RAM_0)) scn_ram_0(
+m68k_ram #(.WIDTHAD(15), .SS_IDX(SSIDX_SCN_RAM_0)) scn_ram_0(
     .clock(clk),
     .address(scn_main_ram_addr),
     .we_lds_n(scn_main_ram_ce_0_n | scn_main_ram_we_lo_n),
@@ -502,7 +506,7 @@ wire [12:0] pri_ram_addr;
 wire [15:0] pri_ram_din, pri_ram_dout;
 wire pri_ram_we_l_n, pri_ram_we_h_n;
 
-m68k_ram_reg #(.WIDTHAD(12), .SS_IDX(SSIDX_PRI_RAM)) pri_ram(
+m68k_ram #(.WIDTHAD(12), .SS_IDX(SSIDX_PRI_RAM)) pri_ram(
     .clock(clk),
     .address(pri_ram_addr[12:1]),
     .we_lds_n(pri_ram_we_l_n),
@@ -714,20 +718,24 @@ wire [7:0] z80_din = ~ROMCS0n ? sound_rom0_q :
                         { 4'd0, syt_z80_dout};
 
 
-singleport_ram #(.WIDTH(8), .WIDTHAD(13)) sound_ram(
+singleport_ram #(.WIDTH(8), .WIDTHAD(13), .SS_IDX(SSIDX_AUDIO_RAM)) sound_ram(
     .clock(clk),
     .wren(~SRAMn & ~SNWRn),
     .address(SND_ADD[12:0]),
     .data(z80_dout),
-    .q(sound_ram_q)
+    .q(sound_ram_q),
+    .ssbus(ssb[7])
 );
+
+wire sound_rom0_wr = bram_wr & |(bram_addr & AUDIO_ROM_BLOCK_BASE);
 
 singleport_ram #(.WIDTH(8), .WIDTHAD(16)) sound_rom0(
     .clock(clk),
-    .wren(0),
-    .address({ROMA15, ROMA14, SND_ADD[13:0]}),
-    .data(0),
-    .q(sound_rom0_q)
+    .wren(sound_rom0_wr),
+    .address(sound_rom0_wr ? bram_addr[15:0] : {ROMA15, ROMA14, SND_ADD[13:0]}),
+    .data(bram_data),
+    .q(sound_rom0_q),
+    .ssbus()
 );
 
 tv80s z80(

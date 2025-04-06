@@ -186,9 +186,7 @@ assign VGA_DISABLE = 0;
 assign HDMI_FREEZE = 0;
 assign HDMI_BLACKOUT = 0;
 
-assign AUDIO_S = 0;
-assign AUDIO_L = 0;
-assign AUDIO_R = 0;
+assign AUDIO_S = 1;
 assign AUDIO_MIX = 0;
 
 assign LED_DISK = 0;
@@ -314,6 +312,8 @@ wire sdr_ch1_req, sdr_ch2_req, sdr_ch4_req;
 wire sdr_ch1_ack, sdr_ch2_ack, sdr_ch4_ack;
 wire [31:0] sdr_ch1_dout;
 
+wire [63:0] sdr_ch2_dout;
+
 wire [63:0] sdr_ch3_dout;
 wire sdr_ch3_ack;
 
@@ -356,10 +356,10 @@ sdram sdram
     .ch1_req(sdr_ch1_req),     // request
     .ch1_ack(sdr_ch1_ack),
 
-    .ch2_addr(0),
-    .ch2_dout(),
-    .ch2_req(0),
-    .ch2_ack(),
+    .ch2_addr(sdr_ch2_addr),
+    .ch2_dout(sdr_ch2_dout),
+    .ch2_req(sdr_ch2_req),
+    .ch2_ack(sdr_ch2_ack),
 
     .ch3_addr(sdr_ch3_addr),
     .ch3_dout(sdr_ch3_dout),
@@ -395,6 +395,10 @@ wire rom_load_busy;
 wire rom_data_wait;
 wire rom_data_strobe;
 wire [7:0] rom_data;
+
+wire [23:0] bram_addr;
+wire  [7:0] bram_data;
+wire        bram_wr;
 
 board_cfg_t board_cfg;
 
@@ -434,10 +438,9 @@ rom_loader rom_loader(
 
     .ddr(ddr_romload_loader),
 
-    .bram_addr(),
-    .bram_data(),
-    .bram_cs(),
-    .bram_wr(),
+    .bram_addr(bram_addr),
+    .bram_data(bram_data),
+    .bram_wr(bram_wr),
 
     .board_cfg(board_cfg)
 );
@@ -480,6 +483,10 @@ F2 F2(
     .start({joystick_p2[8], joystick_p1[8]}),
     .coin({joystick_p2[9], joystick_p1[9]}),
 
+    .audio_left(AUDIO_L),
+    .audio_right(AUDIO_R),
+    .audio_sample(),
+
     .sdr_cpu_addr(sdr_cpu_addr),
     .sdr_cpu_q(sdr_cpu_dout[15:0]),
     .sdr_cpu_data(sdr_cpu_din),
@@ -492,6 +499,11 @@ F2 F2(
     .sdr_scn_main_q(sdr_ch1_dout),
     .sdr_scn_main_req(sdr_ch1_req),
     .sdr_scn_main_ack(sdr_ch1_ack),
+
+    .sdr_audio_addr(sdr_ch2_addr),
+    .sdr_audio_q(sdr_ch2_dout[15:0]),
+    .sdr_audio_req(sdr_ch2_req),
+    .sdr_audio_ack(sdr_ch2_ack),
 
     // Memory stream interface
     .ddr_acquire(ddr_f2.acquire),
@@ -509,7 +521,11 @@ F2 F2(
 
     .ss_do_save(save_state_req[0]),
     .ss_do_restore(load_state_req[0]),
-    .ss_state_out()
+    .ss_state_out(),
+
+    .bram_addr,
+    .bram_data,
+    .bram_wr
 );
 
 

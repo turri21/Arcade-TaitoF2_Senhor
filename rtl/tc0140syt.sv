@@ -247,7 +247,7 @@ always_ff @(posedge clk) begin
     end
 
     if (chb_oe_edge) begin
-        chb_addr <= YAA;
+        chb_addr <= YBA;
         if (chb_addr[23:1] != YBA[23:1]) begin
             chb_request_pending <= 1;
         end

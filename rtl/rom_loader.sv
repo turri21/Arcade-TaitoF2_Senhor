@@ -39,9 +39,8 @@ module rom_loader
 
     ddr_if.to_host ddr,
 
-    output [19:0] bram_addr,
+    output [23:0] bram_addr,
     output [7:0] bram_data,
-    output reg [4:0] bram_cs,
     output bram_wr,
 
     output board_cfg_t board_cfg
@@ -176,7 +175,7 @@ always @(posedge sys_clk) begin
             end
         end
         BRAM_DATA: if (ioctl_wr) begin
-            bram_addr <= offset[19:0];
+            bram_addr <= base_addr[23:0] + offset[23:0];
             bram_data <= ioctl_data;
             bram_wr <= 1;
             offset <= offset + 25'd1;

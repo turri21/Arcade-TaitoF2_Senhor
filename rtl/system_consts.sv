@@ -5,6 +5,7 @@ package system_consts;
     parameter int SSIDX_CPU_RAM = 3;
     parameter int SSIDX_SCN_0 = 4;
     parameter int SSIDX_OBJ_RAM = 5;
+    parameter int SSIDX_AUDIO_RAM = 6;
 
 
 `ifdef VERILATOR
@@ -22,10 +23,12 @@ package system_consts;
     parameter bit [31:0] SCN0_ROM_SDR_BASE = 32'h0020_0000;
     parameter bit [31:0] ADPCMA_ROM_SDR_BASE  = 32'h0040_0000;
     parameter bit [31:0] ADPCMB_ROM_SDR_BASE  = 32'h0060_0000;
+    parameter bit [31:0] AUDIO_ROM_BLOCK_BASE  = 32'h0010_0000;
 
     typedef enum bit [3:0] {
         STORAGE_SDR,
-        STORAGE_DDR
+        STORAGE_DDR,
+        STORAGE_BLOCK
     } region_storage_t;
 
     typedef enum bit [3:0] {
@@ -38,14 +41,20 @@ package system_consts;
         region_encoding_t encoding;
     } region_t;
 
-    parameter region_t REGION_CPU_ROM  = '{ base_addr:CPU_ROM_SDR_BASE,  storage:STORAGE_SDR, encoding:ENCODING_NORMAL };
-    parameter region_t REGION_SCN0     = '{ base_addr:SCN0_ROM_SDR_BASE, storage:STORAGE_SDR, encoding:ENCODING_NORMAL };
-    parameter region_t REGION_OBJ0     = '{ base_addr:OBJ_DATA_DDR_BASE, storage:STORAGE_DDR, encoding:ENCODING_NORMAL };
+    parameter region_t REGION_CPU_ROM   = '{ base_addr:CPU_ROM_SDR_BASE,     storage:STORAGE_SDR,   encoding:ENCODING_NORMAL };
+    parameter region_t REGION_SCN0      = '{ base_addr:SCN0_ROM_SDR_BASE,    storage:STORAGE_SDR,   encoding:ENCODING_NORMAL };
+    parameter region_t REGION_OBJ0      = '{ base_addr:OBJ_DATA_DDR_BASE,    storage:STORAGE_DDR,   encoding:ENCODING_NORMAL };
+    parameter region_t REGION_AUDIO_ROM = '{ base_addr:AUDIO_ROM_BLOCK_BASE, storage:STORAGE_BLOCK, encoding:ENCODING_NORMAL };
+    parameter region_t REGION_ADPCMA    = '{ base_addr:ADPCMA_ROM_SDR_BASE,  storage:STORAGE_SDR,   encoding:ENCODING_NORMAL };
+    parameter region_t REGION_ADPCMB    = '{ base_addr:ADPCMB_ROM_SDR_BASE,  storage:STORAGE_SDR,   encoding:ENCODING_NORMAL };
 
-    parameter region_t LOAD_REGIONS[3] = '{
+    parameter region_t LOAD_REGIONS[6] = '{
         REGION_CPU_ROM,
         REGION_SCN0,
-        REGION_OBJ0
+        REGION_OBJ0,
+        REGION_AUDIO_ROM,
+        REGION_ADPCMA,
+        REGION_ADPCMB
     };
 
     typedef struct packed {

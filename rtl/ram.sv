@@ -125,33 +125,6 @@ endmodule
 module singleport_ram #(
     parameter WIDTH = 8,
     parameter WIDTHAD = 10,
-    parameter NAME = "NONE"
-) (
-    input   wire                  clock,
-    input   wire                  wren,
-    input   wire    [WIDTHAD-1:0] address,
-    input   wire    [WIDTH-1:0]   data,
-    output  reg     [WIDTH-1:0]   q
-);
-
-// Shared ramory
-reg [WIDTH-1:0] ram[2**WIDTHAD] /* verilator public_flat */;
-
-always @(posedge clock) begin
-    if (wren) begin
-        ram[address] <= data;
-        q <= data;
-    end else begin
-        q <= ram[address];
-    end
-end
-
-endmodule
-
-module singleport_ram_unreg #(
-    parameter WIDTH = 8,
-    parameter WIDTHAD = 10,
-    parameter NAME = "NONE",
     parameter SS_IDX = -1
 ) (
     input   wire                  clock,
@@ -163,6 +136,7 @@ module singleport_ram_unreg #(
     ssbus_if.slave ssbus
 );
 
+`ifdef VERILATOR
 // Shared ramory
 reg [WIDTH-1:0] ram[2**WIDTHAD] /* verilator public_flat */;
 
@@ -188,49 +162,75 @@ always @(posedge clock) begin
     end
 end
 
-endmodule
-
-module m68k_ram_unreg #(
-    parameter WIDTHAD = 10,
-    parameter SS_IDX = -1
-) (
-    input   wire                  clock,
-    input   wire                  we_lds_n,
-    input   wire                  we_uds_n,
-    input   wire    [WIDTHAD-1:0] address,
-    input   wire    [15:0]   data,
-    output          [15:0]   q,
-
-    ssbus_if.slave ssbus
-);
-
-reg [7:0] ram_l[2**WIDTHAD];
-reg [7:0] ram_h[2**WIDTHAD];
-wire [31:0] SIZE = 2**WIDTHAD;
+`else
 
 wire [WIDTHAD-1:0] addr = ssbus.access(SS_IDX) ? ssbus.addr[WIDTHAD-1:0] : address;
+wire [31:0] SIZE = 2**WIDTHAD;
 
-assign q = { ram_h[addr], ram_l[addr] };
+reg read_delay;
 always @(posedge clock) begin
     ssbus.setup(SS_IDX, SIZE, 1);
 
     if (ssbus.access(SS_IDX)) begin
         if (ssbus.write) begin
-            ram_l[addr] <= ssbus.data[7:0];
-            ram_h[addr] <= ssbus.data[15:8];
             ssbus.write_ack(SS_IDX);
         end else if (ssbus.read) begin
-            ssbus.read_response(SS_IDX, { 48'd0, ram_h[addr], ram_l[addr] });
+            if (read_delay) begin
+                ssbus.read_response(SS_IDX, { 48'd0, q });
+            end
+            read_delay <= 1;
         end
     end else begin
-        if (~we_lds_n) ram_l[addr] <= data[7:0];
-        if (~we_uds_n) ram_h[addr] <= data[15:8];
+        read_delay <= 0;
     end
 end
 
+
+altsyncram altsyncram_component (
+            .address_a (addr),
+            .clock0 (clock),
+            .data_a (ssbus.access(SS_IDX) ? ssbus.data[WIDTH-1:0] : data),
+            .wren_a (ssbus.access(SS_IDX) ? ssbus.write : wren),
+            .q_a (q),
+            .aclr0 (1'b0),
+            .aclr1 (1'b0),
+            .address_b (1'b1),
+            .addressstall_a (1'b0),
+            .addressstall_b (1'b0),
+            .byteena_a (1'b1),
+            .byteena_b (1'b1),
+            .clock1 (1'b1),
+            .clocken0 (1'b1),
+            .clocken1 (1'b1),
+            .clocken2 (1'b1),
+            .clocken3 (1'b1),
+            .data_b (1'b1),
+            .eccstatus (),
+            .q_b (),
+            .rden_a (1'b1),
+            .rden_b (1'b1),
+            .wren_b (1'b0));
+defparam
+    altsyncram_component.clock_enable_input_a = "BYPASS",
+    altsyncram_component.clock_enable_output_a = "BYPASS",
+    altsyncram_component.intended_device_family = "Cyclone V",
+    altsyncram_component.lpm_type = "altsyncram",
+    altsyncram_component.numwords_a = 2**WIDTHAD,
+    altsyncram_component.operation_mode = "SINGLE_PORT",
+    altsyncram_component.outdata_aclr_a = "NONE",
+    altsyncram_component.outdata_reg_a = "UNREGISTERED",
+    altsyncram_component.power_up_uninitialized = "FALSE",
+    altsyncram_component.ram_block_type = "M10K",
+    altsyncram_component.read_during_write_mode_port_a = "DONT_CARE",
+    altsyncram_component.widthad_a = WIDTHAD,
+    altsyncram_component.width_a = WIDTH,
+    altsyncram_component.width_byteena_a = 1;
+
+
+`endif
 endmodule
 
-module m68k_ram_reg #(
+module m68k_ram #(
     parameter WIDTHAD = 10,
     parameter SS_IDX = -1
 ) (

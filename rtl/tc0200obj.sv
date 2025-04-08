@@ -417,12 +417,13 @@ end
 // Scan out
 //
 
-wire [8:0] H_START = 0;
-wire [8:0] H_END = 424 - 1;
-wire [8:0] HS_START = 340 - 1;
-wire [8:0] HS_END = 404 - 1;
-wire [8:0] HB_START = 320 - 1;
-wire [8:0] HB_END = H_END;
+wire [9:0] H_OFS = 97;
+wire [9:0] H_START = 0 + H_OFS;
+wire [9:0] H_END = 424 + H_OFS - 1;
+wire [9:0] HS_START = 340 + H_OFS - 1;
+wire [9:0] HS_END = 404 + H_OFS - 1;
+wire [9:0] HB_START = 320 + H_OFS - 1;
+wire [9:0] HB_END = H_END;
 
 wire [7:0] VS_START = 240 - 1;
 wire [7:0] VS_END = 246 - 1;
@@ -431,7 +432,7 @@ wire [7:0] VB_END = 255;
 wire [7:0] V_EXVBL_RESET = 250; // from signal trace
 
 
-reg [8:0] hcnt;
+reg [9:0] hcnt;
 reg [7:0] vcnt;
 reg [6:0] burstidx;
 
@@ -451,7 +452,7 @@ dualport_ram_unreg #(.WIDTH(64), .WIDTHAD(8)) line_buffer
     // Port B
     .clock_b(clk),
     .wren_b(0),
-    .address_b({~vcnt[0], hcnt[8:2] + 6'd25}),
+    .address_b({~vcnt[0], hcnt[8:2]}),
     .data_b(0),
     .q_b(lb_dout)
 );
@@ -538,8 +539,8 @@ always_ff @(posedge clk) begin
             if (~ddr_fb.busy) begin
                 ddr_fb.read <= 1;
                 ddr_fb.burstcnt <= 128;
-                ddr_fb.addr <= OBJ_FB_DDR_BASE + { 13'd0, scanout_buffer, vcnt + 8'd22, 10'd0 };
-                fb_dirty_scan_addr <= { scanout_buffer, vcnt + 8'd22, 7'd0 };
+                ddr_fb.addr <= OBJ_FB_DDR_BASE + { 13'd0, scanout_buffer, vcnt + 8'd17, 10'd0 };
+                fb_dirty_scan_addr <= { scanout_buffer, vcnt + 8'd17, 7'd0 };
                 burstidx <= 0;
                 scan_state <= SCAN_WAIT_READ;
             end
@@ -558,7 +559,7 @@ always_ff @(posedge clk) begin
 
                     if (burstidx == 127) begin
                         scan_state <= SCAN_IDLE;
-                        fb_dirty_scan_addr <= { scanout_buffer, vcnt + 8'd22, 7'd0 }; // reset
+                        fb_dirty_scan_addr <= { scanout_buffer, vcnt + 8'd17, 7'd0 }; // reset
                     end
                 end
             end

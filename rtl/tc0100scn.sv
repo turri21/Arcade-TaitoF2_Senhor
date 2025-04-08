@@ -114,9 +114,9 @@ assign SCE1n = ~ram_addr[15];
 assign SDout = Din;
 assign ce_pixel = ce_13m & full_hcnt[0];
 
-assign HSYNn = full_hcnt >= (51 * 2) && full_hcnt < (371 * 2);
+assign HSYNn = full_hcnt >= (40 * 2) && full_hcnt < (360 * 2);
 assign HBLOn = HSYNn;
-assign VSYNn = vcnt >= 8 && vcnt < 232;
+assign VSYNn = vcnt >= 2 && vcnt < 226;
 assign VBLOn = VSYNn;
 
 
@@ -197,7 +197,7 @@ tc0100scn_shifter bg1_shift(
 
 tc0100scn_shifter fg0_shift(
     .clk, .ce_pixel,
-    .tap(~fg0_x[2:0]),
+    .tap(fg0_x[2:0] - 3'd7),
     .gfx_in(fg0_gfx_swizzle),
     .palette_in({2'b0, fg0_code[13:8]}),
     .dot_out(fg0_dot),
@@ -206,7 +206,8 @@ tc0100scn_shifter fg0_shift(
 
 
 always @(posedge clk) begin
-    bit [8:0] h, v;
+    bit [8:0] v;
+    bit [5:0] h;
 
     if (reset) begin
         dtack_n <= 1;
@@ -239,9 +240,9 @@ always @(posedge clk) begin
                 if (line_start) begin
                     ram_addr <= { 8'b0_11_00000, vcnt[7:0] };
                 end else begin
-                    h = {hcnt[8:3], 3'b0} - bg0_hofs;
+                    h = hcnt[8:3] - bg0_hofs[8:3];
                     v = vcnt - bg0_y[8:0];
-                    ram_addr <= { 3'b0_00, v[8:3], h[8:3], 1'b0 };
+                    ram_addr <= { 3'b0_00, v[8:3], h, 1'b0 };
                 end
             end
             // BG0 Store Attrib or Rowscroll
@@ -263,16 +264,16 @@ always @(posedge clk) begin
             end
             // BG1 Address Colscroll
             4: begin
-                h = hcnt;
-                ram_addr <= { 10'b0111_000000, h[8:3] };
+                h = hcnt[8:3];
+                ram_addr <= { 10'b0111_000000, h };
             end
             // BG1 Store Colscroll
             5: bg1_colscroll <= SDin;
             // FG0 Address tile code
             6: begin
-                h = {hcnt[8:3], 3'b0} - fg0_x[8:0];
+                h = hcnt[8:3] - fg0_x[8:3];
                 v = vcnt - fg0_y[8:0];
-                ram_addr <= { 4'b0_010, v[8:3], h[8:3] };
+                ram_addr <= { 4'b0_010, v[8:3], h };
             end
             // FG0 Store Tile
             7: fg0_code <= SDin;
@@ -281,9 +282,9 @@ always @(posedge clk) begin
                 if (line_start) begin
                     ram_addr <= { 8'b01100010, vcnt[7:0] };
                 end else begin
-                    h = {hcnt[8:3], 3'b0} - bg1_hofs;
+                    h = hcnt[8:3] - bg1_hofs[8:3];
                     v = vcnt - (bg1_y[8:0] + bg1_colscroll[8:0]);
-                    ram_addr <= { 3'b0_10, v[8:3], h[8:3], 1'b0 };
+                    ram_addr <= { 3'b0_10, v[8:3], h, 1'b0 };
                 end
             end
             // BG1 Store Attrib or Rowscroll

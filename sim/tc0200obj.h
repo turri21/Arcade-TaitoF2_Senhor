@@ -65,6 +65,7 @@ typedef struct
         uint16_t cmd;
         struct
         {
+            // 0x0300 = 6bpp mode
             uint16_t cmd_bits : 16;
         };
     };

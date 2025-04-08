@@ -112,6 +112,17 @@ ImU8 scn_mem_read(const ImU8* , size_t off, void*)
         return top->rootp->F2__DOT__scn_ram_0__DOT__ram_h[word_off];
 }
 
+void scn_mem_write(ImU8* , size_t off, ImU8 d, void*)
+{
+    size_t word_off = off >> 1;
+
+    if (off & 1)
+        top->rootp->F2__DOT__scn_ram_0__DOT__ram_l[word_off] = d;
+    else
+        top->rootp->F2__DOT__scn_ram_0__DOT__ram_h[word_off] = d;
+}
+
+
 ImU8 color_ram_read(const ImU8* , size_t off, void*)
 {
     size_t word_off = off >> 1;
@@ -190,6 +201,7 @@ int main(int argc, char **argv)
     MemoryEditor sound_rom;
 
     scn_main_mem.ReadFn = scn_mem_read;
+    scn_main_mem.WriteFn = scn_mem_write;
     color_ram.ReadFn = color_ram_read;
     obj_ram.ReadFn = obj_ram_read;
     

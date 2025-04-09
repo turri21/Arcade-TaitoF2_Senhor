@@ -197,7 +197,7 @@ tc0100scn_shifter bg1_shift(
 
 tc0100scn_shifter fg0_shift(
     .clk, .ce_pixel,
-    .tap(fg0_x[2:0] - 3'd7),
+    .tap(~fg0_x[2:0]),
     .gfx_in(fg0_gfx_swizzle),
     .palette_in({2'b0, fg0_code[13:8]}),
     .dot_out(fg0_dot),

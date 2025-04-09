@@ -420,14 +420,14 @@ end
 wire [9:0] H_OFS = 97;
 wire [9:0] H_START = 0 + H_OFS;
 wire [9:0] H_END = 424 + H_OFS - 1;
-wire [9:0] HS_START = 340 + H_OFS - 1;
+wire [9:0] HS_START = 340 + H_OFS;
 wire [9:0] HS_END = 404 + H_OFS - 1;
-wire [9:0] HB_START = 320 + H_OFS - 1;
+wire [9:0] HB_START = 320 + H_OFS;
 wire [9:0] HB_END = H_END;
 
-wire [7:0] VS_START = 240 - 1;
+wire [7:0] VS_START = 240;
 wire [7:0] VS_END = 246 - 1;
-wire [7:0] VB_START = 224 - 1;
+wire [7:0] VB_START = 224;
 wire [7:0] VB_END = 255;
 wire [7:0] V_EXVBL_RESET = 250; // from signal trace
 

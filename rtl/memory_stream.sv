@@ -1,4 +1,4 @@
-module memory_stream #(parameter COUNT = 8)
+module memory_stream #(parameter COUNT = 16)
 (
     input               clk,
     input               reset,
@@ -76,7 +76,7 @@ module memory_stream #(parameter COUNT = 8)
     always_comb begin
         chunk_select = 0;
         if (busy) begin
-            chunk_select = { 5'b0, chunk_index };
+            chunk_select = { 4'b0, chunk_index };
         end
     end
 

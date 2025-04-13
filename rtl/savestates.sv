@@ -91,6 +91,47 @@ end
 
 endmodule
 
+module auto_save_adaptor #(parameter N_BITS=16, SS_IDX=-1)(
+    input clk,
+
+    ssbus_if.slave ssb,
+
+    input [N_BITS-1:0] bits_in,
+    output [N_BITS-1:0] bits_out,
+    output bits_wr
+);
+
+reg [(N_WORDS * 16) - 1:0] storage;
+reg [(N_WORDS * 16) - 1:0] storage1;
+
+assign bits_out = storage[N_BITS-1:0];
+
+localparam N_WORDS = (N_BITS + 15) / 16;
+
+always @(posedge clk) begin
+    storage1[N_BITS-1:0] <= bits_in;
+    bits_wr <= 0;
+    ssbus.setup(SS_IDX, N_WORDS + 1, 1); // FIXME do 64-bit writes once verified
+
+    if (ssbus.access(SS_IDX)) begin
+        if (ssbus.write) begin
+            if (ssbus.addr == N_WORDS ) begin
+                bits_wr <= 1;
+            end else begin
+                storage[ ssbus.addr * 16 +: 16 ] <= ssbus.data[15:0];
+            end
+            ssbus.write_ack(SS_IDX);
+        end else if (ssbus.read) begin
+            ssbus.read_response(SS_IDX, {48'd0, storage1[ ssbus.addr * 16 +: 16 ] } );
+        end
+    end
+
+end
+
+endmodule
+
+
+
 module save_state_data(
     input clk,
     input reset,

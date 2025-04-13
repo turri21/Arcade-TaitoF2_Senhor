@@ -25,8 +25,6 @@
 // Negative-edge based wrapper allows memory wait_n signal to work
 // correctly without resorting to asynchronous logic.
 
-`define TV80DELAY
-
 module tv80n (/*AUTOARG*/
   // Outputs
   m1_n, mreq_n, iorq_n, rd_n, wr_n, rfsh_n, halt_n, busak_n, A, dout,
@@ -153,17 +151,17 @@ module tv80n (/*AUTOARG*/
     begin
       if (!reset_n)
         begin
-	  rd_n   <= `TV80DELAY 1'b1;
-	  wr_n   <= `TV80DELAY 1'b1;
-	  iorq_n <= `TV80DELAY 1'b1;
-	  mreq_n <= `TV80DELAY 1'b1;
+	  rd_n   <=  1'b1;
+	  wr_n   <=  1'b1;
+	  iorq_n <=  1'b1;
+	  mreq_n <=  1'b1;
         end
       else
         begin
-	  rd_n <= `TV80DELAY nxt_rd_n;
-	  wr_n <= `TV80DELAY nxt_wr_n;
-	  iorq_n <= `TV80DELAY nxt_iorq_n;
-	  mreq_n <= `TV80DELAY nxt_mreq_n;
+	  rd_n <=  nxt_rd_n;
+	  wr_n <=  nxt_wr_n;
+	  iorq_n <=  nxt_iorq_n;
+	  mreq_n <=  nxt_mreq_n;
 	end // else: !if(!reset_n)
     end // always @ (posedge clk or negedge reset_n)
 
@@ -171,12 +169,12 @@ module tv80n (/*AUTOARG*/
     begin
       if (!reset_n)
         begin
-	  di_reg <= `TV80DELAY 0;
+	  di_reg <=  0;
         end
       else
         begin
 	  if (tstate[2] && wait_n == 1'b1)
-	    di_reg <= `TV80DELAY di;
+	    di_reg <=  di;
 	end // else: !if(!reset_n)
     end // always @ (posedge clk)
   

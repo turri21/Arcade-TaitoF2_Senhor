@@ -94,9 +94,9 @@ wire ss_busy;
 
 ssbus_if ssbus();
 //ssbuf_if ss_global(), ss_cpu_ram(), ss_obj(), ss_objram(), ss_pri_ram(), ss_scn_main(), ss_scn_ram_0();
-ssbus_if ssb[8]();
+ssbus_if ssb[10]();
 
-ssbus_mux #(.COUNT(8)) ssmux(
+ssbus_mux #(.COUNT(10)) ssmux(
     .clk,
     .slave(ssbus),
     .masters(ssb)
@@ -287,7 +287,7 @@ wire ce_8m, ce_4m;
 jtframe_frac_cen #(2) audio_cen
 (
     .clk(clk),
-    .cen_in(1),
+    .cen_in(~ss_pause),
     .n(10'd1),
     .m(10'd5),
     .cen({ce_4m, ce_8m}),
@@ -816,6 +816,18 @@ singleport_ram #(.WIDTH(8), .WIDTHAD(16)) sound_rom0(
     .q(sound_rom0_q)
 );
 
+localparam Z80_SS_BITS = 358;
+wire [Z80_SS_BITS-1:0] z80_ss_in, z80_ss_out;
+wire z80_ss_wr;
+
+auto_save_adaptor #(.N_BITS(Z80_SS_BITS), .SS_IDX(SSIDX_Z80)) z80_ss_adaptor(
+    .clk,
+    .ssb(ssb[8]),
+    .bits_in(z80_ss_out),
+    .bits_out(z80_ss_in),
+    .bits_wr(z80_ss_wr)
+);
+
 tv80s z80(
     .clk(clk),
     .cen(ce_4m),
@@ -834,7 +846,23 @@ tv80s z80(
     .busak_n(),
     .A(SND_ADD),
     .di(z80_din),
-    .dout(z80_dout)
+    .dout(z80_dout),
+    .auto_ss_out(z80_ss_out),
+    .auto_ss_in(z80_ss_in),
+    .auto_ss_wr(z80_ss_wr)
+);
+
+
+localparam YM_SS_BITS = 3080;
+wire [YM_SS_BITS-1:0] ym_ss_in, ym_ss_out;
+wire ym_ss_wr;
+
+auto_save_adaptor #(.N_BITS(YM_SS_BITS), .SS_IDX(SSIDX_YM)) ym_ss_adaptor(
+    .clk,
+    .ssb(ssb[9]),
+    .bits_in(ym_ss_out),
+    .bits_out(ym_ss_in),
+    .bits_wr(ym_ss_wr)
 );
 
 jt10 jt10(
@@ -866,7 +894,11 @@ jt10 jt10(
     .snd_right(audio_right),
     .snd_left(audio_left),
     .snd_sample(audio_sample),
-    .ch_enable(6'b111111)
+    .ch_enable(6'b111111),
+
+    .auto_ss_wr(ym_ss_wr),
+    .auto_ss_in(ym_ss_in),
+    .auto_ss_out(ym_ss_out)
 );
 
 TC0140SYT tc0140syt(

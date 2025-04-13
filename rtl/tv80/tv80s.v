@@ -22,7 +22,6 @@
 // TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-`define TV80DELAY
 
 module tv80s (/*AUTOARG*/
   // Outputs
@@ -99,62 +98,62 @@ module tv80s (/*AUTOARG*/
     begin
       if (!reset_n)
         begin
-          rd_n   <= `TV80DELAY 1'b1;
-          wr_n   <= `TV80DELAY 1'b1;
-          iorq_n <= `TV80DELAY 1'b1;
-          mreq_n <= `TV80DELAY 1'b1;
-          di_reg <= `TV80DELAY 0;
+          rd_n   <=  1'b1;
+          wr_n   <=  1'b1;
+          iorq_n <=  1'b1;
+          mreq_n <=  1'b1;
+          di_reg <=  0;
         end
       else if (cen)
         begin
-          rd_n <= `TV80DELAY 1'b1;
-          wr_n <= `TV80DELAY 1'b1;
-          iorq_n <= `TV80DELAY 1'b1;
-          mreq_n <= `TV80DELAY 1'b1;
+          rd_n <=  1'b1;
+          wr_n <=  1'b1;
+          iorq_n <=  1'b1;
+          mreq_n <=  1'b1;
           if (mcycle[0])
             begin
               if (tstate[1] || (tstate[2] && wait_n == 1'b0))
                 begin
-                  rd_n <= `TV80DELAY ~ intcycle_n;
-                  mreq_n <= `TV80DELAY ~ intcycle_n;
-                  iorq_n <= `TV80DELAY intcycle_n;
+                  rd_n <=  ~ intcycle_n;
+                  mreq_n <=  ~ intcycle_n;
+                  iorq_n <=  intcycle_n;
                 end
             `ifdef TV80_REFRESH
               if (tstate[3])
-            mreq_n <= `TV80DELAY 1'b0;
+            mreq_n <=  1'b0;
             `endif
             end // if (mcycle[0])          
           else
             begin
               if ((tstate[1] || (tstate[2] && wait_n == 1'b0)) && no_read == 1'b0 && write == 1'b0)
                 begin
-                  rd_n <= `TV80DELAY 1'b0;
-                  iorq_n <= `TV80DELAY ~ iorq;
-                  mreq_n <= `TV80DELAY iorq;
+                  rd_n <=  1'b0;
+                  iorq_n <=  ~ iorq;
+                  mreq_n <=  iorq;
                 end
               if (T2Write == 0)
                 begin                          
                   if (tstate[2] && write == 1'b1)
                     begin
-                      wr_n <= `TV80DELAY 1'b0;
-                      iorq_n <= `TV80DELAY ~ iorq;
-                      mreq_n <= `TV80DELAY iorq;
+                      wr_n <=  1'b0;
+                      iorq_n <=  ~ iorq;
+                      mreq_n <=  iorq;
                     end
                 end
               else
                 begin
                   if ((tstate[1] || (tstate[2] && wait_n == 1'b0)) && write == 1'b1)
                     begin
-                      wr_n <= `TV80DELAY 1'b0;
-                      iorq_n <= `TV80DELAY ~ iorq;
-                      mreq_n <= `TV80DELAY iorq;
+                      wr_n <=  1'b0;
+                      iorq_n <=  ~ iorq;
+                      mreq_n <=  iorq;
                   end
                 end // else: !if(T2write == 0)
               
             end // else: !if(mcycle[0])
           
           if (tstate[2] && wait_n == 1'b1 && !write && !no_read)
-            di_reg <= `TV80DELAY di;
+            di_reg <=  di;
         end // else: !if(!reset_n)
     end // always @ (posedge clk or negedge reset_n)
   

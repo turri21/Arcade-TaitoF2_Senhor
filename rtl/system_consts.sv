@@ -6,6 +6,8 @@ package system_consts;
     parameter int SSIDX_SCN_0 = 4;
     parameter int SSIDX_OBJ_RAM = 5;
     parameter int SSIDX_AUDIO_RAM = 6;
+    parameter int SSIDX_Z80 = 7;
+    parameter int SSIDX_YM = 8;
 
 
 `ifdef VERILATOR

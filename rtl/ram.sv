@@ -247,7 +247,7 @@ end
 `else
 
 altsyncram altsyncram_component (
-            .address_a (addr),
+            .address_a (address),
             .clock0 (clock),
             .data_a (data),
             .wren_a (wren),
@@ -329,7 +329,7 @@ end
 `else
 
 altsyncram altsyncram_component (
-            .address_a (addr),
+            .address_a (address),
             .clock0 (clock),
             .data_a (data),
             .wren_a (~(we_uds_n & we_lds_n)),

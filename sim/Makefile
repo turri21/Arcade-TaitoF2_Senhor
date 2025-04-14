@@ -7,11 +7,12 @@ ifeq ($(UNAME),Darwin)
 	OS := OSX
 endif
 
+USE_AUTO_SS = 1
 OBJ_DIR = obj
 VERILATED_DIR = verilated
 
 VERILATOR = verilator
-VERILATOR_ARGS = --cc --make gmake --trace-fst --Mdir $(VERILATED_DIR) -Ihdl --MMD --MP $(VERILATOR_DEFINES) -Wno-TIMESCALEMOD
+VERILATOR_ARGS = --cc --make gmake --trace-fst --Mdir $(VERILATED_DIR) -Ihdl --MMD --MP -Wno-TIMESCALEMOD
 PYTHON = python3
 
 VERILATOR_INC = $(shell pkg-config --variable=includedir verilator)
@@ -49,22 +50,27 @@ endif
 
 LDLIBS=$(shell pkg-config --libs sdl2)
 
-VERILATOR_DEFINES =
-
 HDL_SRC  = ../rtl/fx68k/hdl/verilator/fx68k.sv ../rtl/fx68k/hdl/verilator/fx68kAlu.sv ../rtl/fx68k/hdl/verilator/uaddrPla.sv
 HDL_SRC += ../rtl/system_consts.sv
 HDL_SRC += ../rtl/F2.sv
 HDL_SRC += ../rtl/tc0100scn.sv ../rtl/tc0110pr.sv ../rtl/tc0220ioc.sv ../rtl/tc0200obj.sv ../rtl/tc0140syt.sv
 HDL_SRC += ../rtl/ram.sv ../rtl/jtframe_frac_cen.v ../rtl/memory_stream.sv ../rtl/savestates.sv ../rtl/ddram.sv
-#HDL_SRC += ../rtl/tv80/tv80s.v ../rtl/tv80/tv80_alu.v ../rtl/tv80/tv80_reg.v ../rtl/tv80/tv80_core.v ../rtl/tv80/tv80_mcode.v
+
+
+ifeq ($(USE_AUTO_SS),1)
+VERILATOR_ARGS += -DUSE_AUTO_SS
 HDL_SRC += ../rtl/tv80_auto_ss.v
 HDL_SRC += ../rtl/jt10_auto_ss.v
+else
+HDL_SRC += ../rtl/tv80/tv80s.v ../rtl/tv80/tv80_alu.v ../rtl/tv80/tv80_reg.v ../rtl/tv80/tv80_core.v ../rtl/tv80/tv80_mcode.v
+VERILATOR_ARGS += -F ../rtl/jt12/ver/verilator/gather.f
+endif
 
 HDL_GEN =
 
 all: sim
 
-$(VERILATED_DIR)/F2.mk: $(HDL_SRC) $(HDL_GEN)
+$(VERILATED_DIR)/F2.mk: $(HDL_SRC) $(HDL_GEN) Makefile
 	$(VERILATOR) $(VERILATOR_ARGS) -o F2 --prefix F2 --top F2 $(HDL_SRC)
 
 $(VERILATED_DIR)/F2__ALL.a: $(VERILATED_DIR)/F2.mk $(HDL_SRC) $(HDL_GEN)

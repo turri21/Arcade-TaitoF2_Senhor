@@ -816,6 +816,7 @@ singleport_ram #(.WIDTH(8), .WIDTHAD(16)) sound_rom0(
     .q(sound_rom0_q)
 );
 
+`ifdef USE_AUTO_SS
 localparam Z80_SS_BITS = 358;
 wire [Z80_SS_BITS-1:0] z80_ss_in, z80_ss_out;
 wire z80_ss_wr;
@@ -827,8 +828,16 @@ auto_save_adaptor #(.N_BITS(Z80_SS_BITS), .SS_IDX(SSIDX_Z80)) z80_ss_adaptor(
     .bits_out(z80_ss_in),
     .bits_wr(z80_ss_wr)
 );
+`endif
 
 tv80s z80(
+
+`ifdef USE_AUTO_SS
+    .auto_ss_out(z80_ss_out),
+    .auto_ss_in(z80_ss_in),
+    .auto_ss_wr(z80_ss_wr),
+`endif
+
     .clk(clk),
     .cen(ce_4m),
     .reset_n(SNRESn),
@@ -846,13 +855,11 @@ tv80s z80(
     .busak_n(),
     .A(SND_ADD),
     .di(z80_din),
-    .dout(z80_dout),
-    .auto_ss_out(z80_ss_out),
-    .auto_ss_in(z80_ss_in),
-    .auto_ss_wr(z80_ss_wr)
+    .dout(z80_dout)
 );
 
 
+`ifdef USE_AUTO_SS
 localparam YM_SS_BITS = 5455;
 wire [YM_SS_BITS-1:0] ym_ss_in, ym_ss_out;
 wire ym_ss_wr;
@@ -864,8 +871,15 @@ auto_save_adaptor #(.N_BITS(YM_SS_BITS), .SS_IDX(SSIDX_YM)) ym_ss_adaptor(
     .bits_out(ym_ss_in),
     .bits_wr(ym_ss_wr)
 );
+`endif
 
 jt10 jt10(
+`ifdef USE_AUTO_SS
+    .auto_ss_wr(ym_ss_wr),
+    .auto_ss_in(ym_ss_in),
+    .auto_ss_out(ym_ss_out),
+`endif
+
     .rst(~SNRESn),
     .clk(clk),
     .cen(ce_8m),
@@ -894,11 +908,7 @@ jt10 jt10(
     .snd_right(audio_right),
     .snd_left(audio_left),
     .snd_sample(audio_sample),
-    .ch_enable(6'b111111),
-
-    .auto_ss_wr(ym_ss_wr),
-    .auto_ss_in(ym_ss_in),
-    .auto_ss_out(ym_ss_out)
+    .ch_enable(6'b111111)
 );
 
 TC0140SYT tc0140syt(

@@ -797,7 +797,8 @@ module jt12_reg_ch (
         end
       end
     end
-    if (auto_ss_wr & ~rst) begin
+    if (rst) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       for (auto_ss_idx = 0; auto_ss_idx < (NUM_CH); auto_ss_idx = auto_ss_idx + 1) begin
         reg_alg[auto_ss_idx] <= auto_ss_in[17*NUM_CH+3*auto_ss_idx+:3];
@@ -1885,7 +1886,8 @@ reg     irq_zero_en, irq_brdy_en, irq_eos_en,
         end
       end
     end
-    if (auto_ss_wr & ~rst) begin
+    if (rst) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       busy     <= auto_ss_in[63];
       busy_cnt <= auto_ss_in[58+:5];
@@ -2026,7 +2028,8 @@ module jt12_timer #(
       if (clr_flag) flag <= 1'b0;
       else if (cen && zero && load && overflow) flag <= 1'b1;
     end
-    if (auto_ss_wr & ~rst) begin
+    if (rst) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       flag <= auto_ss_in[CW+FW+1];
     end
@@ -2668,7 +2671,8 @@ module jt12_eg_cnt (
         end
       end
     end
-    if (auto_ss_wr & ~rst) begin
+    if (rst) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       eg_cnt      <= auto_ss_in[2+:15];
       eg_cnt_base <= auto_ss_in[0+:2];
@@ -4537,7 +4541,8 @@ module jt10_adpcm_cnt (
         set_flags <= ~last_done & done_sr;
       end
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       done_sr   <= auto_ss_in[306+:6];
       last_done <= auto_ss_in[333+:6];
@@ -4561,7 +4566,8 @@ module jt10_adpcm_cnt (
     end else begin
       flags <= ~clr_flags & (set_flags | flags);
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       flags <= auto_ss_in[345+:6];
     end
@@ -4685,7 +4691,8 @@ module jt10_adpcm_cnt (
       clr1   <= clr6;
       skip1  <= (clr6 && on6) ? 1'b1 : sumup6 ? 1'b0 : skip6;
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       addr1  <= auto_ss_in[0+:21];
       addr2  <= auto_ss_in[21+:21];
@@ -5216,7 +5223,8 @@ module jt10_adpcma_lut (
 
     if (!rst_n) inc <= 'd0;
     else if (cen) inc <= lut[addr];
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       inc <= auto_ss_in[0+:12];
     end
@@ -5346,7 +5354,8 @@ module jt10_adpcm (
       x1        <= x6;
       step1     <= step6;
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       chon2     <= auto_ss_in[7*sigw+47];
       chon3     <= auto_ss_in[7*sigw+48];
@@ -5492,7 +5501,8 @@ module jt10_adpcm_gain (
       lin1   <= sh6[3] ? 10'h0 : lin6;
       sh1    <= sh6;
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       db5    <= auto_ss_in[78+:7];
       lin1   <= auto_ss_in[0+:10];
@@ -5599,7 +5609,8 @@ module jt10_adpcm_gain (
       pcm1   <= pcm6;
       shcnt1 <= shcnt6;
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       lin2   <= auto_ss_in[10+:10];
       match2 <= auto_ss_in[213];
@@ -5694,7 +5705,8 @@ module jt10_adpcm_acc (
         last <= acc;
       end
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       acc  <= auto_ss_in[0+:18];
       last <= auto_ss_in[18+:18];
@@ -5723,7 +5735,8 @@ module jt10_adpcm_acc (
       if (overflow) pcm_out <= pcm_full[17] ? 16'h8000 : 16'h7fff;  // saturate
       else pcm_out <= pcm_full[15:0];
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       pcm_full <= auto_ss_in[36+:18];
       pcm_out  <= auto_ss_in[72+:16];
@@ -5795,7 +5808,8 @@ module jt10_adpcm_drvA (
     end else if (cen) begin
       data <= !nibble_sel ? datain[7:4] : datain[3:0];
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       data <= auto_ss_in[12+:4];
     end
@@ -5865,7 +5879,8 @@ module jt10_adpcm_drvA (
       if (cur_ch[5]) en_ch <= en_next;
       match <= cur_next == (cur_ch[5] ? en_next : en_ch);
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       cur_ch <= auto_ss_in[0+:6];
       en_ch  <= auto_ss_in[6+:6];
@@ -6191,7 +6206,8 @@ module jt10_adpcmb_cnt (
         end
       end
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       adv <= auto_ss_in[47];
       cnt <= auto_ss_in[0+:16];
@@ -6217,7 +6233,8 @@ module jt10_adpcmb_cnt (
       if (clr_flag) flag <= 1'b0;
       if (!last_set && set_flag) flag <= 1'b1;
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       flag     <= auto_ss_in[45];
       last_set <= auto_ss_in[17];
@@ -6267,7 +6284,8 @@ module jt10_adpcmb_cnt (
         end
       end
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       addr       <= auto_ss_in[19+:24];
       chon       <= auto_ss_in[44];
@@ -6407,7 +6425,8 @@ module jt10_adpcmb (
         end
       end
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       adv2       <= auto_ss_in[2*stepw+4*xw+10+:4];
       d2         <= auto_ss_in[2*stepw+4*xw+2+:4];
@@ -6492,7 +6511,8 @@ module jt10_adpcm_div #(
         end
       end
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       cycle <= auto_ss_in[0+:DW];
       d     <= auto_ss_in[DW+:DW];
@@ -7180,7 +7200,8 @@ module jt49_cen (
         if (cen) cencnt <= cencnt + 10'd1;
       end
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       cencnt <= auto_ss_in[0+:10];
     end
@@ -7250,7 +7271,8 @@ module jt49_div #(
         if (period == 0) div <= 0;
       end
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       count <= auto_ss_in[0+:W];
       div   <= auto_ss_in[W];
@@ -7312,7 +7334,8 @@ module jt49_noise (
       last_en <= noise_en;
       if (noise_up) poly17 <= {poly17[0] ^ poly17[3] ^ poly17_zero, poly17[16:1]};
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       last_en <= auto_ss_in[17];
       poly17  <= auto_ss_in[0+:17];
@@ -7429,7 +7452,8 @@ module jt49_eg (
         end
       end
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       gain      <= auto_ss_in[2+:5];
       inv       <= auto_ss_in[0];
@@ -7904,7 +7928,8 @@ module jt49 (  // note that input ports are not multiplexed
         endcase
       end
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       A      <= auto_ss_in[185+:8];
       B      <= auto_ss_in[193+:8];
@@ -7982,7 +8007,8 @@ module jt49 (  // note that input ports are not multiplexed
         end
       end
     end
-    if (auto_ss_wr & rst_n) begin
+    if (~rst_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       dout       <= auto_ss_in[167+:8];
       eg_restart <= auto_ss_in[131];

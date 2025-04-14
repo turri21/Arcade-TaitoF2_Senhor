@@ -91,22 +91,22 @@ class Assignment:
         self.syms = sorted(set(syms))
         self.registers = []
         self.always = always
-        self.wr_condition = f"{PREFIX}_wr"
+        self.reset_condition = ""
 
         for ev in always.iter_find_all({"tag": "kEventExpression"}):
             signal = ev.children[1].text
             if signal.lower() in RESET_SIGNALS:
                 if ev.children[0].text == "negedge":
-                    self.wr_condition += f" & {signal}"
+                    self.reset_condition += f"if (~{signal}) begin end else "
                 else:
-                    self.wr_condition += f" & ~{signal}"
+                    self.reset_condition += f"if ({signal}) begin end else "
 
             
     def modify_tree(self):
         need_generate = False
         ctrl = find_path(self.always, ["kProceduralTimingControlStatement", "kEventControl"])
         add_text_after(ctrl, "begin")
-        wr_str = f"if ({self.wr_condition}) begin\ninteger {PREFIX}_idx;\n"
+        wr_str = f"{self.reset_condition}if ({PREFIX}_wr) begin\ninteger {PREFIX}_idx;\n"
         rd_str = ""
         for r in self.registers:
             if r.unpacked:

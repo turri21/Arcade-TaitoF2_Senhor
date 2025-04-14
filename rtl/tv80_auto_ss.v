@@ -3534,7 +3534,8 @@ module tv80_core (  /*AUTOARG*/
         end  // if (ClkEn == 1'b1 )         
       end  // else: !if(reset_n == 1'b0 )
     end
-    if (auto_ss_wr & reset_n) begin
+    if (~reset_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       A             <= auto_ss_in[219+:16];
       ACC           <= auto_ss_in[25+:8];
@@ -3875,7 +3876,8 @@ module tv80_core (  /*AUTOARG*/
         end
       end
     end
-    if (auto_ss_wr & reset_n) begin
+    if (~reset_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       BusReq_s <= auto_ss_in[166];
       INT_s    <= auto_ss_in[169];
@@ -4004,7 +4006,8 @@ module tv80_core (  /*AUTOARG*/
         end
       end
     end
-    if (auto_ss_wr & reset_n) begin
+    if (~reset_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       Auto_Wait_t1 <= auto_ss_in[180];
       Auto_Wait_t2 <= auto_ss_in[181];
@@ -4236,7 +4239,8 @@ module tv80s (  /*AUTOARG*/
         if (tstate[2] && wait_n == 1'b1 && !write && !no_read) di_reg <= di;
       end  // else: !if(!reset_n)
     end
-    if (auto_ss_wr & reset_n) begin
+    if (~reset_n) begin
+    end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       di_reg <= auto_ss_in[4+:8];
       iorq_n <= auto_ss_in[13];

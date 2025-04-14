@@ -11,6 +11,3 @@
 	path = rtl/jt12
 	url = https://github.com/wickerwaka/jt12.git
 	branch = auto-ss
-[submodule "sim/implot"]
-	path = sim/implot
-	url = https://github.com/epezent/implot.git

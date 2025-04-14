@@ -9,7 +9,8 @@
 	url = git@github.com:wickerwaka/dis68k.git
 [submodule "rtl/jt12"]
 	path = rtl/jt12
-	url = https://github.com/jotego/jt12.git
+	url = https://github.com/wickerwaka/jt12.git
+	branch = auto-ss
 [submodule "sim/implot"]
 	path = sim/implot
 	url = https://github.com/epezent/implot.git

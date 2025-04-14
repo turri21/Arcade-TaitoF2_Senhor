@@ -94,7 +94,7 @@ endmodule
 module auto_save_adaptor #(parameter N_BITS=16, SS_IDX=-1)(
     input clk,
 
-    ssbus_if.slave ssb,
+    ssbus_if.slave ssbus,
 
     input [N_BITS-1:0] bits_in,
     output [N_BITS-1:0] bits_out,

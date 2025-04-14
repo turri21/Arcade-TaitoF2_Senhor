@@ -823,7 +823,7 @@ wire z80_ss_wr;
 
 auto_save_adaptor #(.N_BITS(Z80_SS_BITS), .SS_IDX(SSIDX_Z80)) z80_ss_adaptor(
     .clk,
-    .ssb(ssb[8]),
+    .ssbus(ssb[8]),
     .bits_in(z80_ss_out),
     .bits_out(z80_ss_in),
     .bits_wr(z80_ss_wr)
@@ -866,7 +866,7 @@ wire ym_ss_wr;
 
 auto_save_adaptor #(.N_BITS(YM_SS_BITS), .SS_IDX(SSIDX_YM)) ym_ss_adaptor(
     .clk,
-    .ssb(ssb[9]),
+    .ssbus(ssb[9]),
     .bits_in(ym_ss_out),
     .bits_out(ym_ss_in),
     .bits_wr(ym_ss_wr)

@@ -219,9 +219,9 @@ module tv80_mcode (  /*AUTOARG*/
   reg [1:0] DPAIR;
 
   always @(  /*AUTOSENSE*/ F or IR or ISet or IntCycle or MCycle or NMICycle) begin
-    DDD = IR[5:3];
-    SSS = IR[2:0];
-    DPAIR = IR[5:4];
+    DDD     = IR[5:3];
+    SSS     = IR[2:0];
+    DPAIR   = IR[5:4];
 
     MCycles = 3'b001;
     if (MCycle[0]) begin
@@ -229,50 +229,50 @@ module tv80_mcode (  /*AUTOARG*/
     end else begin
       TStates = 3'b011;
     end
-    Prefix = 2'b00;
-    Inc_PC = 1'b0;
-    Inc_WZ = 1'b0;
-    IncDec_16 = 4'b0000;
+    Prefix      = 2'b00;
+    Inc_PC      = 1'b0;
+    Inc_WZ      = 1'b0;
+    IncDec_16   = 4'b0000;
     Read_To_Acc = 1'b0;
     Read_To_Reg = 1'b0;
     Set_BusB_To = 4'b0000;
     Set_BusA_To = 4'b0000;
-    ALU_Op = {1'b0, IR[5:3]};
-    Save_ALU = 1'b0;
-    PreserveC = 1'b0;
-    Arith16 = 1'b0;
-    IORQ = 1'b0;
+    ALU_Op      = {1'b0, IR[5:3]};
+    Save_ALU    = 1'b0;
+    PreserveC   = 1'b0;
+    Arith16     = 1'b0;
+    IORQ        = 1'b0;
     Set_Addr_To = aNone;
-    Jump = 1'b0;
-    JumpE = 1'b0;
-    JumpXY = 1'b0;
-    Call = 1'b0;
-    RstP = 1'b0;
-    LDZ = 1'b0;
-    LDW = 1'b0;
-    LDSPHL = 1'b0;
-    Special_LD = 3'b000;
-    ExchangeDH = 1'b0;
-    ExchangeRp = 1'b0;
-    ExchangeAF = 1'b0;
-    ExchangeRS = 1'b0;
-    I_DJNZ = 1'b0;
-    I_CPL = 1'b0;
-    I_CCF = 1'b0;
-    I_SCF = 1'b0;
-    I_RETN = 1'b0;
-    I_BT = 1'b0;
-    I_BC = 1'b0;
-    I_BTR = 1'b0;
-    I_RLD = 1'b0;
-    I_RRD = 1'b0;
-    I_INRC = 1'b0;
-    SetDI = 1'b0;
-    SetEI = 1'b0;
-    IMode = 2'b11;
-    Halt = 1'b0;
-    NoRead = 1'b0;
-    Write = 1'b0;
+    Jump        = 1'b0;
+    JumpE       = 1'b0;
+    JumpXY      = 1'b0;
+    Call        = 1'b0;
+    RstP        = 1'b0;
+    LDZ         = 1'b0;
+    LDW         = 1'b0;
+    LDSPHL      = 1'b0;
+    Special_LD  = 3'b000;
+    ExchangeDH  = 1'b0;
+    ExchangeRp  = 1'b0;
+    ExchangeAF  = 1'b0;
+    ExchangeRS  = 1'b0;
+    I_DJNZ      = 1'b0;
+    I_CPL       = 1'b0;
+    I_CCF       = 1'b0;
+    I_SCF       = 1'b0;
+    I_RETN      = 1'b0;
+    I_BT        = 1'b0;
+    I_BC        = 1'b0;
+    I_BTR       = 1'b0;
+    I_RLD       = 1'b0;
+    I_RRD       = 1'b0;
+    I_INRC      = 1'b0;
+    SetDI       = 1'b0;
+    SetEI       = 1'b0;
+    IMode       = 2'b11;
+    Halt        = 1'b0;
+    NoRead      = 1'b0;
+    Write       = 1'b0;
 
     case (ISet)
       2'b00: begin
@@ -293,7 +293,7 @@ module tv80_mcode (  /*AUTOARG*/
               if (MCycle[0]) Set_Addr_To = aXY;
               if (MCycle[1]) begin
                 Set_BusA_To[2:0] = DDD;
-                Read_To_Reg = 1'b1;
+                Read_To_Reg      = 1'b1;
               end
             end // if (IR[2:0] == 3'b110)
                   else if (IR[5:3] == 3'b110)
@@ -301,18 +301,18 @@ module tv80_mcode (  /*AUTOARG*/
               // LD (HL),r
               MCycles = 3'b010;
               if (MCycle[0]) begin
-                Set_Addr_To = aXY;
+                Set_Addr_To      = aXY;
                 Set_BusB_To[2:0] = SSS;
-                Set_BusB_To[3] = 1'b0;
+                Set_BusB_To[3]   = 1'b0;
               end
               if (MCycle[1]) Write = 1'b1;
             end // if (IR[5:3] == 3'b110)
                   else
                     begin
               Set_BusB_To[2:0] = SSS;
-              ExchangeRp = 1'b1;
+              ExchangeRp       = 1'b1;
               Set_BusA_To[2:0] = DDD;
-              Read_To_Reg = 1'b1;
+              Read_To_Reg      = 1'b1;
             end  // else: !if(IR[5:3] == 3'b110)
           end  // case: 8'b01zzzzzz                                    
 
@@ -321,10 +321,10 @@ module tv80_mcode (  /*AUTOARG*/
               // LD (HL),n
               MCycles = 3'b011;
               if (MCycle[1]) begin
-                Inc_PC = 1'b1;
-                Set_Addr_To = aXY;
+                Inc_PC           = 1'b1;
+                Set_Addr_To      = aXY;
                 Set_BusB_To[2:0] = SSS;
-                Set_BusB_To[3] = 1'b0;
+                Set_BusB_To[3]   = 1'b0;
               end
               if (MCycle[2]) Write = 1'b1;
             end // if (IR[5:3] == 3'b110)
@@ -333,9 +333,9 @@ module tv80_mcode (  /*AUTOARG*/
               // LD r,n
               MCycles = 3'b010;
               if (MCycle[1]) begin
-                Inc_PC = 1'b1;
+                Inc_PC           = 1'b1;
                 Set_BusA_To[2:0] = DDD;
-                Read_To_Reg = 1'b1;
+                Read_To_Reg      = 1'b1;
               end
             end
           end
@@ -368,11 +368,11 @@ module tv80_mcode (  /*AUTOARG*/
               MCycles = 3'b100;
               if (MCycle[1]) begin
                 Inc_PC = 1'b1;
-                LDZ = 1'b1;
+                LDZ    = 1'b1;
               end
               if (MCycle[2]) begin
                 Set_Addr_To = aZI;
-                Inc_PC = 1'b1;
+                Inc_PC      = 1'b1;
               end
               if (MCycle[3]) begin
                 Read_To_Acc = 1'b1;
@@ -415,7 +415,7 @@ module tv80_mcode (  /*AUTOARG*/
                   Set_BusB_To = 4'b0111;
                 end
                 MCycle[1]: begin
-                  Write = 1'b1;
+                  Write     = 1'b1;
                   IncDec_16 = 4'b1110;
                 end
                 default: ;
@@ -427,11 +427,11 @@ module tv80_mcode (  /*AUTOARG*/
               case (1'b1)  // MCycle
                 MCycle[1]: begin
                   Inc_PC = 1'b1;
-                  LDZ = 1'b1;
+                  LDZ    = 1'b1;
                 end
                 MCycle[2]: begin
                   Set_Addr_To = aZI;
-                  Inc_PC = 1'b1;
+                  Inc_PC      = 1'b1;
                   Set_BusB_To = 4'b0111;
                 end
                 MCycle[3]: begin
@@ -449,7 +449,7 @@ module tv80_mcode (  /*AUTOARG*/
             MCycles = 3'b011;
             case (1'b1)  // MCycle
               MCycle[1]: begin
-                Inc_PC = 1'b1;
+                Inc_PC      = 1'b1;
                 Read_To_Reg = 1'b1;
                 if (DPAIR == 2'b11) begin
                   Set_BusA_To[3:0] = 4'b1000;
@@ -460,7 +460,7 @@ module tv80_mcode (  /*AUTOARG*/
               end  // case: 2
 
               MCycle[2]: begin
-                Inc_PC = 1'b1;
+                Inc_PC      = 1'b1;
                 Read_To_Reg = 1'b1;
                 if (DPAIR == 2'b11) begin
                   Set_BusA_To[3:0] = 4'b1001;
@@ -493,22 +493,22 @@ module tv80_mcode (  /*AUTOARG*/
               case (1'b1)  // MCycle
                 MCycle[1]: begin
                   Inc_PC = 1'b1;
-                  LDZ = 1'b1;
+                  LDZ    = 1'b1;
                 end
                 MCycle[2]: begin
                   Set_Addr_To = aZI;
-                  Inc_PC = 1'b1;
-                  LDW = 1'b1;
+                  Inc_PC      = 1'b1;
+                  LDW         = 1'b1;
                 end
                 MCycle[3]: begin
                   Set_BusA_To[2:0] = 3'b101;  // L
-                  Read_To_Reg = 1'b1;
-                  Inc_WZ = 1'b1;
-                  Set_Addr_To = aZI;
+                  Read_To_Reg      = 1'b1;
+                  Inc_WZ           = 1'b1;
+                  Set_Addr_To      = aZI;
                 end
                 MCycle[4]: begin
                   Set_BusA_To[2:0] = 3'b100;  // H
-                  Read_To_Reg = 1'b1;
+                  Read_To_Reg      = 1'b1;
                 end
                 default: ;
               endcase
@@ -525,7 +525,7 @@ module tv80_mcode (  /*AUTOARG*/
                   Set_BusB_To = 4'b0111;
                 end
                 MCycle[1]: begin
-                  Write = 1'b1;
+                  Write     = 1'b1;
                   IncDec_16 = 4'b0110;
                 end
                 default: ;
@@ -536,20 +536,20 @@ module tv80_mcode (  /*AUTOARG*/
               case (1'b1)  // MCycle                        
                 MCycle[1]: begin
                   Inc_PC = 1'b1;
-                  LDZ = 1'b1;
+                  LDZ    = 1'b1;
                 end
 
                 MCycle[2]: begin
                   Set_Addr_To = aZI;
-                  Inc_PC = 1'b1;
-                  LDW = 1'b1;
+                  Inc_PC      = 1'b1;
+                  LDW         = 1'b1;
                   Set_BusB_To = 4'b0101;  // L
                 end
 
                 MCycle[3]: begin
-                  Inc_WZ = 1'b1;
+                  Inc_WZ      = 1'b1;
                   Set_Addr_To = aZI;
-                  Write = 1'b1;
+                  Write       = 1'b1;
                   Set_BusB_To = 4'b0100;  // H
                 end
                 MCycle[4]: Write = 1'b1;
@@ -569,8 +569,8 @@ module tv80_mcode (  /*AUTOARG*/
             MCycles = 3'b011;
             case (1'b1)  // MCycle                    
               MCycle[0]: begin
-                TStates = 3'b101;
-                IncDec_16 = 4'b1111;
+                TStates     = 3'b101;
+                IncDec_16   = 4'b1111;
                 Set_Addr_To = aSP;
                 if (DPAIR == 2'b11) begin
                   Set_BusB_To = 4'b0111;
@@ -647,20 +647,20 @@ module tv80_mcode (  /*AUTOARG*/
               case (1'b1)  // MCycle
                 MCycle[1]: begin
                   Inc_PC = 1'b1;
-                  LDZ = 1'b1;
+                  LDZ    = 1'b1;
                 end
 
                 MCycle[2]: begin
                   Set_Addr_To = aZI;
-                  Inc_PC = 1'b1;
-                  LDW = 1'b1;
+                  Inc_PC      = 1'b1;
+                  LDW         = 1'b1;
                   Set_BusB_To = 4'b1000;
                 end
 
                 MCycle[3]: begin
-                  Inc_WZ = 1'b1;
+                  Inc_WZ      = 1'b1;
                   Set_Addr_To = aZI;
-                  Write = 1'b1;
+                  Write       = 1'b1;
                   Set_BusB_To = 4'b1001;
                 end
 
@@ -680,16 +680,16 @@ module tv80_mcode (  /*AUTOARG*/
               case (1'b1)  // MCycle
                 MCycle[0]: Set_Addr_To = aSP;
                 MCycle[1]: begin
-                  IncDec_16 = 4'b0111;
+                  IncDec_16   = 4'b0111;
                   Set_Addr_To = aSP;
-                  LDZ = 1'b1;
+                  LDZ         = 1'b1;
                 end
 
                 MCycle[2]: begin
-                  Jump = 1'b1;
+                  Jump      = 1'b1;
                   IncDec_16 = 4'b0111;
-                  I_RETN = 1'b1;
-                  SetEI = 1'b1;
+                  I_RETN    = 1'b1;
+                  SetEI     = 1'b1;
                 end
                 default: ;
               endcase
@@ -712,10 +712,10 @@ module tv80_mcode (  /*AUTOARG*/
                   Set_Addr_To = aSP;
                 end
                 MCycle[2]: begin
-                  IncDec_16 = 4'b0111;
+                  IncDec_16   = 4'b0111;
                   Set_Addr_To = aSP;
-                  TStates = 3'b100;
-                  Write = 1'b1;
+                  TStates     = 3'b100;
+                  Write       = 1'b1;
                 end
                 MCycle[3]: begin
                   Read_To_Reg = 1'b1;
@@ -725,8 +725,8 @@ module tv80_mcode (  /*AUTOARG*/
                 end
                 MCycle[4]: begin
                   IncDec_16 = 4'b1111;
-                  TStates = 3'b101;
-                  Write = 1'b1;
+                  TStates   = 3'b101;
+                  Write     = 1'b1;
                 end
 
                 default: ;
@@ -750,8 +750,8 @@ module tv80_mcode (  /*AUTOARG*/
               case (1'b1)  // MCycle
                 MCycle[0]: Set_Addr_To = aXY;
                 MCycle[1]: begin
-                  Read_To_Reg = 1'b1;
-                  Save_ALU = 1'b1;
+                  Read_To_Reg      = 1'b1;
+                  Save_ALU         = 1'b1;
                   Set_BusB_To[2:0] = SSS;
                   Set_BusA_To[2:0] = 3'b111;
                 end
@@ -771,8 +771,8 @@ module tv80_mcode (  /*AUTOARG*/
               // CP A,r
               Set_BusB_To[2:0] = SSS;
               Set_BusA_To[2:0] = 3'b111;
-              Read_To_Reg = 1'b1;
-              Save_ALU = 1'b1;
+              Read_To_Reg      = 1'b1;
+              Save_ALU         = 1'b1;
             end  // else: !if(IR[2:0] == 3'b110)                  
           end  // case: 8'b10000000,8'b10000001,8'b10000010,8'b10000011,8'b10000100,8'b10000101,8'b10000111,...
 
@@ -787,9 +787,9 @@ module tv80_mcode (  /*AUTOARG*/
             // CP A,n
             MCycles = 3'b010;
             if (MCycle[1]) begin
-              Inc_PC = 1'b1;
-              Read_To_Reg = 1'b1;
-              Save_ALU = 1'b1;
+              Inc_PC           = 1'b1;
+              Read_To_Reg      = 1'b1;
+              Save_ALU         = 1'b1;
               Set_BusB_To[2:0] = SSS;
               Set_BusA_To[2:0] = 3'b111;
             end
@@ -802,13 +802,13 @@ module tv80_mcode (  /*AUTOARG*/
               case (1'b1)  // MCycle
                 MCycle[0]: Set_Addr_To = aXY;
                 MCycle[1]: begin
-                  TStates = 3'b100;
-                  Set_Addr_To = aXY;
-                  Read_To_Reg = 1'b1;
-                  Save_ALU = 1'b1;
-                  PreserveC = 1'b1;
-                  ALU_Op = 4'b0000;
-                  Set_BusB_To = 4'b1010;
+                  TStates          = 3'b100;
+                  Set_Addr_To      = aXY;
+                  Read_To_Reg      = 1'b1;
+                  Save_ALU         = 1'b1;
+                  PreserveC        = 1'b1;
+                  ALU_Op           = 4'b0000;
+                  Set_BusB_To      = 4'b1010;
                   Set_BusA_To[2:0] = DDD;
                 end  // case: 2
 
@@ -819,12 +819,12 @@ module tv80_mcode (  /*AUTOARG*/
                   else
                     begin
               // INC r
-              Set_BusB_To = 4'b1010;
+              Set_BusB_To      = 4'b1010;
               Set_BusA_To[2:0] = DDD;
-              Read_To_Reg = 1'b1;
-              Save_ALU = 1'b1;
-              PreserveC = 1'b1;
-              ALU_Op = 4'b0000;
+              Read_To_Reg      = 1'b1;
+              Save_ALU         = 1'b1;
+              PreserveC        = 1'b1;
+              ALU_Op           = 4'b0000;
             end
           end
 
@@ -835,13 +835,13 @@ module tv80_mcode (  /*AUTOARG*/
               case (1'b1)  // MCycle
                 MCycle[0]: Set_Addr_To = aXY;
                 MCycle[1]: begin
-                  TStates = 3'b100;
-                  Set_Addr_To = aXY;
-                  ALU_Op = 4'b0010;
-                  Read_To_Reg = 1'b1;
-                  Save_ALU = 1'b1;
-                  PreserveC = 1'b1;
-                  Set_BusB_To = 4'b1010;
+                  TStates          = 3'b100;
+                  Set_Addr_To      = aXY;
+                  ALU_Op           = 4'b0010;
+                  Read_To_Reg      = 1'b1;
+                  Save_ALU         = 1'b1;
+                  PreserveC        = 1'b1;
+                  Set_BusB_To      = 4'b1010;
                   Set_BusA_To[2:0] = DDD;
                 end  // case: 2
 
@@ -850,12 +850,12 @@ module tv80_mcode (  /*AUTOARG*/
               endcase  // case(MCycle)
             end else begin
               // DEC r
-              Set_BusB_To = 4'b1010;
+              Set_BusB_To      = 4'b1010;
               Set_BusA_To[2:0] = DDD;
-              Read_To_Reg = 1'b1;
-              Save_ALU = 1'b1;
-              PreserveC = 1'b1;
-              ALU_Op = 4'b0010;
+              Read_To_Reg      = 1'b1;
+              Save_ALU         = 1'b1;
+              PreserveC        = 1'b1;
+              ALU_Op           = 4'b0010;
             end
           end
 
@@ -863,9 +863,9 @@ module tv80_mcode (  /*AUTOARG*/
           8'b00100111: begin
             // DAA
             Set_BusA_To[2:0] = 3'b111;
-            Read_To_Reg = 1'b1;
-            ALU_Op = 4'b1100;
-            Save_ALU = 1'b1;
+            Read_To_Reg      = 1'b1;
+            ALU_Op           = 4'b1100;
+            Save_ALU         = 1'b1;
           end
 
           8'b00101111:
@@ -886,16 +886,16 @@ module tv80_mcode (  /*AUTOARG*/
               MCycles = 3'b011;
               case (1'b1)  // MCycle
                 MCycle[0]: begin
-                  TStates = 3'b101;
-                  IncDec_16 = 4'b1111;
+                  TStates     = 3'b101;
+                  IncDec_16   = 4'b1111;
                   Set_Addr_To = aSP;
                   Set_BusB_To = 4'b1101;
                 end
 
                 MCycle[1]: begin
-                  TStates = 3'b100;
-                  Write = 1'b1;
-                  IncDec_16 = 4'b1111;
+                  TStates     = 3'b100;
+                  Write       = 1'b1;
+                  IncDec_16   = 4'b1111;
                   Set_Addr_To = aSP;
                   Set_BusB_To = 4'b1100;
                 end
@@ -913,17 +913,17 @@ module tv80_mcode (  /*AUTOARG*/
               MCycles = 3'b101;
               case (1'b1)  // MCycle
                 MCycle[0]: begin
-                  LDZ = 1'b1;
-                  TStates = 3'b101;
-                  IncDec_16 = 4'b1111;
+                  LDZ         = 1'b1;
+                  TStates     = 3'b101;
+                  IncDec_16   = 4'b1111;
                   Set_Addr_To = aSP;
                   Set_BusB_To = 4'b1101;
                 end
 
                 MCycle[1]: begin
-                  TStates = 3'b100;
-                  Write = 1'b1;
-                  IncDec_16 = 4'b1111;
+                  TStates     = 3'b100;
+                  Write       = 1'b1;
+                  IncDec_16   = 4'b1111;
                   Set_Addr_To = aSP;
                   Set_BusB_To = 4'b1100;
                 end
@@ -935,7 +935,7 @@ module tv80_mcode (  /*AUTOARG*/
 
                 MCycle[3]: begin
                   Inc_PC = 1'b1;
-                  LDZ = 1'b1;
+                  LDZ    = 1'b1;
                 end
 
                 MCycle[4]: Jump = 1'b1;
@@ -958,10 +958,10 @@ module tv80_mcode (  /*AUTOARG*/
             MCycles = 3'b011;
             case (1'b1)  // MCycle
               MCycle[1]: begin
-                NoRead = 1'b1;
-                ALU_Op = 4'b0000;
-                Read_To_Reg = 1'b1;
-                Save_ALU = 1'b1;
+                NoRead           = 1'b1;
+                ALU_Op           = 4'b0000;
+                Read_To_Reg      = 1'b1;
+                Save_ALU         = 1'b1;
                 Set_BusA_To[2:0] = 3'b101;
                 case (IR[5:4])
                   0, 1, 2: begin
@@ -977,10 +977,10 @@ module tv80_mcode (  /*AUTOARG*/
               end  // case: 2
 
               MCycle[2]: begin
-                NoRead = 1'b1;
-                Read_To_Reg = 1'b1;
-                Save_ALU = 1'b1;
-                ALU_Op = 4'b0001;
+                NoRead           = 1'b1;
+                Read_To_Reg      = 1'b1;
+                Save_ALU         = 1'b1;
+                ALU_Op           = 4'b0001;
                 Set_BusA_To[2:0] = 3'b100;
                 case (IR[5:4])
                   0, 1, 2: Set_BusB_To[2:1] = IR[5:4];
@@ -995,14 +995,14 @@ module tv80_mcode (  /*AUTOARG*/
 
           8'b00zz0011: begin
             // INC ss
-            TStates = 3'b110;
+            TStates        = 3'b110;
             IncDec_16[3:2] = 2'b01;
             IncDec_16[1:0] = DPAIR;
           end
 
           8'b00zz1011: begin
             // DEC ss
-            TStates = 3'b110;
+            TStates        = 3'b110;
             IncDec_16[3:2] = 2'b11;
             IncDec_16[1:0] = DPAIR;
           end
@@ -1017,9 +1017,9 @@ module tv80_mcode (  /*AUTOARG*/
           8'b00011111:  // RRA
           begin
             Set_BusA_To[2:0] = 3'b111;
-            ALU_Op = 4'b1000;
-            Read_To_Reg = 1'b1;
-            Save_ALU = 1'b1;
+            ALU_Op           = 4'b1000;
+            Read_To_Reg      = 1'b1;
+            Save_ALU         = 1'b1;
           end  // case: 8'b00000111,...
 
 
@@ -1029,7 +1029,7 @@ module tv80_mcode (  /*AUTOARG*/
             MCycles = 3'b011;
             if (MCycle[1]) begin
               Inc_PC = 1'b1;
-              LDZ = 1'b1;
+              LDZ    = 1'b1;
             end
 
             if (MCycle[2]) begin
@@ -1065,12 +1065,12 @@ module tv80_mcode (  /*AUTOARG*/
                   case (1'b1)  // MCycle
                     MCycle[1]: begin
                       Inc_PC = 1'b1;
-                      LDZ = 1'b1;
+                      LDZ    = 1'b1;
                     end
 
                     MCycle[2]: begin
                       Set_Addr_To = aZI;
-                      Inc_PC = 1'b1;
+                      Inc_PC      = 1'b1;
                       Set_BusB_To = 4'b0111;
                     end
 
@@ -1086,7 +1086,7 @@ module tv80_mcode (  /*AUTOARG*/
                     MCycle[0]: Set_Addr_To = aBC;
                     MCycle[1]: begin
                       Read_To_Acc = 1'b1;
-                      IORQ = 1'b1;
+                      IORQ        = 1'b1;
                     end
                     default:   ;
                   endcase  // case(MCycle)
@@ -1098,11 +1098,11 @@ module tv80_mcode (  /*AUTOARG*/
                   case (1'b1)  // MCycle
                     MCycle[1]: begin
                       Inc_PC = 1'b1;
-                      LDZ = 1'b1;
+                      LDZ    = 1'b1;
                     end
                     MCycle[2]: begin
                       Set_Addr_To = aZI;
-                      Inc_PC = 1'b1;
+                      Inc_PC      = 1'b1;
                     end
                     MCycle[3]: Read_To_Acc = 1'b1;
                     default:   ;
@@ -1115,7 +1115,7 @@ module tv80_mcode (  /*AUTOARG*/
               case (1'b1)  // MCycle
                 MCycle[1]: begin
                   Inc_PC = 1'b1;
-                  LDZ = 1'b1;
+                  LDZ    = 1'b1;
                 end
                 MCycle[2]: begin
                   Inc_PC = 1'b1;
@@ -1183,13 +1183,13 @@ module tv80_mcode (  /*AUTOARG*/
               MCycles = 3'b011;
               case (1'b1)  // MCycle
                 MCycle[0]: begin
-                  TStates = 3'b101;
-                  I_DJNZ = 1'b1;
-                  Set_BusB_To = 4'b1010;
+                  TStates          = 3'b101;
+                  I_DJNZ           = 1'b1;
+                  Set_BusB_To      = 4'b1010;
                   Set_BusA_To[2:0] = 3'b000;
-                  Read_To_Reg = 1'b1;
-                  Save_ALU = 1'b1;
-                  ALU_Op = 4'b0010;
+                  Read_To_Reg      = 1'b1;
+                  Save_ALU         = 1'b1;
+                  ALU_Op           = 4'b0010;
                 end
                 MCycle[1]: begin
                   I_DJNZ = 1'b1;
@@ -1213,19 +1213,19 @@ module tv80_mcode (  /*AUTOARG*/
             case (1'b1)  // MCycle
               MCycle[1]: begin
                 Inc_PC = 1'b1;
-                LDZ = 1'b1;
+                LDZ    = 1'b1;
               end
               MCycle[2]: begin
-                IncDec_16 = 4'b1111;
-                Inc_PC = 1'b1;
-                TStates = 3'b100;
+                IncDec_16   = 4'b1111;
+                Inc_PC      = 1'b1;
+                TStates     = 3'b100;
                 Set_Addr_To = aSP;
-                LDW = 1'b1;
+                LDW         = 1'b1;
                 Set_BusB_To = 4'b1101;
               end
               MCycle[3]: begin
-                Write = 1'b1;
-                IncDec_16 = 4'b1111;
+                Write       = 1'b1;
+                IncDec_16   = 4'b1111;
                 Set_Addr_To = aSP;
                 Set_BusB_To = 4'b1100;
               end
@@ -1244,15 +1244,15 @@ module tv80_mcode (  /*AUTOARG*/
               case (1'b1)  // MCycle
                 MCycle[1]: begin
                   Inc_PC = 1'b1;
-                  LDZ = 1'b1;
+                  LDZ    = 1'b1;
                 end
                 MCycle[2]: begin
                   Inc_PC = 1'b1;
-                  LDW = 1'b1;
+                  LDW    = 1'b1;
                   if (is_cc_true(F, IR[5:3])) begin
-                    IncDec_16 = 4'b1111;
+                    IncDec_16   = 4'b1111;
                     Set_Addr_To = aSP;
-                    TStates = 3'b100;
+                    TStates     = 3'b100;
                     Set_BusB_To = 4'b1101;
                   end else begin
                     MCycles = 3'b011;
@@ -1260,8 +1260,8 @@ module tv80_mcode (  /*AUTOARG*/
                 end  // case: 3
 
                 MCycle[3]: begin
-                  Write = 1'b1;
-                  IncDec_16 = 4'b1111;
+                  Write       = 1'b1;
+                  IncDec_16   = 4'b1111;
                   Set_Addr_To = aSP;
                   Set_BusB_To = 4'b1100;
                 end
@@ -1285,13 +1285,13 @@ module tv80_mcode (  /*AUTOARG*/
               end
 
               MCycle[1]: begin
-                IncDec_16 = 4'b0111;
+                IncDec_16   = 4'b0111;
                 Set_Addr_To = aSP;
-                LDZ = 1'b1;
+                LDZ         = 1'b1;
               end
 
               MCycle[2]: begin
-                Jump = 1'b1;
+                Jump      = 1'b1;
                 IncDec_16 = 4'b0111;
               end
 
@@ -1308,7 +1308,7 @@ module tv80_mcode (  /*AUTOARG*/
                   MCycles = 3'b011;
                   case (1'b1)  // MCycle
                     MCycle[1]: begin
-                      Inc_PC = 1'b1;
+                      Inc_PC      = 1'b1;
                       Set_Addr_To = aIOA;
                       Set_BusB_To = 4'b0111;
                     end
@@ -1323,10 +1323,10 @@ module tv80_mcode (  /*AUTOARG*/
                   MCycles = 3'b011;
                   case (1'b1)  // MCycle
                     MCycle[1]: begin
-                      ALU_Op = 4'b0000;
-                      Inc_PC = 1'b1;
+                      ALU_Op      = 4'b0000;
+                      Inc_PC      = 1'b1;
                       Read_To_Reg = 1'b1;
-                      Save_ALU = 1'b1;
+                      Save_ALU    = 1'b1;
                       Set_BusA_To = 4'b1000;
                       Set_BusB_To = 4'b0110;
                     end
@@ -1349,7 +1349,7 @@ module tv80_mcode (  /*AUTOARG*/
                   MCycles = 3'b011;
                   case (1'b1)  // MCycle
                     MCycle[1]: begin
-                      Inc_PC = 1'b1;
+                      Inc_PC      = 1'b1;
                       Set_Addr_To = aIOA;
                     end
 
@@ -1364,25 +1364,25 @@ module tv80_mcode (  /*AUTOARG*/
                   case (1'b1)  // MCycle
                     MCycle[1]: begin
                       Inc_PC = 1'b1;
-                      LDZ = 1'b1;
+                      LDZ    = 1'b1;
                     end
 
                     MCycle[2]: begin
                       Set_Addr_To = aZI;
-                      Inc_PC = 1'b1;
-                      LDW = 1'b1;
+                      Inc_PC      = 1'b1;
+                      LDW         = 1'b1;
                     end
 
                     MCycle[3]: begin
                       Set_BusA_To[2:0] = 3'b101;  // L
-                      Read_To_Reg = 1'b1;
-                      Inc_WZ = 1'b1;
-                      Set_Addr_To = aZI;
+                      Read_To_Reg      = 1'b1;
+                      Inc_WZ           = 1'b1;
+                      Set_Addr_To      = aZI;
                     end
 
                     MCycle[4]: begin
                       Set_BusA_To[2:0] = 3'b100;  // H
-                      Read_To_Reg = 1'b1;
+                      Read_To_Reg      = 1'b1;
                     end
 
                     default: ;
@@ -1405,12 +1405,12 @@ module tv80_mcode (  /*AUTOARG*/
                 end  // case: 1
 
                 MCycle[1]: begin
-                  IncDec_16 = 4'b0111;
+                  IncDec_16   = 4'b0111;
                   Set_Addr_To = aSP;
-                  LDZ = 1'b1;
+                  LDZ         = 1'b1;
                 end
                 MCycle[2]: begin
-                  Jump = 1'b1;
+                  Jump      = 1'b1;
                   IncDec_16 = 4'b0111;
                 end
                 default: ;
@@ -1424,15 +1424,15 @@ module tv80_mcode (  /*AUTOARG*/
             MCycles = 3'b011;
             case (1'b1)  // MCycle
               MCycle[0]: begin
-                TStates = 3'b101;
-                IncDec_16 = 4'b1111;
+                TStates     = 3'b101;
+                IncDec_16   = 4'b1111;
                 Set_Addr_To = aSP;
                 Set_BusB_To = 4'b1101;
               end
 
               MCycle[1]: begin
-                Write = 1'b1;
-                IncDec_16 = 4'b1111;
+                Write       = 1'b1;
+                IncDec_16   = 4'b1111;
                 Set_Addr_To = aSP;
                 Set_BusB_To = 4'b1100;
               end
@@ -1453,13 +1453,13 @@ module tv80_mcode (  /*AUTOARG*/
               MCycles = 3'b011;
               case (1'b1)  // MCycle
                 MCycle[1]: begin
-                  Inc_PC = 1'b1;
+                  Inc_PC      = 1'b1;
                   Set_Addr_To = aIOA;
                 end
 
                 MCycle[2]: begin
                   Read_To_Acc = 1'b1;
-                  IORQ = 1'b1;
+                  IORQ        = 1'b1;
                 end
 
                 default: ;
@@ -1473,7 +1473,7 @@ module tv80_mcode (  /*AUTOARG*/
               MCycles = 3'b011;
               case (1'b1)  // MCycle
                 MCycle[1]: begin
-                  Inc_PC = 1'b1;
+                  Inc_PC      = 1'b1;
                   Set_Addr_To = aIOA;
                   Set_BusB_To = 4'b0111;
                 end
@@ -1548,9 +1548,9 @@ module tv80_mcode (  /*AUTOARG*/
             // SRL r
             // SLL r (Undocumented) / SWAP r
             if (MCycle[0]) begin
-              ALU_Op = 4'b1000;
+              ALU_Op      = 4'b1000;
               Read_To_Reg = 1'b1;
-              Save_ALU = 1'b1;
+              Save_ALU    = 1'b1;
             end
           end  // case: 8'b00000000,8'b00000001,8'b00000010,8'b00000011,8'b00000100,8'b00000101,8'b00000111,...
 
@@ -1567,11 +1567,11 @@ module tv80_mcode (  /*AUTOARG*/
             case (1'b1)  // MCycle
               MCycle[0], MCycle[6]: Set_Addr_To = aXY;
               MCycle[1]: begin
-                ALU_Op = 4'b1000;
+                ALU_Op      = 4'b1000;
                 Read_To_Reg = 1'b1;
-                Save_ALU = 1'b1;
+                Save_ALU    = 1'b1;
                 Set_Addr_To = aXY;
-                TStates = 3'b100;
+                TStates     = 3'b100;
               end
 
               MCycle[2]: Write = 1'b1;
@@ -1591,7 +1591,7 @@ module tv80_mcode (  /*AUTOARG*/
             // BIT b,r
             if (MCycle[0]) begin
               Set_BusB_To[2:0] = IR[2:0];
-              ALU_Op = 4'b1001;
+              ALU_Op           = 4'b1001;
             end
           end  // case: 8'b01000000,8'b01000001,8'b01000010,8'b01000011,8'b01000100,8'b01000101,8'b01000111,...
 
@@ -1621,9 +1621,9 @@ module tv80_mcode (  /*AUTOARG*/
                     begin
             // SET b,r
             if (MCycle[0]) begin
-              ALU_Op = 4'b1010;
+              ALU_Op      = 4'b1010;
               Read_To_Reg = 1'b1;
-              Save_ALU = 1'b1;
+              Save_ALU    = 1'b1;
             end
           end  // case: 8'b11000000,8'b11000001,8'b11000010,8'b11000011,8'b11000100,8'b11000101,8'b11000111,...
 
@@ -1634,11 +1634,11 @@ module tv80_mcode (  /*AUTOARG*/
             case (1'b1)  // MCycle
               MCycle[0], MCycle[6]: Set_Addr_To = aXY;
               MCycle[1]: begin
-                ALU_Op = 4'b1010;
+                ALU_Op      = 4'b1010;
                 Read_To_Reg = 1'b1;
-                Save_ALU = 1'b1;
+                Save_ALU    = 1'b1;
                 Set_Addr_To = aXY;
-                TStates = 3'b100;
+                TStates     = 3'b100;
               end
               MCycle[2]: Write = 1'b1;
               default: ;
@@ -1656,9 +1656,9 @@ module tv80_mcode (  /*AUTOARG*/
                     begin
             // RES b,r
             if (MCycle[0]) begin
-              ALU_Op = 4'b1011;
+              ALU_Op      = 4'b1011;
               Read_To_Reg = 1'b1;
-              Save_ALU = 1'b1;
+              Save_ALU    = 1'b1;
             end
           end  // case: 8'b10000000,8'b10000001,8'b10000010,8'b10000011,8'b10000100,8'b10000101,8'b10000111,...
 
@@ -1669,11 +1669,11 @@ module tv80_mcode (  /*AUTOARG*/
             case (1'b1)  // MCycle
               MCycle[0], MCycle[6]: Set_Addr_To = aXY;
               MCycle[1]: begin
-                ALU_Op = 4'b1011;
+                ALU_Op      = 4'b1011;
                 Read_To_Reg = 1'b1;
-                Save_ALU = 1'b1;
+                Save_ALU    = 1'b1;
                 Set_Addr_To = aXY;
-                TStates = 3'b100;
+                TStates     = 3'b100;
               end
 
               MCycle[2]: Write = 1'b1;
@@ -1734,25 +1734,25 @@ module tv80_mcode (  /*AUTOARG*/
           8'b01010111: begin
             // LD A,I
             Special_LD = 3'b100;
-            TStates = 3'b101;
+            TStates    = 3'b101;
           end
 
           8'b01011111: begin
             // LD A,R
             Special_LD = 3'b101;
-            TStates = 3'b101;
+            TStates    = 3'b101;
           end
 
           8'b01000111: begin
             // LD I,A
             Special_LD = 3'b110;
-            TStates = 3'b101;
+            TStates    = 3'b101;
           end
 
           8'b01001111: begin
             // LD R,A
             Special_LD = 3'b111;
-            TStates = 3'b101;
+            TStates    = 3'b101;
           end
 
           // 16 BIT LOAD GROUP
@@ -1762,13 +1762,13 @@ module tv80_mcode (  /*AUTOARG*/
             case (1'b1)  // MCycle
               MCycle[1]: begin
                 Inc_PC = 1'b1;
-                LDZ = 1'b1;
+                LDZ    = 1'b1;
               end
 
               MCycle[2]: begin
                 Set_Addr_To = aZI;
-                Inc_PC = 1'b1;
-                LDW = 1'b1;
+                Inc_PC      = 1'b1;
+                LDW         = 1'b1;
               end
 
               MCycle[3]: begin
@@ -1779,7 +1779,7 @@ module tv80_mcode (  /*AUTOARG*/
                   Set_BusA_To[2:1] = IR[5:4];
                   Set_BusA_To[0]   = 1'b1;
                 end
-                Inc_WZ = 1'b1;
+                Inc_WZ      = 1'b1;
                 Set_Addr_To = aZI;
               end  // case: 4
 
@@ -1804,13 +1804,13 @@ module tv80_mcode (  /*AUTOARG*/
             case (1'b1)  // MCycle
               MCycle[1]: begin
                 Inc_PC = 1'b1;
-                LDZ = 1'b1;
+                LDZ    = 1'b1;
               end
 
               MCycle[2]: begin
                 Set_Addr_To = aZI;
-                Inc_PC = 1'b1;
-                LDW = 1'b1;
+                Inc_PC      = 1'b1;
+                LDW         = 1'b1;
                 if (IR[5:4] == 2'b11) begin
                   Set_BusB_To = 4'b1000;
                 end else begin
@@ -1821,9 +1821,9 @@ module tv80_mcode (  /*AUTOARG*/
               end  // case: 3
 
               MCycle[3]: begin
-                Inc_WZ = 1'b1;
+                Inc_WZ      = 1'b1;
                 Set_Addr_To = aZI;
-                Write = 1'b1;
+                Write       = 1'b1;
                 if (IR[5:4] == 2'b11) begin
                   Set_BusB_To = 4'b1001;
                 end else begin
@@ -1851,10 +1851,10 @@ module tv80_mcode (  /*AUTOARG*/
               end
 
               MCycle[1]: begin
-                Set_BusB_To = 4'b0110;
+                Set_BusB_To      = 4'b0110;
                 Set_BusA_To[2:0] = 3'b111;
-                ALU_Op = 4'b0000;
-                Set_Addr_To = aDE;
+                ALU_Op           = 4'b0000;
+                Set_Addr_To      = aDE;
                 if (IR[3] == 1'b0) begin
                   IncDec_16 = 4'b0110;  // IX
                 end else begin
@@ -1863,9 +1863,9 @@ module tv80_mcode (  /*AUTOARG*/
               end  // case: 2
 
               MCycle[2]: begin
-                I_BT = 1'b1;
+                I_BT    = 1'b1;
                 TStates = 3'b101;
-                Write = 1'b1;
+                Write   = 1'b1;
                 if (IR[3] == 1'b0) begin
                   IncDec_16 = 4'b0101;  // DE
                 end else begin
@@ -1892,11 +1892,11 @@ module tv80_mcode (  /*AUTOARG*/
               end
 
               MCycle[1]: begin
-                Set_BusB_To = 4'b0110;
+                Set_BusB_To      = 4'b0110;
                 Set_BusA_To[2:0] = 3'b111;
-                ALU_Op = 4'b0111;
-                Save_ALU = 1'b1;
-                PreserveC = 1'b1;
+                ALU_Op           = 4'b0111;
+                Save_ALU         = 1'b1;
+                PreserveC        = 1'b1;
                 if (IR[3] == 1'b0) begin
                   IncDec_16 = 4'b0110;
                 end else begin
@@ -1905,8 +1905,8 @@ module tv80_mcode (  /*AUTOARG*/
               end  // case: 2
 
               MCycle[2]: begin
-                NoRead = 1'b1;
-                I_BC = 1'b1;
+                NoRead  = 1'b1;
+                I_BC    = 1'b1;
                 TStates = 3'b101;
               end
 
@@ -1922,11 +1922,11 @@ module tv80_mcode (  /*AUTOARG*/
           8'b01000100,8'b01001100,8'b01010100,8'b01011100,8'b01100100,8'b01101100,8'b01110100,8'b01111100  :
                 begin
             // NEG
-            ALU_Op = 4'b0010;
+            ALU_Op      = 4'b0010;
             Set_BusB_To = 4'b0111;
             Set_BusA_To = 4'b1010;
             Read_To_Acc = 1'b1;
-            Save_ALU = 1'b1;
+            Save_ALU    = 1'b1;
           end
 
           8'b01000110, 8'b01001110, 8'b01100110, 8'b01101110: begin
@@ -1948,10 +1948,10 @@ module tv80_mcode (  /*AUTOARG*/
             MCycles = 3'b011;
             case (1'b1)  // MCycle
               MCycle[1]: begin
-                NoRead = 1'b1;
-                ALU_Op = 4'b0001;
-                Read_To_Reg = 1'b1;
-                Save_ALU = 1'b1;
+                NoRead           = 1'b1;
+                ALU_Op           = 4'b0001;
+                Read_To_Reg      = 1'b1;
+                Save_ALU         = 1'b1;
                 Set_BusA_To[2:0] = 3'b101;
                 case (IR[5:4])
                   0, 1, 2: begin
@@ -1964,10 +1964,10 @@ module tv80_mcode (  /*AUTOARG*/
               end  // case: 2
 
               MCycle[2]: begin
-                NoRead = 1'b1;
-                Read_To_Reg = 1'b1;
-                Save_ALU = 1'b1;
-                ALU_Op = 4'b0001;
+                NoRead           = 1'b1;
+                Read_To_Reg      = 1'b1;
+                Save_ALU         = 1'b1;
+                ALU_Op           = 4'b0001;
                 Set_BusA_To[2:0] = 3'b100;
                 case (IR[5:4])
                   0, 1, 2: begin
@@ -1987,10 +1987,10 @@ module tv80_mcode (  /*AUTOARG*/
             MCycles = 3'b011;
             case (1'b1)  // MCycle
               MCycle[1]: begin
-                NoRead = 1'b1;
-                ALU_Op = 4'b0011;
-                Read_To_Reg = 1'b1;
-                Save_ALU = 1'b1;
+                NoRead           = 1'b1;
+                ALU_Op           = 4'b0011;
+                Read_To_Reg      = 1'b1;
+                Save_ALU         = 1'b1;
                 Set_BusA_To[2:0] = 3'b101;
                 case (IR[5:4])
                   0, 1, 2: begin
@@ -2003,10 +2003,10 @@ module tv80_mcode (  /*AUTOARG*/
               end  // case: 2
 
               MCycle[2]: begin
-                NoRead = 1'b1;
-                ALU_Op = 4'b0011;
-                Read_To_Reg = 1'b1;
-                Save_ALU = 1'b1;
+                NoRead           = 1'b1;
+                ALU_Op           = 4'b0011;
+                Read_To_Reg      = 1'b1;
+                Save_ALU         = 1'b1;
                 Set_BusA_To[2:0] = 3'b100;
                 case (IR[5:4])
                   0, 1, 2: Set_BusB_To[2:1] = IR[5:4];
@@ -2024,18 +2024,18 @@ module tv80_mcode (  /*AUTOARG*/
             MCycles = 3'b100;
             case (1'b1)  // MCycle
               MCycle[1]: begin
-                NoRead = 1'b1;
+                NoRead      = 1'b1;
                 Set_Addr_To = aXY;
               end
 
               MCycle[2]: begin
-                Read_To_Reg = 1'b1;
+                Read_To_Reg      = 1'b1;
                 Set_BusB_To[2:0] = 3'b110;
                 Set_BusA_To[2:0] = 3'b111;
-                ALU_Op = 4'b1101;
-                TStates = 3'b100;
-                Set_Addr_To = aXY;
-                Save_ALU = 1'b1;
+                ALU_Op           = 4'b1101;
+                TStates          = 3'b100;
+                Set_Addr_To      = aXY;
+                Save_ALU         = 1'b1;
               end
 
               MCycle[3]: begin
@@ -2053,13 +2053,13 @@ module tv80_mcode (  /*AUTOARG*/
             case (1'b1)  // MCycle
               MCycle[1]: Set_Addr_To = aXY;
               MCycle[2]: begin
-                Read_To_Reg = 1'b1;
+                Read_To_Reg      = 1'b1;
                 Set_BusB_To[2:0] = 3'b110;
                 Set_BusA_To[2:0] = 3'b111;
-                ALU_Op = 4'b1110;
-                TStates = 3'b100;
-                Set_Addr_To = aXY;
-                Save_ALU = 1'b1;
+                ALU_Op           = 4'b1110;
+                TStates          = 3'b100;
+                Set_Addr_To      = aXY;
+                Save_ALU         = 1'b1;
               end
 
               MCycle[3]: begin
@@ -2079,15 +2079,15 @@ module tv80_mcode (  /*AUTOARG*/
               MCycle[0]: Set_Addr_To = aSP;
 
               MCycle[1]: begin
-                IncDec_16 = 4'b0111;
+                IncDec_16   = 4'b0111;
                 Set_Addr_To = aSP;
-                LDZ = 1'b1;
+                LDZ         = 1'b1;
               end
 
               MCycle[2]: begin
-                Jump = 1'b1;
+                Jump      = 1'b1;
                 IncDec_16 = 4'b0111;
-                I_RETN = 1'b1;
+                I_RETN    = 1'b1;
               end
 
               default: ;
@@ -2104,7 +2104,7 @@ module tv80_mcode (  /*AUTOARG*/
               MCycle[1]: begin
                 IORQ = 1'b1;
                 if (IR[5:3] != 3'b110) begin
-                  Read_To_Reg = 1'b1;
+                  Read_To_Reg      = 1'b1;
                   Set_BusA_To[2:0] = IR[5:3];
                 end
                 I_INRC = 1'b1;
@@ -2146,12 +2146,12 @@ module tv80_mcode (  /*AUTOARG*/
                 Set_BusB_To = 4'b1010;
                 Set_BusA_To = 4'b0000;
                 Read_To_Reg = 1'b1;
-                Save_ALU = 1'b1;
-                ALU_Op = 4'b0010;
+                Save_ALU    = 1'b1;
+                ALU_Op      = 4'b0010;
               end
 
               MCycle[1]: begin
-                IORQ = 1'b1;
+                IORQ        = 1'b1;
                 Set_BusB_To = 4'b0110;
                 Set_Addr_To = aXY;
               end
@@ -2181,13 +2181,13 @@ module tv80_mcode (  /*AUTOARG*/
             MCycles = 3'b100;
             case (1'b1)  // MCycle
               MCycle[0]: begin
-                TStates = 3'b101;
+                TStates     = 3'b101;
                 Set_Addr_To = aXY;
                 Set_BusB_To = 4'b1010;
                 Set_BusA_To = 4'b0000;
                 Read_To_Reg = 1'b1;
-                Save_ALU = 1'b1;
-                ALU_Op = 4'b0010;
+                Save_ALU    = 1'b1;
+                ALU_Op      = 4'b0010;
               end
 
               MCycle[1]: begin
@@ -2246,10 +2246,10 @@ module tv80_mcode (  /*AUTOARG*/
       if (MCycle[5]) begin
         Inc_PC = 1'b1;
         if (Mode == 1) begin
-          Set_Addr_To = aXY;
-          TStates = 3'b100;
+          Set_Addr_To      = aXY;
+          TStates          = 3'b100;
           Set_BusB_To[2:0] = SSS;
-          Set_BusB_To[3] = 1'b0;
+          Set_BusB_To[3]   = 1'b0;
         end
         if (IR == 8'b00110110 || IR == 8'b11001011) begin
           Set_Addr_To = aNone;
@@ -2275,7 +2275,6 @@ module tv80_mcode (  /*AUTOARG*/
 
   end  // always @ (IR, ISet, MCycle, F, NMICycle, IntCycle)
 endmodule
-
 
 
 ///////////////////////////////////////////
@@ -2349,11 +2348,11 @@ module tv80_alu (  /*AUTOARG*/
   endfunction  // AddSub4
 
   // AddSub variables (temporary signals)
-  reg UseCarry;
-  reg Carry7_v;
-  reg OverFlow_v;
-  reg HalfCarry_v;
-  reg Carry_v;
+  reg       UseCarry;
+  reg       Carry7_v;
+  reg       OverFlow_v;
+  reg       HalfCarry_v;
+  reg       Carry_v;
   reg [7:0] Q_v;
 
   reg [7:0] BitMask;
@@ -2399,7 +2398,7 @@ module tv80_alu (  /*AUTOARG*/
 
           3'b000, 3'b001 : // ADD, ADC
                 begin
-            Q_t = Q_v;
+            Q_t           = Q_v;
             F_Out[Flag_C] = Carry_v;
             F_Out[Flag_H] = HalfCarry_v;
             F_Out[Flag_P] = OverFlow_v;
@@ -2407,7 +2406,7 @@ module tv80_alu (  /*AUTOARG*/
 
           3'b010, 3'b011, 3'b111 : // SUB, SBC, CP
                 begin
-            Q_t = Q_v;
+            Q_t           = Q_v;
             F_Out[Flag_N] = 1'b1;
             F_Out[Flag_C] = ~Carry_v;
             F_Out[Flag_H] = ~HalfCarry_v;
@@ -2416,19 +2415,19 @@ module tv80_alu (  /*AUTOARG*/
 
           3'b100 : // AND
                 begin
-            Q_t[7:0] = BusA & BusB;
+            Q_t[7:0]      = BusA & BusB;
             F_Out[Flag_H] = 1'b1;
           end
 
           3'b101 : // XOR
                 begin
-            Q_t[7:0] = BusA ^ BusB;
+            Q_t[7:0]      = BusA ^ BusB;
             F_Out[Flag_H] = 1'b0;
           end
 
           default : // OR 3'b110
                 begin
-            Q_t[7:0] = BusA | BusB;
+            Q_t[7:0]      = BusA | BusB;
             F_Out[Flag_H] = 1'b0;
           end
 
@@ -2470,8 +2469,8 @@ module tv80_alu (  /*AUTOARG*/
         // DAA
         F_Out[Flag_H] = F_In[Flag_H];
         F_Out[Flag_C] = F_In[Flag_C];
-        DAA_Q[7:0] = BusA;
-        DAA_Q[8] = 1'b0;
+        DAA_Q[7:0]    = BusA;
+        DAA_Q[8]      = 1'b0;
         if (F_In[Flag_N] == 1'b0) begin
           // After addition
           // Alow > 9 || H == 1
@@ -2504,7 +2503,7 @@ module tv80_alu (  /*AUTOARG*/
         F_Out[Flag_X] = DAA_Q[3];
         F_Out[Flag_Y] = DAA_Q[5];
         F_Out[Flag_C] = F_In[Flag_C] || DAA_Q[8];
-        Q_t = DAA_Q[7:0];
+        Q_t           = DAA_Q[7:0];
 
         if (DAA_Q[7:0] == 8'b00000000) begin
           F_Out[Flag_Z] = 1'b1;
@@ -2539,7 +2538,7 @@ module tv80_alu (  /*AUTOARG*/
 
       4'b1001: begin
         // BIT
-        Q_t[7:0] = BusB & BitMask;
+        Q_t[7:0]      = BusB & BitMask;
         F_Out[Flag_S] = Q_t[7];
         if (Q_t[7:0] == 8'b00000000) begin
           F_Out[Flag_Z] = 1'b1;
@@ -2571,63 +2570,63 @@ module tv80_alu (  /*AUTOARG*/
         case (IR[5:3])
           3'b000 : // RLC
                 begin
-            Q_t[7:1] = BusA[6:0];
-            Q_t[0] = BusA[7];
+            Q_t[7:1]      = BusA[6:0];
+            Q_t[0]        = BusA[7];
             F_Out[Flag_C] = BusA[7];
           end
 
           3'b010 : // RL
                 begin
-            Q_t[7:1] = BusA[6:0];
-            Q_t[0] = F_In[Flag_C];
+            Q_t[7:1]      = BusA[6:0];
+            Q_t[0]        = F_In[Flag_C];
             F_Out[Flag_C] = BusA[7];
           end
 
           3'b001 : // RRC
                 begin
-            Q_t[6:0] = BusA[7:1];
-            Q_t[7] = BusA[0];
+            Q_t[6:0]      = BusA[7:1];
+            Q_t[7]        = BusA[0];
             F_Out[Flag_C] = BusA[0];
           end
 
           3'b011 : // RR
                 begin
-            Q_t[6:0] = BusA[7:1];
-            Q_t[7] = F_In[Flag_C];
+            Q_t[6:0]      = BusA[7:1];
+            Q_t[7]        = F_In[Flag_C];
             F_Out[Flag_C] = BusA[0];
           end
 
           3'b100 : // SLA
                 begin
-            Q_t[7:1] = BusA[6:0];
-            Q_t[0] = 1'b0;
+            Q_t[7:1]      = BusA[6:0];
+            Q_t[0]        = 1'b0;
             F_Out[Flag_C] = BusA[7];
           end
 
           3'b110 : // SLL (Undocumented) / SWAP
                 begin
             if (Mode == 3) begin
-              Q_t[7:4] = BusA[3:0];
-              Q_t[3:0] = BusA[7:4];
+              Q_t[7:4]      = BusA[3:0];
+              Q_t[3:0]      = BusA[7:4];
               F_Out[Flag_C] = 1'b0;
             end else begin
-              Q_t[7:1] = BusA[6:0];
-              Q_t[0] = 1'b1;
+              Q_t[7:1]      = BusA[6:0];
+              Q_t[0]        = 1'b1;
               F_Out[Flag_C] = BusA[7];
             end  // else: !if(Mode == 3 )
           end  // case: 3'b110
 
           3'b101 : // SRA
                 begin
-            Q_t[6:0] = BusA[7:1];
-            Q_t[7] = BusA[7];
+            Q_t[6:0]      = BusA[7:1];
+            Q_t[7]        = BusA[7];
             F_Out[Flag_C] = BusA[0];
           end
 
           default : // SRL
                 begin
-            Q_t[6:0] = BusA[7:1];
-            Q_t[7] = 1'b0;
+            Q_t[6:0]      = BusA[7:1];
+            Q_t[7]        = 1'b0;
             F_Out[Flag_C] = BusA[0];
           end
         endcase  // case(IR[5:3])
@@ -2662,7 +2661,6 @@ module tv80_alu (  /*AUTOARG*/
 endmodule
 
 
-
 ///////////////////////////////////////////
 // MODULE tv80_reg
 module tv80_reg (  /*AUTOARG*/
@@ -2682,13 +2680,18 @@ module tv80_reg (  /*AUTOARG*/
     clk,
     CEN,
     WEH,
-    WEL
-    , input [127:0] auto_ss_in,
-    input auto_ss_wr,
-    output [127:0] auto_ss_out
+    WEL,
+    auto_ss_in,
+    auto_ss_wr,
+    auto_ss_out
 
 );
   genvar auto_ss_idx;
+
+  input [127:0] auto_ss_in;
+  input auto_ss_wr;
+  output [127:0] auto_ss_out;
+
 
   input [2:0] AddrC;
   output [7:0] DOBH;
@@ -2727,12 +2730,13 @@ module tv80_reg (  /*AUTOARG*/
 
 
   generate
-    for (auto_ss_idx = 0; auto_ss_idx < (8); auto_ss_idx = auto_ss_idx + 1) begin
+    for (auto_ss_idx = 0; auto_ss_idx < (8); auto_ss_idx = auto_ss_idx + 1) begin : blk_asg_RegsH
       assign auto_ss_out[8*auto_ss_idx+:8] = RegsH[auto_ss_idx];
     end
-    for (auto_ss_idx = 0; auto_ss_idx < (8); auto_ss_idx = auto_ss_idx + 1) begin
+    for (auto_ss_idx = 0; auto_ss_idx < (8); auto_ss_idx = auto_ss_idx + 1) begin : blk_asg_RegsL
       assign auto_ss_out[8*auto_ss_idx+64+:8] = RegsL[auto_ss_idx];
     end
+
   endgenerate
 
 
@@ -2766,7 +2770,6 @@ module tv80_reg (  /*AUTOARG*/
 endmodule
 
 
-
 ///////////////////////////////////////////
 // MODULE tv80_core
 module tv80_core (  /*AUTOARG*/
@@ -2794,13 +2797,18 @@ module tv80_core (  /*AUTOARG*/
     nmi_n,
     busrq_n,
     dinst,
-    di
-    , input [345:0] auto_ss_in,
-    input auto_ss_wr,
-    output [345:0] auto_ss_out
+    di,
+    auto_ss_in,
+    auto_ss_wr,
+    auto_ss_out
 
 );
   genvar auto_ss_idx;
+
+  input [370:0] auto_ss_in;
+  input auto_ss_wr;
+  output [370:0] auto_ss_out;
+
 
   // Beginning of automatic inputs (from unused autoinst inputs)
   // End of automatics
@@ -2845,15 +2853,15 @@ module tv80_core (  /*AUTOARG*/
 `ifdef TV80_REFRESH
   reg rfsh_n;
 `endif
-  reg    halt_n;
-  reg    busak_n;
+  reg        halt_n;
+  reg        busak_n;
   reg [15:0] A;
-  reg [7:0]  dout;
-  reg [6:0]  mc;
-  reg [6:0]  ts;
-  reg   intcycle_n;
-  reg   IntE;
-  reg   stop;
+  reg [ 7:0] dout;
+  reg [ 6:0] mc;
+  reg [ 6:0] ts;
+  reg        intcycle_n;
+  reg        IntE;
+  reg        stop;
 
   parameter aNone = 3'b111;
   parameter aBC = 3'b000;
@@ -3139,44 +3147,44 @@ module tv80_core (  /*AUTOARG*/
 
     begin
       if (reset_n == 1'b0) begin
-        PC <= 0;  // Program Counter
-        A <= 0;
-        TmpAddr <= 0;
-        IR <= 8'b00000000;
-        ISet <= 2'b00;
+        PC       <= 0;  // Program Counter
+        A        <= 0;
+        TmpAddr  <= 0;
+        IR       <= 8'b00000000;
+        ISet     <= 2'b00;
         XY_State <= 2'b00;
-        IStatus <= 2'b00;
-        mcycles <= 3'b000;
-        dout <= 8'b00000000;
+        IStatus  <= 2'b00;
+        mcycles  <= 3'b000;
+        dout     <= 8'b00000000;
 
-        ACC <= 8'hFF;
-        F <= 8'hFF;
-        Ap <= 8'hFF;
-        Fp <= 8'hFF;
-        I <= 0;
+        ACC      <= 8'hFF;
+        F        <= 8'hFF;
+        Ap       <= 8'hFF;
+        Fp       <= 8'hFF;
+        I        <= 0;
 `ifdef TV80_REFRESH
         R <= 0;
 `endif
-        SP <= 16'hFFFF;
-        Alternate <= 1'b0;
+        SP            <= 16'hFFFF;
+        Alternate     <= 1'b0;
 
         Read_To_Reg_r <= 5'b00000;
-        Arith16_r <= 1'b0;
-        BTR_r <= 1'b0;
-        Z16_r <= 1'b0;
-        ALU_Op_r <= 4'b0000;
-        Save_ALU_r <= 1'b0;
-        PreserveC_r <= 1'b0;
-        XY_Ind <= 1'b0;
+        Arith16_r     <= 1'b0;
+        BTR_r         <= 1'b0;
+        Z16_r         <= 1'b0;
+        ALU_Op_r      <= 4'b0000;
+        Save_ALU_r    <= 1'b0;
+        PreserveC_r   <= 1'b0;
+        XY_Ind        <= 1'b0;
       end else begin
 
         if (ClkEn == 1'b1) begin
 
-          ALU_Op_r <= 4'b0000;
-          Save_ALU_r <= 1'b0;
+          ALU_Op_r      <= 4'b0000;
+          Save_ALU_r    <= 1'b0;
           Read_To_Reg_r <= 5'b00000;
 
-          mcycles <= mcycles_d;
+          mcycles       <= mcycles_d;
 
           if (IMode != 2'b11) begin
             IStatus <= IMode;
@@ -3210,7 +3218,7 @@ module tv80_core (  /*AUTOARG*/
               end 
                       else if (Halt_FF == 1'b1 || (IntCycle == 1'b1 && IStatus == 2'b10) || NMICycle == 1'b1 ) 
                         begin
-                IR <= 8'b00000000;
+                IR           <= 8'b00000000;
                 TmpAddr[7:0] <= dinst;  // Special M1 vector fetch
               end else begin
                 IR <= dinst;
@@ -3337,7 +3345,7 @@ module tv80_core (  /*AUTOARG*/
 
               if (I_CPL == 1'b1) begin
                 // CPL
-                ACC <= ~ACC;
+                ACC       <= ~ACC;
                 F[Flag_Y] <= ~ACC[5];
                 F[Flag_H] <= 1'b1;
                 F[Flag_X] <= ~ACC[3];
@@ -3418,7 +3426,7 @@ module tv80_core (  /*AUTOARG*/
             if (Special_LD[2] == 1'b1) begin
               case (Special_LD[1:0])
                 2'b00: begin
-                  ACC <= I;
+                  ACC       <= I;
                   F[Flag_P] <= IntE_FF2;
                   F[Flag_Z] <= (I == 0);
                   F[Flag_S] <= I[7];
@@ -3526,62 +3534,60 @@ module tv80_core (  /*AUTOARG*/
         end  // if (ClkEn == 1'b1 )         
       end  // else: !if(reset_n == 1'b0 )
     end
-    if (auto_ss_wr) begin
+    if (auto_ss_wr & reset_n) begin
       integer auto_ss_idx;
-      A <= auto_ss_in[1+:16];
-      ACC <= auto_ss_in[25+:8];
-      ALU_Op_r <= auto_ss_in[206+:4];
-      Alternate <= auto_ss_in[106];
-      Ap <= auto_ss_in[41+:8];
-      Arith16_r <= auto_ss_in[204];
-      BTR_r <= auto_ss_in[179];
-      F <= auto_ss_in[33+:8];
-      Fp <= auto_ss_in[49+:8];
-      I <= auto_ss_in[57+:8];
-      IR <= auto_ss_in[123+:8];
-      ISet <= auto_ss_in[131+:2];
-      IStatus <= auto_ss_in[170+:2];
-      PC <= auto_ss_in[81+:16];
-      PreserveC_r <= auto_ss_in[211];
+      A             <= auto_ss_in[219+:16];
+      ACC           <= auto_ss_in[25+:8];
+      ALU_Op_r      <= auto_ss_in[206+:4];
+      Alternate     <= auto_ss_in[106];
+      Ap            <= auto_ss_in[41+:8];
+      Arith16_r     <= auto_ss_in[204];
+      BTR_r         <= auto_ss_in[179];
+      F             <= auto_ss_in[33+:8];
+      Fp            <= auto_ss_in[49+:8];
+      I             <= auto_ss_in[57+:8];
+      IR            <= auto_ss_in[123+:8];
+      ISet          <= auto_ss_in[131+:2];
+      IStatus       <= auto_ss_in[170+:2];
+      PC            <= auto_ss_in[81+:16];
+      PreserveC_r   <= auto_ss_in[211];
       Read_To_Reg_r <= auto_ss_in[199+:5];
-      SP <= auto_ss_in[65+:16];
-      Save_ALU_r <= auto_ss_in[210];
-      TmpAddr <= auto_ss_in[107+:16];
-      XY_Ind <= auto_ss_in[177];
-      XY_State <= auto_ss_in[172+:2];
-      Z16_r <= auto_ss_in[205];
-      dout <= auto_ss_in[17+:8];
-      mcycles <= auto_ss_in[212+:3];
+      SP            <= auto_ss_in[65+:16];
+      Save_ALU_r    <= auto_ss_in[210];
+      TmpAddr       <= auto_ss_in[107+:16];
+      XY_Ind        <= auto_ss_in[177];
+      XY_State      <= auto_ss_in[172+:2];
+      Z16_r         <= auto_ss_in[205];
+      dout          <= auto_ss_in[235+:8];
+      mcycles       <= auto_ss_in[212+:3];
     end
   end
 
 
-  generate
-    assign auto_ss_out[1+:16] = A;
-    assign auto_ss_out[25+:8] = ACC;
-    assign auto_ss_out[206+:4] = ALU_Op_r;
-    assign auto_ss_out[106] = Alternate;
-    assign auto_ss_out[41+:8] = Ap;
-    assign auto_ss_out[204] = Arith16_r;
-    assign auto_ss_out[179] = BTR_r;
-    assign auto_ss_out[33+:8] = F;
-    assign auto_ss_out[49+:8] = Fp;
-    assign auto_ss_out[57+:8] = I;
-    assign auto_ss_out[123+:8] = IR;
-    assign auto_ss_out[131+:2] = ISet;
-    assign auto_ss_out[170+:2] = IStatus;
-    assign auto_ss_out[81+:16] = PC;
-    assign auto_ss_out[211] = PreserveC_r;
-    assign auto_ss_out[199+:5] = Read_To_Reg_r;
-    assign auto_ss_out[65+:16] = SP;
-    assign auto_ss_out[210] = Save_ALU_r;
-    assign auto_ss_out[107+:16] = TmpAddr;
-    assign auto_ss_out[177] = XY_Ind;
-    assign auto_ss_out[172+:2] = XY_State;
-    assign auto_ss_out[205] = Z16_r;
-    assign auto_ss_out[17+:8] = dout;
-    assign auto_ss_out[212+:3] = mcycles;
-  endgenerate
+  assign auto_ss_out[219+:16] = A;
+  assign auto_ss_out[25+:8]   = ACC;
+  assign auto_ss_out[206+:4]  = ALU_Op_r;
+  assign auto_ss_out[106]     = Alternate;
+  assign auto_ss_out[41+:8]   = Ap;
+  assign auto_ss_out[204]     = Arith16_r;
+  assign auto_ss_out[179]     = BTR_r;
+  assign auto_ss_out[33+:8]   = F;
+  assign auto_ss_out[49+:8]   = Fp;
+  assign auto_ss_out[57+:8]   = I;
+  assign auto_ss_out[123+:8]  = IR;
+  assign auto_ss_out[131+:2]  = ISet;
+  assign auto_ss_out[170+:2]  = IStatus;
+  assign auto_ss_out[81+:16]  = PC;
+  assign auto_ss_out[211]     = PreserveC_r;
+  assign auto_ss_out[199+:5]  = Read_To_Reg_r;
+  assign auto_ss_out[65+:16]  = SP;
+  assign auto_ss_out[210]     = Save_ALU_r;
+  assign auto_ss_out[107+:16] = TmpAddr;
+  assign auto_ss_out[177]     = XY_Ind;
+  assign auto_ss_out[172+:2]  = XY_State;
+  assign auto_ss_out[205]     = Z16_r;
+  assign auto_ss_out[235+:8]  = dout;
+  assign auto_ss_out[212+:3]  = mcycles;
 
 
 
@@ -3634,22 +3640,20 @@ module tv80_core (  /*AUTOARG*/
     end
     if (auto_ss_wr) begin
       integer auto_ss_idx;
-      IncDecZ <= auto_ss_in[182];
+      IncDecZ    <= auto_ss_in[182];
       RegAddrA_r <= auto_ss_in[97+:3];
       RegAddrB_r <= auto_ss_in[100+:3];
-      RegAddrC <= auto_ss_in[103+:3];
-      RegBusA_r <= auto_ss_in[133+:16];
+      RegAddrC   <= auto_ss_in[103+:3];
+      RegBusA_r  <= auto_ss_in[133+:16];
     end
   end
 
 
-  generate
-    assign auto_ss_out[182] = IncDecZ;
-    assign auto_ss_out[97+:3] = RegAddrA_r;
-    assign auto_ss_out[100+:3] = RegAddrB_r;
-    assign auto_ss_out[103+:3] = RegAddrC;
-    assign auto_ss_out[133+:16] = RegBusA_r;
-  endgenerate
+  assign auto_ss_out[182]     = IncDecZ;
+  assign auto_ss_out[97+:3]   = RegAddrA_r;
+  assign auto_ss_out[100+:3]  = RegAddrB_r;
+  assign auto_ss_out[103+:3]  = RegAddrC;
+  assign auto_ss_out[133+:16] = RegBusA_r;
 
   // always @ (posedge clk)
 
@@ -3741,8 +3745,8 @@ module tv80_core (  /*AUTOARG*/
       .DOBL       (RegBusB[7:0]),
       .DOCH       (RegBusC[15:8]),
       .DOCL       (RegBusC[7:0]),
-      .auto_ss_in (auto_ss_in[218+:128]),
-      .auto_ss_out(auto_ss_out[218+:128]),
+      .auto_ss_in (auto_ss_in[243+:128]),
+      .auto_ss_out(auto_ss_out[243+:128]),
       .auto_ss_wr (auto_ss_wr)
 
   );
@@ -3802,10 +3806,8 @@ module tv80_core (  /*AUTOARG*/
   end
 
 
-  generate
-    assign auto_ss_out[191+:8] = BusA;
-    assign auto_ss_out[183+:8] = BusB;
-  endgenerate
+  assign auto_ss_out[191+:8] = BusA;
+  assign auto_ss_out[183+:8] = BusB;
 
 
 
@@ -3835,15 +3837,15 @@ module tv80_core (  /*AUTOARG*/
   always @(/*AUTOSENSE*/BusAck or Halt_FF or I_DJNZ or IntCycle
 	   or IntE_FF1 or di or iorq_i or mcycle or tstate)
     begin
-    mc = mcycle;
-    ts = tstate;
-    DI_Reg = di;
-    halt_n = ~Halt_FF;
-    busak_n = ~BusAck;
+    mc         = mcycle;
+    ts         = tstate;
+    DI_Reg     = di;
+    halt_n     = ~Halt_FF;
+    busak_n    = ~BusAck;
     intcycle_n = ~IntCycle;
-    IntE = IntE_FF1;
-    iorq = iorq_i;
-    stop = I_DJNZ;
+    IntE       = IntE_FF1;
+    iorq       = iorq_i;
+    stop       = I_DJNZ;
   end
 
   //-----------------------------------------------------------------------
@@ -3857,13 +3859,13 @@ module tv80_core (  /*AUTOARG*/
     begin : sync_inputs
       if (~reset_n) begin
         BusReq_s <= 1'b0;
-        INT_s <= 1'b0;
-        NMI_s <= 1'b0;
+        INT_s    <= 1'b0;
+        NMI_s    <= 1'b0;
         Oldnmi_n <= 1'b0;
       end else begin
         if (cen == 1'b1) begin
           BusReq_s <= ~busrq_n;
-          INT_s <= ~int_n;
+          INT_s    <= ~int_n;
           if (NMICycle == 1'b1) begin
             NMI_s <= 1'b0;
           end else if (nmi_n == 1'b0 && Oldnmi_n == 1'b1) begin
@@ -3873,22 +3875,20 @@ module tv80_core (  /*AUTOARG*/
         end
       end
     end
-    if (auto_ss_wr) begin
+    if (auto_ss_wr & reset_n) begin
       integer auto_ss_idx;
       BusReq_s <= auto_ss_in[166];
-      INT_s <= auto_ss_in[169];
-      NMI_s <= auto_ss_in[168];
+      INT_s    <= auto_ss_in[169];
+      NMI_s    <= auto_ss_in[168];
       Oldnmi_n <= auto_ss_in[217];
     end
   end
 
 
-  generate
-    assign auto_ss_out[166] = BusReq_s;
-    assign auto_ss_out[169] = INT_s;
-    assign auto_ss_out[168] = NMI_s;
-    assign auto_ss_out[217] = Oldnmi_n;
-  endgenerate
+  assign auto_ss_out[166] = BusReq_s;
+  assign auto_ss_out[169] = INT_s;
+  assign auto_ss_out[168] = NMI_s;
+  assign auto_ss_out[217] = Oldnmi_n;
 
 
 
@@ -3902,19 +3902,19 @@ module tv80_core (  /*AUTOARG*/
 
     begin
       if (reset_n == 1'b0) begin
-        mcycle <= 7'b0000001;
-        tstate <= 7'b0000001;
-        Pre_XY_F_M <= 3'b000;
-        Halt_FF <= 1'b0;
-        BusAck <= 1'b0;
-        NMICycle <= 1'b0;
-        IntCycle <= 1'b0;
-        IntE_FF1 <= 1'b0;
-        IntE_FF2 <= 1'b0;
-        No_BTR <= 1'b0;
+        mcycle       <= 7'b0000001;
+        tstate       <= 7'b0000001;
+        Pre_XY_F_M   <= 3'b000;
+        Halt_FF      <= 1'b0;
+        BusAck       <= 1'b0;
+        NMICycle     <= 1'b0;
+        IntCycle     <= 1'b0;
+        IntE_FF1     <= 1'b0;
+        IntE_FF2     <= 1'b0;
+        No_BTR       <= 1'b0;
         Auto_Wait_t1 <= 1'b0;
         Auto_Wait_t2 <= 1'b0;
-        m1_n <= 1'b1;
+        m1_n         <= 1'b1;
       end else begin
         if (cen == 1'b1) begin
           if (T_Res == 1'b1) begin
@@ -3960,7 +3960,7 @@ module tv80_core (  /*AUTOARG*/
               end else begin
                 tstate <= 7'b0000010;
                 if (NextIs_XY_Fetch == 1'b1) begin
-                  mcycle <= 7'b0100000;
+                  mcycle     <= 7'b0100000;
                   Pre_XY_F_M <= mcyc_to_number(mcycle);
                   if (IR == 8'b00110110 && Mode == 0) begin
                     Pre_XY_F_M <= 3'b010;
@@ -3972,8 +3972,8 @@ module tv80_core (  /*AUTOARG*/
                                    No_BTR == 1'b1 ||
                                    (mcycle[1] && I_DJNZ == 1'b1 && IncDecZ == 1'b1) ) 
                             begin
-                  m1_n <= 1'b0;
-                  mcycle <= 7'b0000001;
+                  m1_n     <= 1'b0;
+                  mcycle   <= 7'b0000001;
                   IntCycle <= 1'b0;
                   NMICycle <= 1'b0;
                   if (NMI_s == 1'b1 && Prefix == 2'b00) begin
@@ -4004,40 +4004,38 @@ module tv80_core (  /*AUTOARG*/
         end
       end
     end
-    if (auto_ss_wr) begin
+    if (auto_ss_wr & reset_n) begin
       integer auto_ss_idx;
       Auto_Wait_t1 <= auto_ss_in[180];
       Auto_Wait_t2 <= auto_ss_in[181];
-      BusAck <= auto_ss_in[167];
-      Halt_FF <= auto_ss_in[165];
-      IntCycle <= auto_ss_in[215];
-      IntE_FF1 <= auto_ss_in[163];
-      IntE_FF2 <= auto_ss_in[164];
-      NMICycle <= auto_ss_in[216];
-      No_BTR <= auto_ss_in[178];
-      Pre_XY_F_M <= auto_ss_in[174+:3];
-      m1_n <= auto_ss_in[0];
-      mcycle <= auto_ss_in[156+:7];
-      tstate <= auto_ss_in[149+:7];
+      BusAck       <= auto_ss_in[167];
+      Halt_FF      <= auto_ss_in[165];
+      IntCycle     <= auto_ss_in[215];
+      IntE_FF1     <= auto_ss_in[163];
+      IntE_FF2     <= auto_ss_in[164];
+      NMICycle     <= auto_ss_in[216];
+      No_BTR       <= auto_ss_in[178];
+      Pre_XY_F_M   <= auto_ss_in[174+:3];
+      m1_n         <= auto_ss_in[218];
+      mcycle       <= auto_ss_in[156+:7];
+      tstate       <= auto_ss_in[149+:7];
     end
   end
 
 
-  generate
-    assign auto_ss_out[180] = Auto_Wait_t1;
-    assign auto_ss_out[181] = Auto_Wait_t2;
-    assign auto_ss_out[167] = BusAck;
-    assign auto_ss_out[165] = Halt_FF;
-    assign auto_ss_out[215] = IntCycle;
-    assign auto_ss_out[163] = IntE_FF1;
-    assign auto_ss_out[164] = IntE_FF2;
-    assign auto_ss_out[216] = NMICycle;
-    assign auto_ss_out[178] = No_BTR;
-    assign auto_ss_out[174+:3] = Pre_XY_F_M;
-    assign auto_ss_out[0] = m1_n;
-    assign auto_ss_out[156+:7] = mcycle;
-    assign auto_ss_out[149+:7] = tstate;
-  endgenerate
+  assign auto_ss_out[180]    = Auto_Wait_t1;
+  assign auto_ss_out[181]    = Auto_Wait_t2;
+  assign auto_ss_out[167]    = BusAck;
+  assign auto_ss_out[165]    = Halt_FF;
+  assign auto_ss_out[215]    = IntCycle;
+  assign auto_ss_out[163]    = IntE_FF1;
+  assign auto_ss_out[164]    = IntE_FF2;
+  assign auto_ss_out[216]    = NMICycle;
+  assign auto_ss_out[178]    = No_BTR;
+  assign auto_ss_out[174+:3] = Pre_XY_F_M;
+  assign auto_ss_out[218]    = m1_n;
+  assign auto_ss_out[156+:7] = mcycle;
+  assign auto_ss_out[149+:7] = tstate;
 
 
 
@@ -4084,7 +4082,6 @@ module tv80_core (  /*AUTOARG*/
 endmodule
 
 
-
 ///////////////////////////////////////////
 // MODULE tv80s
 module tv80s (  /*AUTOARG*/
@@ -4107,13 +4104,18 @@ module tv80s (  /*AUTOARG*/
     int_n,
     nmi_n,
     busrq_n,
-    di
-    , input [357:0] auto_ss_in,
-    input auto_ss_wr,
-    output [357:0] auto_ss_out
+    di,
+    auto_ss_in,
+    auto_ss_wr,
+    auto_ss_out
 
 );
   genvar auto_ss_idx;
+
+  input [386:0] auto_ss_in;
+  input auto_ss_wr;
+  output [386:0] auto_ss_out;
+
 
 
   parameter Mode = 0;  // 0 => Z80, 1 => Fast Z80, 2 => 8080, 3 => GB
@@ -4154,32 +4156,32 @@ module tv80s (  /*AUTOARG*/
   wire [6:0] tstate;
 
   tv80_core #(Mode, IOWait) i_tv80_core (
-      .cen(cen),
-      .m1_n(m1_n),
-      .iorq(iorq),
-      .no_read(no_read),
-      .write(write),
-      .rfsh_n(rfsh_n),
-      .halt_n(halt_n),
-      .wait_n(wait_n),
-      .int_n(int_n),
-      .nmi_n(nmi_n),
-      .reset_n(reset_n),
-      .busrq_n(busrq_n),
-      .busak_n(busak_n),
-      .clk(clk),
-      .IntE(),
-      .stop(),
-      .A(A),
-      .dinst(di),
-      .di(di_reg),
-      .dout(dout),
-      .mc(mcycle),
-      .ts(tstate),
-      .intcycle_n(intcycle_n),
-      .auto_ss_in(auto_ss_in[12+:346]),
-      .auto_ss_out(auto_ss_out[12+:346]),
-      .auto_ss_wr(auto_ss_wr)
+      .cen        (cen),
+      .m1_n       (m1_n),
+      .iorq       (iorq),
+      .no_read    (no_read),
+      .write      (write),
+      .rfsh_n     (rfsh_n),
+      .halt_n     (halt_n),
+      .wait_n     (wait_n),
+      .int_n      (int_n),
+      .nmi_n      (nmi_n),
+      .reset_n    (reset_n),
+      .busrq_n    (busrq_n),
+      .busak_n    (busak_n),
+      .clk        (clk),
+      .IntE       (),
+      .stop       (),
+      .A          (A),
+      .dinst      (di),
+      .di         (di_reg),
+      .dout       (dout),
+      .mc         (mcycle),
+      .ts         (tstate),
+      .intcycle_n (intcycle_n),
+      .auto_ss_in (auto_ss_in[16+:371]),
+      .auto_ss_out(auto_ss_out[16+:371]),
+      .auto_ss_wr (auto_ss_wr)
 
   );
 
@@ -4234,28 +4236,25 @@ module tv80s (  /*AUTOARG*/
         if (tstate[2] && wait_n == 1'b1 && !write && !no_read) di_reg <= di;
       end  // else: !if(!reset_n)
     end
-    if (auto_ss_wr) begin
+    if (auto_ss_wr & reset_n) begin
       integer auto_ss_idx;
       di_reg <= auto_ss_in[4+:8];
-      iorq_n <= auto_ss_in[1];
-      mreq_n <= auto_ss_in[0];
-      rd_n   <= auto_ss_in[2];
-      wr_n   <= auto_ss_in[3];
+      iorq_n <= auto_ss_in[13];
+      mreq_n <= auto_ss_in[12];
+      rd_n   <= auto_ss_in[14];
+      wr_n   <= auto_ss_in[15];
     end
   end
 
 
-  generate
-    assign auto_ss_out[4+:8] = di_reg;
-    assign auto_ss_out[1] = iorq_n;
-    assign auto_ss_out[0] = mreq_n;
-    assign auto_ss_out[2] = rd_n;
-    assign auto_ss_out[3] = wr_n;
-  endgenerate
+  assign auto_ss_out[4+:8] = di_reg;
+  assign auto_ss_out[13]   = iorq_n;
+  assign auto_ss_out[12]   = mreq_n;
+  assign auto_ss_out[14]   = rd_n;
+  assign auto_ss_out[15]   = wr_n;
 
   // always @ (posedge clk or negedge reset_n)
 
 endmodule
-
 
 

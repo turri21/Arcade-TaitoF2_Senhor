@@ -8,6 +8,7 @@ from sympy import simplify
 from typing import List, Optional, Dict
 
 PREFIX = 'auto_ss'
+RESET_SIGNALS = set(["rst", "nrst", "rstn", "n_rst", "rst_n", "reset", "nreset", "resetn", "n_reset", "reset_n"])
 
 def find_path(root: verible_verilog_syntax.Node, tags: List[str]) -> Optional[verible_verilog_syntax.Node]:
     node = root
@@ -18,6 +19,23 @@ def find_path(root: verible_verilog_syntax.Node, tags: List[str]) -> Optional[ve
         node = node.find({"tag": tag})
 
     return node
+
+def format_output(s: str) -> str:
+    params = [
+        "--port_declarations_alignment=align",
+        "--named_port_alignment=align",
+        "--assignment_statement_alignment=align",
+        "--formal_parameters_alignment=align",
+        "--module_net_variable_alignment=align",
+        "--named_parameter_alignment=align",
+        "--verify_convergence=false"
+    ]
+    proc = subprocess.run(["verible-verilog-format", "-"] + params,
+        stdout=subprocess.PIPE,
+        input=s,
+        encoding="utf-8",
+        check=True)
+    return proc.stdout
 
 
 class InsertNode(verible_verilog_syntax.LeafNode):
@@ -73,25 +91,39 @@ class Assignment:
         self.syms = sorted(set(syms))
         self.registers = []
         self.always = always
+        self.wr_condition = f"{PREFIX}_wr"
 
+        for ev in always.iter_find_all({"tag": "kEventExpression"}):
+            signal = ev.children[1].text
+            if signal.lower() in RESET_SIGNALS:
+                if ev.children[0].text == "negedge":
+                    self.wr_condition += f" & {signal}"
+                else:
+                    self.wr_condition += f" & ~{signal}"
+
+            
     def modify_tree(self):
         need_generate = False
         ctrl = find_path(self.always, ["kProceduralTimingControlStatement", "kEventControl"])
         add_text_after(ctrl, "begin")
-        wr_str = f"if ({PREFIX}_wr) begin\ninteger {PREFIX}_idx;\n"
+        wr_str = f"if ({self.wr_condition}) begin\ninteger {PREFIX}_idx;\n"
         rd_str = ""
         for r in self.registers:
             if r.unpacked:
                 len = r.unpacked.size
                 need_generate = True
 
-                wr_str += f"for ({PREFIX}_idx = 0; {PREFIX}_idx < ({len}); {PREFIX}_idx={PREFIX}_idx+1) begin\n"
-                rd_str += f"for ({PREFIX}_idx = 0; {PREFIX}_idx < ({len}); {PREFIX}_idx={PREFIX}_idx+1) begin\n"
+                block_name = f"blk_asg_{r.name}"
+
                 dim = r.unpacked_dim(f"{PREFIX}_idx")
+                
+                wr_str += f"for ({PREFIX}_idx = 0; {PREFIX}_idx < ({len}); {PREFIX}_idx={PREFIX}_idx+1) begin\n"
                 wr_str += f"{r.name}[{PREFIX}_idx] <= {PREFIX}_in{dim};\n"
+                wr_str += "end\n"
+                
+                rd_str += f"for ({PREFIX}_idx = 0; {PREFIX}_idx < ({len}); {PREFIX}_idx={PREFIX}_idx+1) begin : {block_name}\n"
                 rd_str += f"assign {PREFIX}_out{dim} = {r.name}[{PREFIX}_idx];\n"
                 rd_str += "end\n"
-                wr_str += "end\n"
             else:
                 wr_str += f"{r.name} <= {PREFIX}_in{r.allocated};\n"
                 rd_str += f"assign {PREFIX}_out{r.allocated} = {r.name};\n"
@@ -172,7 +204,7 @@ class ModuleInstance:
         params = self.module.eval_params(self.params, self.named_params)
         end = str(module_dim.end)
         for k, v in params.items():
-            end = end.replace(k, v)
+            end = end.replace(k, f"({v})")
 
         self.allocated = Dimension(f"({end})+({offset})", offset)
         return f"({offset})+({self.size()})"
@@ -269,13 +301,15 @@ class Module:
                 reg = Register(sym.text, packed=packed, unpacked=unpacked)
                 self.registers.append(reg)
 
-        for decl in self.node.iter_find_all({"tag": "kPortDeclaration"}):
+        for decl in self.node.iter_find_all({"tag": ["kPortDeclaration", "kModulePortDeclaration"]}):
             packed = None
             dims = find_path(decl, ["kPackedDimensions", "kDimensionRange"])
             if dims:
                 packed = Dimension(dims.children[1].text, dims.children[3].text)
 
             sym = find_path(decl, ["kUnqualifiedId"])
+            if sym is None:
+                sym = find_path(decl, ["kIdentifierUnpackedDimensions", "SymbolIdentifier"])
             reg = Register(sym.text, packed=packed, unpacked=None)
             self.registers.append(reg)
 
@@ -372,13 +406,23 @@ class Module:
         if self.predefined:
             return
 
-        s = f", input [{self.state_dim.end}:{self.state_dim.begin}] {PREFIX}_in, input {PREFIX}_wr, "
-        s += f"output [{self.state_dim.end}:{self.state_dim.begin}] {PREFIX}_out"
-
+        verilog1995 = find_path(self.node, ["kModuleHeader", "kPort"]) is not None
+        
         port_decl = find_path(self.node, ["kModuleHeader", "kPortDeclarationList"])
-        add_text_after(port_decl, s)
-
         header = find_path(self.node, ["kModuleHeader"])
+
+        if verilog1995:
+            add_text_after(port_decl, f",\n{PREFIX}_in, {PREFIX}_wr, {PREFIX}_out")
+            s =  f"input [{self.state_dim.end}:{self.state_dim.begin}] {PREFIX}_in;\n"
+            s += f"input {PREFIX}_wr;\n"
+            s += f"output [{self.state_dim.end}:{self.state_dim.begin}] {PREFIX}_out;\n"
+            add_text_after(header, s)
+
+        else:
+            s = f",\ninput [{self.state_dim.end}:{self.state_dim.begin}] {PREFIX}_in, input {PREFIX}_wr, "
+            s += f"output [{self.state_dim.end}:{self.state_dim.begin}] {PREFIX}_out"
+            add_text_after(port_decl, s)
+
         add_text_after(header, f"genvar {PREFIX}_idx;") # used by assignments
 
         for i in self.instances:
@@ -388,7 +432,7 @@ class Module:
             a.modify_tree()
 
 
-    def output_module(self):
+    def output_module(self, fp):
         s = "///////////////////////////////////////////\n"
         s += f"// MODULE {self.name}\n"
         begin = None
@@ -404,16 +448,11 @@ class Module:
 
         s += "\n\n\n"
 
-        format = False
+        format = True
         if format:
-            proc = subprocess.run(["verible-verilog-format", "-", "--verify_convergence=false"],
-                stdout=subprocess.PIPE,
-                input=s,
-                encoding="utf-8",
-                check=True)
-            print(proc.stdout)
-        else:
-            print(s)
+            s = format_output(s)
+  
+        fp.write(s)
 
 
 
@@ -447,13 +486,20 @@ def process_file_data(path: str, data: verible_verilog_syntax.SyntaxData) -> Lis
     return modules
 
 def main():
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 4:
         print(f"Usage: {sys.argv[0]} " +
-                    "MODULE_NAME VERILOG_FILE [VERILOG_FILE [...]]")
+                    "MODULE_NAME OUTPUT_FILE VERILOG_FILE [VERILOG_FILE [...]]")
         return 1
 
     root_module_name = sys.argv[1]
-    files = sys.argv[2:]
+    output_name = sys.argv[2]
+    files = sys.argv[3:]
+
+    out_fp = None
+    if output_name == '-':
+        out_fp = sys.stdout
+    else:
+        out_fp = open(output_name, "wt")
 
     parser = verible_verilog_syntax.VeribleVerilogSyntax(executable="verible-verilog-syntax")
     data = parser.parse_files(files)
@@ -472,8 +518,11 @@ def main():
         if module in visited:
             continue
         module.modify_tree()
-        module.output_module()
+        module.output_module(out_fp)
         visited.add(module)
+
+    if out_fp != sys.stdout:
+        out_fp.close()
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -2805,9 +2805,9 @@ module tv80_core (  /*AUTOARG*/
 );
   genvar auto_ss_idx;
 
-  input [370:0] auto_ss_in;
+  input [345:0] auto_ss_in;
   input auto_ss_wr;
-  output [370:0] auto_ss_out;
+  output [345:0] auto_ss_out;
 
 
   // Beginning of automatic inputs (from unused autoinst inputs)
@@ -3176,7 +3176,7 @@ module tv80_core (  /*AUTOARG*/
       XY_Ind        <= 1'b0;
     end else if (auto_ss_wr) begin
       integer auto_ss_idx;
-      A             <= auto_ss_in[219+:16];
+      A             <= auto_ss_in[1+:16];
       ACC           <= auto_ss_in[25+:8];
       ALU_Op_r      <= auto_ss_in[206+:4];
       Alternate     <= auto_ss_in[106];
@@ -3198,7 +3198,7 @@ module tv80_core (  /*AUTOARG*/
       XY_Ind        <= auto_ss_in[177];
       XY_State      <= auto_ss_in[172+:2];
       Z16_r         <= auto_ss_in[205];
-      dout          <= auto_ss_in[235+:8];
+      dout          <= auto_ss_in[17+:8];
       mcycles       <= auto_ss_in[212+:3];
     end else begin
 
@@ -3558,7 +3558,7 @@ module tv80_core (  /*AUTOARG*/
       end  // if (ClkEn == 1'b1 )         
     end  // else: !if(reset_n == 1'b0 )
   end
-  assign auto_ss_out[219+:16] = A;
+  assign auto_ss_out[1+:16]   = A;
   assign auto_ss_out[25+:8]   = ACC;
   assign auto_ss_out[206+:4]  = ALU_Op_r;
   assign auto_ss_out[106]     = Alternate;
@@ -3580,7 +3580,7 @@ module tv80_core (  /*AUTOARG*/
   assign auto_ss_out[177]     = XY_Ind;
   assign auto_ss_out[172+:2]  = XY_State;
   assign auto_ss_out[205]     = Z16_r;
-  assign auto_ss_out[235+:8]  = dout;
+  assign auto_ss_out[17+:8]   = dout;
   assign auto_ss_out[212+:3]  = mcycles;
 
 
@@ -3739,8 +3739,8 @@ module tv80_core (  /*AUTOARG*/
       .DOBL       (RegBusB[7:0]),
       .DOCH       (RegBusC[15:8]),
       .DOCL       (RegBusC[7:0]),
-      .auto_ss_in (auto_ss_in[243+:128]),
-      .auto_ss_out(auto_ss_out[243+:128]),
+      .auto_ss_in (auto_ss_in[218+:128]),
+      .auto_ss_out(auto_ss_out[218+:128]),
       .auto_ss_wr (auto_ss_wr)
 
   );
@@ -3913,7 +3913,7 @@ module tv80_core (  /*AUTOARG*/
       NMICycle     <= auto_ss_in[216];
       No_BTR       <= auto_ss_in[178];
       Pre_XY_F_M   <= auto_ss_in[174+:3];
-      m1_n         <= auto_ss_in[218];
+      m1_n         <= auto_ss_in[0];
       mcycle       <= auto_ss_in[156+:7];
       tstate       <= auto_ss_in[149+:7];
     end else begin
@@ -4015,7 +4015,7 @@ module tv80_core (  /*AUTOARG*/
   assign auto_ss_out[216]    = NMICycle;
   assign auto_ss_out[178]    = No_BTR;
   assign auto_ss_out[174+:3] = Pre_XY_F_M;
-  assign auto_ss_out[218]    = m1_n;
+  assign auto_ss_out[0]      = m1_n;
   assign auto_ss_out[156+:7] = mcycle;
   assign auto_ss_out[149+:7] = tstate;
 
@@ -4094,9 +4094,9 @@ module tv80s (  /*AUTOARG*/
 );
   genvar auto_ss_idx;
 
-  input [386:0] auto_ss_in;
+  input [357:0] auto_ss_in;
   input auto_ss_wr;
-  output [386:0] auto_ss_out;
+  output [357:0] auto_ss_out;
 
 
 
@@ -4161,8 +4161,8 @@ module tv80s (  /*AUTOARG*/
       .mc         (mcycle),
       .ts         (tstate),
       .intcycle_n (intcycle_n),
-      .auto_ss_in (auto_ss_in[16+:371]),
-      .auto_ss_out(auto_ss_out[16+:371]),
+      .auto_ss_in (auto_ss_in[12+:346]),
+      .auto_ss_out(auto_ss_out[12+:346]),
       .auto_ss_wr (auto_ss_wr)
 
   );
@@ -4177,10 +4177,10 @@ module tv80s (  /*AUTOARG*/
     end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       di_reg <= auto_ss_in[4+:8];
-      iorq_n <= auto_ss_in[13];
-      mreq_n <= auto_ss_in[12];
-      rd_n   <= auto_ss_in[14];
-      wr_n   <= auto_ss_in[15];
+      iorq_n <= auto_ss_in[1];
+      mreq_n <= auto_ss_in[0];
+      rd_n   <= auto_ss_in[2];
+      wr_n   <= auto_ss_in[3];
     end else if (cen) begin
       rd_n   <= 1'b1;
       wr_n   <= 1'b1;
@@ -4223,10 +4223,10 @@ module tv80s (  /*AUTOARG*/
     end  // else: !if(!reset_n)
   end
   assign auto_ss_out[4+:8] = di_reg;
-  assign auto_ss_out[13]   = iorq_n;
-  assign auto_ss_out[12]   = mreq_n;
-  assign auto_ss_out[14]   = rd_n;
-  assign auto_ss_out[15]   = wr_n;
+  assign auto_ss_out[1]    = iorq_n;
+  assign auto_ss_out[0]    = mreq_n;
+  assign auto_ss_out[2]    = rd_n;
+  assign auto_ss_out[3]    = wr_n;
 
   // always @ (posedge clk or negedge reset_n)
 

@@ -14,8 +14,5 @@ rtl/jt10_auto_ss.v:
 rtl/tv80_auto_ss.v:
 	$(PYTHON) util/state_module.py tv80s rtl/tv80_auto_ss.v rtl/tv80/*.v
 
-rtl/fx68k_auto_ss.v:
-	$(PYTHON) util/state_module.py fx68k rtl/fx68k_auto_ss.v rtl/fx68k/hdl/*.sv
-
 
 .PHONY: sim run rtl/jt10_auto_ss.v rtl/tv80_auto_ss.v rtl/fx68k_auto_ss.sv

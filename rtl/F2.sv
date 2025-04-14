@@ -816,7 +816,7 @@ singleport_ram #(.WIDTH(8), .WIDTHAD(16)) sound_rom0(
     .q(sound_rom0_q)
 );
 
-localparam Z80_SS_BITS = 387;
+localparam Z80_SS_BITS = 358;
 wire [Z80_SS_BITS-1:0] z80_ss_in, z80_ss_out;
 wire z80_ss_wr;
 

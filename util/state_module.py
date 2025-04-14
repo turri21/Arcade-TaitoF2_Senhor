@@ -38,6 +38,28 @@ def format_output(s: str) -> str:
     return proc.stdout
 
 
+def output_file(fp, node):
+    begin = None
+    s = ""
+    for tok in verible_verilog_syntax.PreOrderTreeIterator(node):
+        if isinstance(tok, InsertNode):
+            s += f"\n{tok.text}\n"
+        elif isinstance(tok, verible_verilog_syntax.TokenNode):
+            if begin is None:
+                begin = tok.start
+            end = tok.end
+            s += tok.syntax_data.source_code[begin:end].decode("utf-8")
+            begin = end
+
+    s += "\n\n\n"
+
+    format = True
+    if format:
+        s = format_output(s)
+
+    fp.write(s)
+
+
 class InsertNode(verible_verilog_syntax.LeafNode):
     def __init__(self, contents: str, parent: verible_verilog_syntax.Node):
         super().__init__(parent)
@@ -85,6 +107,9 @@ class Dimension:
         else:
             return f"[{self.begin} +: {self.size}]"
             #return f"[{self.end}:{self.begin}]"
+
+    def __eq__(self, o):
+        return self.end == o.end and self.begin == o.begin
 
 class Assignment:
     def __init__(self, always: verible_verilog_syntax.Node, syms: List[str]):
@@ -170,6 +195,9 @@ class Register:
             return self.unpacked.size
         else:
             return "1"
+
+    def __eq__(self, o) -> bool:
+        return self.name == o.name and self.packed == o.packed and self.unpacked == o.unpacked
 
     def allocate(self, offset):
         self.allocated = Dimension(f"({offset})+({self.size()})-1", offset)
@@ -299,6 +327,7 @@ class Module:
             self.instances.append(instance)
 
     def extract_registers(self):
+        dup_track = {}
         for decl in self.node.iter_find_all({"tag": "kDataDeclaration"}):
             dims = find_path(decl, ["kPackedDimensions", "kDimensionRange"])
             packed = None
@@ -314,7 +343,12 @@ class Module:
 
                 sym = variable.find({"tag": "SymbolIdentifier"})
                 reg = Register(sym.text, packed=packed, unpacked=unpacked)
-                self.registers.append(reg)
+                if reg.name in dup_track:
+                    if dup_track[reg.name] != reg:
+                        raise Exception(f"Conflicting register declarations: {reg} {dup_track[reg.name]}")
+                else:
+                    dup_track[reg.name] = reg
+                    self.registers.append(reg)
 
         for decl in self.node.iter_find_all({"tag": ["kPortDeclaration", "kModulePortDeclaration"]}):
             packed = None
@@ -326,7 +360,12 @@ class Module:
             if sym is None:
                 sym = find_path(decl, ["kIdentifierUnpackedDimensions", "SymbolIdentifier"])
             reg = Register(sym.text, packed=packed, unpacked=None)
-            self.registers.append(reg)
+            if reg.name in dup_track:
+                if dup_track[reg.name] != reg:
+                    raise Exception(f"Conflicting register declarations: {reg} {dup_track[reg.name]}")
+            else:
+                dup_track[reg.name] = reg
+                self.registers.append(reg)
 
     def extract_assignments(self):
         for always in self.node.iter_find_all({"tag": "kAlwaysStatement"}):
@@ -421,7 +460,7 @@ class Module:
         if self.predefined:
             return
 
-        verilog1995 = find_path(self.node, ["kModuleHeader", "kPort"]) is not None
+        verilog1995 = find_path(self.node, ["kModuleItemList", "kModulePortDeclaration"]) is not None
         
         port_decl = find_path(self.node, ["kModuleHeader", "kPortDeclarationList"])
         header = find_path(self.node, ["kModuleHeader"])
@@ -533,6 +572,7 @@ def main():
         if module in visited:
             continue
         module.modify_tree()
+        #module.print_allocation()
         module.output_module(out_fp)
         visited.add(module)
 

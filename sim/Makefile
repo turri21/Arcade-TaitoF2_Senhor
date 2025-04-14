@@ -11,7 +11,7 @@ OBJ_DIR = obj
 VERILATED_DIR = verilated
 
 VERILATOR = verilator
-VERILATOR_ARGS = --cc --make gmake --trace-fst --Mdir $(VERILATED_DIR) -Ihdl --MMD --MP $(VERILATOR_DEFINES)
+VERILATOR_ARGS = --cc --make gmake --trace-fst --Mdir $(VERILATED_DIR) -Ihdl --MMD --MP $(VERILATOR_DEFINES) -Wno-TIMESCALEMOD
 PYTHON = python3
 
 VERILATOR_INC = $(shell pkg-config --variable=includedir verilator)

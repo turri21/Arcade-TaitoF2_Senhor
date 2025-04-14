@@ -5,9 +5,6 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/fx68k/hdl/fx68k.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/fx68k/hdl/fx68kAlu.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/fx68k/hdl/uaddrPla.sv
 
-set_global_assignment -name VERILOG_FILE ./rtl/tv80_auto_ss.v
-set_global_assignment -name VERILOG_FILE ./rtl/jt10_auto_ss.v
-
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/sdram.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/system_consts.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/F2.sv
@@ -23,3 +20,17 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/savestates.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/ddram.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/rom_loader.sv
 
+if (1) {
+    set_global_assignment -name VERILOG_MACRO "USE_AUTO_SS=1"
+    set_global_assignment -name VERILOG_FILE ./rtl/tv80_auto_ss.v
+    set_global_assignment -name VERILOG_FILE ./rtl/jt10_auto_ss.v
+} else {
+    set_global_assignment -name VERILOG_FILE ./rtl/tv80/tv80s.v
+    set_global_assignment -name VERILOG_FILE ./rtl/tv80/tv80_alu.v
+    set_global_assignment -name VERILOG_FILE ./rtl/tv80/tv80_reg.v
+    set_global_assignment -name VERILOG_FILE ./rtl/tv80/tv80_core.v
+    set_global_assignment -name VERILOG_FILE ./rtl/tv80/tv80_mcode.v
+
+    set_global_assignment -name QIP_FILE rtl/jt12/target/quartus/jt10.qip
+    set_global_assignment -name VERILOG_FILE ./rtl/jt12/hdl/jt12_reg_ch.v
+}

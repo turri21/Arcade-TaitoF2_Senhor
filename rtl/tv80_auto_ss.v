@@ -3144,397 +3144,36 @@ module tv80_core (  /*AUTOARG*/
   end  // always @ *
 
   always @(posedge clk or negedge reset_n) begin
+    if (reset_n == 1'b0) begin
+      PC       <= 0;  // Program Counter
+      A        <= 0;
+      TmpAddr  <= 0;
+      IR       <= 8'b00000000;
+      ISet     <= 2'b00;
+      XY_State <= 2'b00;
+      IStatus  <= 2'b00;
+      mcycles  <= 3'b000;
+      dout     <= 8'b00000000;
 
-    begin
-      if (reset_n == 1'b0) begin
-        PC       <= 0;  // Program Counter
-        A        <= 0;
-        TmpAddr  <= 0;
-        IR       <= 8'b00000000;
-        ISet     <= 2'b00;
-        XY_State <= 2'b00;
-        IStatus  <= 2'b00;
-        mcycles  <= 3'b000;
-        dout     <= 8'b00000000;
-
-        ACC      <= 8'hFF;
-        F        <= 8'hFF;
-        Ap       <= 8'hFF;
-        Fp       <= 8'hFF;
-        I        <= 0;
+      ACC      <= 8'hFF;
+      F        <= 8'hFF;
+      Ap       <= 8'hFF;
+      Fp       <= 8'hFF;
+      I        <= 0;
 `ifdef TV80_REFRESH
-        R <= 0;
+      R <= 0;
 `endif
-        SP            <= 16'hFFFF;
-        Alternate     <= 1'b0;
+      SP            <= 16'hFFFF;
+      Alternate     <= 1'b0;
 
-        Read_To_Reg_r <= 5'b00000;
-        Arith16_r     <= 1'b0;
-        BTR_r         <= 1'b0;
-        Z16_r         <= 1'b0;
-        ALU_Op_r      <= 4'b0000;
-        Save_ALU_r    <= 1'b0;
-        PreserveC_r   <= 1'b0;
-        XY_Ind        <= 1'b0;
-      end else begin
-
-        if (ClkEn == 1'b1) begin
-
-          ALU_Op_r      <= 4'b0000;
-          Save_ALU_r    <= 1'b0;
-          Read_To_Reg_r <= 5'b00000;
-
-          mcycles       <= mcycles_d;
-
-          if (IMode != 2'b11) begin
-            IStatus <= IMode;
-          end
-
-          Arith16_r   <= Arith16;
-          PreserveC_r <= PreserveC;
-          if (ISet == 2'b10 && ALU_Op[2] == 1'b0 && ALU_Op[0] == 1'b1 && mcycle[2]) begin
-            Z16_r <= 1'b1;
-          end else begin
-            Z16_r <= 1'b0;
-          end
-
-          if (mcycle[0] && (tstate[1] | tstate[2] | tstate[3])) begin
-            // mcycle == 1 && tstate == 1, 2, || 3
-            if (tstate[2] && wait_n == 1'b1) begin
-`ifdef TV80_REFRESH
-              if (Mode < 2) begin
-                A[7:0]  <= R;
-                A[15:8] <= I;
-                R[6:0]  <= R[6:0] + 1;
-              end
-`endif
-              if (Jump == 1'b0 && Call == 1'b0 && NMICycle == 1'b0 && IntCycle == 1'b0 && ~ (Halt_FF == 1'b1 || Halt == 1'b1) ) 
-                        begin
-                PC <= PC16;
-              end
-
-              if (IntCycle == 1'b1 && IStatus == 2'b01) begin
-                IR <= 8'b11111111;
-              end 
-                      else if (Halt_FF == 1'b1 || (IntCycle == 1'b1 && IStatus == 2'b10) || NMICycle == 1'b1 ) 
-                        begin
-                IR           <= 8'b00000000;
-                TmpAddr[7:0] <= dinst;  // Special M1 vector fetch
-              end else begin
-                IR <= dinst;
-              end
-
-              ISet <= 2'b00;
-              if (Prefix != 2'b00) begin
-                if (Prefix == 2'b11) begin
-                  if (IR[5] == 1'b1) begin
-                    XY_State <= 2'b10;
-                  end else begin
-                    XY_State <= 2'b01;
-                  end
-                end else begin
-                  if (Prefix == 2'b10) begin
-                    XY_State <= 2'b00;
-                    XY_Ind   <= 1'b0;
-                  end
-                  ISet <= Prefix;
-                end
-              end else begin
-                XY_State <= 2'b00;
-                XY_Ind   <= 1'b0;
-              end
-            end  // if (tstate == 2 && wait_n == 1'b1 )
-
-
-          end else begin
-            // either (mcycle > 1) OR (mcycle == 1 AND tstate > 3)
-
-            if (mcycle[5]) begin
-              XY_Ind <= 1'b1;
-              if (Prefix == 2'b01) begin
-                ISet <= 2'b01;
-              end
-            end
-
-            if (T_Res == 1'b1) begin
-              BTR_r <= (I_BT || I_BC || I_BTR) && ~No_BTR;
-              if (Jump == 1'b1) begin
-                A[15:8]  <= DI_Reg;
-                A[7:0]   <= TmpAddr[7:0];
-                PC[15:8] <= DI_Reg;
-                PC[7:0]  <= TmpAddr[7:0];
-              end else if (JumpXY == 1'b1) begin
-                A  <= RegBusC;
-                PC <= RegBusC;
-              end else if (Call == 1'b1 || RstP == 1'b1) begin
-                A  <= TmpAddr;
-                PC <= TmpAddr;
-              end else if (last_mcycle && NMICycle == 1'b1) begin
-                A  <= 16'b0000000001100110;
-                PC <= 16'b0000000001100110;
-              end else if (mcycle[2] && IntCycle == 1'b1 && IStatus == 2'b10) begin
-                A[15:8]  <= I;
-                A[7:0]   <= TmpAddr[7:0];
-                PC[15:8] <= I;
-                PC[7:0]  <= TmpAddr[7:0];
-              end else begin
-                case (Set_Addr_To)
-                  aXY: begin
-                    if (XY_State == 2'b00) begin
-                      A <= RegBusC;
-                    end else begin
-                      if (NextIs_XY_Fetch == 1'b1) begin
-                        A <= PC;
-                      end else begin
-                        A <= TmpAddr;
-                      end
-                    end  // else: !if(XY_State == 2'b00 )
-                  end  // case: aXY
-
-                  aIOA: begin
-                    if (Mode == 3) begin
-                      // Memory map I/O on GBZ80
-                      A[15:8] <= 8'hFF;
-                    end else if (Mode == 2) begin
-                      // Duplicate I/O address on 8080
-                      A[15:8] <= DI_Reg;
-                    end else begin
-                      A[15:8] <= ACC;
-                    end
-                    A[7:0] <= DI_Reg;
-                  end  // case: aIOA
-
-
-                  aSP: begin
-                    A <= SP;
-                  end
-
-                  aBC: begin
-                    if (Mode == 3 && iorq_i == 1'b1) begin
-                      // Memory map I/O on GBZ80
-                      A[15:8] <= 8'hFF;
-                      A[7:0]  <= RegBusC[7:0];
-                    end else begin
-                      A <= RegBusC;
-                    end
-                  end  // case: aBC
-
-                  aDE: begin
-                    A <= RegBusC;
-                  end
-
-                  aZI: begin
-                    if (Inc_WZ == 1'b1) begin
-                      A <= TmpAddr + 1;
-                    end else begin
-                      A[15:8] <= DI_Reg;
-                      A[7:0]  <= TmpAddr[7:0];
-                    end
-                  end  // case: aZI
-
-                  default: begin
-                    A <= PC;
-                  end
-                endcase  // case(Set_Addr_To)
-
-              end  // else: !if(mcycle[2] && IntCycle == 1'b1 && IStatus == 2'b10 )
-
-
-              Save_ALU_r <= Save_ALU;
-              ALU_Op_r   <= ALU_Op;
-
-              if (I_CPL == 1'b1) begin
-                // CPL
-                ACC       <= ~ACC;
-                F[Flag_Y] <= ~ACC[5];
-                F[Flag_H] <= 1'b1;
-                F[Flag_X] <= ~ACC[3];
-                F[Flag_N] <= 1'b1;
-              end
-              if (I_CCF == 1'b1) begin
-                // CCF
-                F[Flag_C] <= ~F[Flag_C];
-                F[Flag_Y] <= ACC[5];
-                F[Flag_H] <= F[Flag_C];
-                F[Flag_X] <= ACC[3];
-                F[Flag_N] <= 1'b0;
-              end
-              if (I_SCF == 1'b1) begin
-                // SCF
-                F[Flag_C] <= 1'b1;
-                F[Flag_Y] <= ACC[5];
-                F[Flag_H] <= 1'b0;
-                F[Flag_X] <= ACC[3];
-                F[Flag_N] <= 1'b0;
-              end
-            end  // if (T_Res == 1'b1 )
-
-
-            if (tstate[2] && wait_n == 1'b1) begin
-              if (ISet == 2'b01 && mcycle[6]) begin
-                IR <= dinst;
-              end
-              if (JumpE == 1'b1) begin
-                PC <= PC16;
-              end else if (Inc_PC == 1'b1) begin
-                //PC <=  PC + 1;
-                PC <= PC16;
-              end
-              if (BTR_r == 1'b1) begin
-                //PC <=  PC - 2;
-                PC <= PC16;
-              end
-              if (RstP == 1'b1) begin
-                TmpAddr <= {10'h0, IR[5:3], 3'h0};
-                //TmpAddr <=  (others =>1'b0);
-                //TmpAddr[5:3] <=  IR[5:3];
-              end
-            end
-            if (tstate[3] && mcycle[5]) begin
-              TmpAddr <= SP16;
-            end
-
-            if ((tstate[2] && wait_n == 1'b1) || (tstate[4] && mcycle[0])) begin
-              if (IncDec_16[2:0] == 3'b111) begin
-                SP <= SP16;
-              end
-            end
-
-            if (LDSPHL == 1'b1) begin
-              SP <= RegBusC;
-            end
-            if (ExchangeAF == 1'b1) begin
-              Ap  <= ACC;
-              ACC <= Ap;
-              Fp  <= F;
-              F   <= Fp;
-            end
-            if (ExchangeRS == 1'b1) begin
-              Alternate <= ~Alternate;
-            end
-          end  // else: !if(mcycle  == 3'b001 && tstate(2) == 1'b0 )
-
-
-          if (tstate[3]) begin
-            if (LDZ == 1'b1) begin
-              TmpAddr[7:0] <= DI_Reg;
-            end
-            if (LDW == 1'b1) begin
-              TmpAddr[15:8] <= DI_Reg;
-            end
-
-            if (Special_LD[2] == 1'b1) begin
-              case (Special_LD[1:0])
-                2'b00: begin
-                  ACC       <= I;
-                  F[Flag_P] <= IntE_FF2;
-                  F[Flag_Z] <= (I == 0);
-                  F[Flag_S] <= I[7];
-                  F[Flag_H] <= 0;
-                  F[Flag_N] <= 0;
-                end
-
-                2'b01: begin
-`ifdef TV80_REFRESH
-                  ACC <= R;
-`else
-                  ACC <= 0;
-`endif
-                  F[Flag_P] <= IntE_FF2;
-                  F[Flag_Z] <= (I == 0);
-                  F[Flag_S] <= I[7];
-                  F[Flag_H] <= 0;
-                  F[Flag_N] <= 0;
-                end
-
-                2'b10: I <= ACC;
-
-`ifdef TV80_REFRESH
-                default: R <= ACC;
-`else
-                default: ;
-`endif
-              endcase
-            end
-          end  // if (tstate == 3 )
-
-
-          if ((I_DJNZ == 1'b0 && Save_ALU_r == 1'b1) || ALU_Op_r == 4'b1001) begin
-            if (Mode == 3) begin
-              F[6] <= F_Out[6];
-              F[5] <= F_Out[5];
-              F[7] <= F_Out[7];
-              if (PreserveC_r == 1'b0) begin
-                F[4] <= F_Out[4];
-              end
-            end else begin
-              F[7:1] <= F_Out[7:1];
-              if (PreserveC_r == 1'b0) begin
-                F[Flag_C] <= F_Out[0];
-              end
-            end
-          end  // if ((I_DJNZ == 1'b0 && Save_ALU_r == 1'b1) || ALU_Op_r == 4'b1001 )
-
-          if (T_Res == 1'b1 && I_INRC == 1'b1) begin
-            F[Flag_H] <= 1'b0;
-            F[Flag_N] <= 1'b0;
-            if (DI_Reg[7:0] == 8'b00000000) begin
-              F[Flag_Z] <= 1'b1;
-            end else begin
-              F[Flag_Z] <= 1'b0;
-            end
-            F[Flag_S] <= DI_Reg[7];
-            F[Flag_P] <= ~(^DI_Reg[7:0]);
-          end  // if (T_Res == 1'b1 && I_INRC == 1'b1 )
-
-
-          if (tstate[1] && Auto_Wait_t1 == 1'b0) begin
-            dout <= BusB;
-            if (I_RLD == 1'b1) begin
-              dout[3:0] <= BusA[3:0];
-              dout[7:4] <= BusB[3:0];
-            end
-            if (I_RRD == 1'b1) begin
-              dout[3:0] <= BusB[7:4];
-              dout[7:4] <= BusA[3:0];
-            end
-          end
-
-          if (T_Res == 1'b1) begin
-            Read_To_Reg_r[3:0] <= Set_BusA_To;
-            Read_To_Reg_r[4]   <= Read_To_Reg;
-            if (Read_To_Acc == 1'b1) begin
-              Read_To_Reg_r[3:0] <= 4'b0111;
-              Read_To_Reg_r[4]   <= 1'b1;
-            end
-          end
-
-          if (tstate[1] && I_BT == 1'b1) begin
-            F[Flag_X] <= ALU_Q[3];
-            F[Flag_Y] <= ALU_Q[1];
-            F[Flag_H] <= 1'b0;
-            F[Flag_N] <= 1'b0;
-          end
-          if (I_BC == 1'b1 || I_BT == 1'b1) begin
-            F[Flag_P] <= IncDecZ;
-          end
-
-          if ((tstate[1] && Save_ALU_r == 1'b0 && Auto_Wait_t1 == 1'b0) ||
-                  (Save_ALU_r == 1'b1 && ALU_Op_r != 4'b0111) ) 
-                begin
-            case (Read_To_Reg_r)
-              5'b10111: ACC <= Save_Mux;
-              5'b10110: dout <= Save_Mux;
-              5'b11000: SP[7:0] <= Save_Mux;
-              5'b11001: SP[15:8] <= Save_Mux;
-              5'b11011: F <= Save_Mux;
-              default:  ;
-            endcase
-          end  // if ((tstate == 1 && Save_ALU_r == 1'b0 && Auto_Wait_t1 == 1'b0) ||...              
-        end  // if (ClkEn == 1'b1 )         
-      end  // else: !if(reset_n == 1'b0 )
-    end
-    if (~reset_n) begin
+      Read_To_Reg_r <= 5'b00000;
+      Arith16_r     <= 1'b0;
+      BTR_r         <= 1'b0;
+      Z16_r         <= 1'b0;
+      ALU_Op_r      <= 4'b0000;
+      Save_ALU_r    <= 1'b0;
+      PreserveC_r   <= 1'b0;
+      XY_Ind        <= 1'b0;
     end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       A             <= auto_ss_in[219+:16];
@@ -3561,10 +3200,364 @@ module tv80_core (  /*AUTOARG*/
       Z16_r         <= auto_ss_in[205];
       dout          <= auto_ss_in[235+:8];
       mcycles       <= auto_ss_in[212+:3];
-    end
+    end else begin
+
+      if (ClkEn == 1'b1) begin
+
+        ALU_Op_r      <= 4'b0000;
+        Save_ALU_r    <= 1'b0;
+        Read_To_Reg_r <= 5'b00000;
+
+        mcycles       <= mcycles_d;
+
+        if (IMode != 2'b11) begin
+          IStatus <= IMode;
+        end
+
+        Arith16_r   <= Arith16;
+        PreserveC_r <= PreserveC;
+        if (ISet == 2'b10 && ALU_Op[2] == 1'b0 && ALU_Op[0] == 1'b1 && mcycle[2]) begin
+          Z16_r <= 1'b1;
+        end else begin
+          Z16_r <= 1'b0;
+        end
+
+        if (mcycle[0] && (tstate[1] | tstate[2] | tstate[3])) begin
+          // mcycle == 1 && tstate == 1, 2, || 3
+          if (tstate[2] && wait_n == 1'b1) begin
+`ifdef TV80_REFRESH
+            if (Mode < 2) begin
+              A[7:0]  <= R;
+              A[15:8] <= I;
+              R[6:0]  <= R[6:0] + 1;
+            end
+`endif
+            if (Jump == 1'b0 && Call == 1'b0 && NMICycle == 1'b0 && IntCycle == 1'b0 && ~ (Halt_FF == 1'b1 || Halt == 1'b1) ) 
+                        begin
+              PC <= PC16;
+            end
+
+            if (IntCycle == 1'b1 && IStatus == 2'b01) begin
+              IR <= 8'b11111111;
+            end 
+                      else if (Halt_FF == 1'b1 || (IntCycle == 1'b1 && IStatus == 2'b10) || NMICycle == 1'b1 ) 
+                        begin
+              IR           <= 8'b00000000;
+              TmpAddr[7:0] <= dinst;  // Special M1 vector fetch
+            end else begin
+              IR <= dinst;
+            end
+
+            ISet <= 2'b00;
+            if (Prefix != 2'b00) begin
+              if (Prefix == 2'b11) begin
+                if (IR[5] == 1'b1) begin
+                  XY_State <= 2'b10;
+                end else begin
+                  XY_State <= 2'b01;
+                end
+              end else begin
+                if (Prefix == 2'b10) begin
+                  XY_State <= 2'b00;
+                  XY_Ind   <= 1'b0;
+                end
+                ISet <= Prefix;
+              end
+            end else begin
+              XY_State <= 2'b00;
+              XY_Ind   <= 1'b0;
+            end
+          end  // if (tstate == 2 && wait_n == 1'b1 )
+
+
+        end else begin
+          // either (mcycle > 1) OR (mcycle == 1 AND tstate > 3)
+
+          if (mcycle[5]) begin
+            XY_Ind <= 1'b1;
+            if (Prefix == 2'b01) begin
+              ISet <= 2'b01;
+            end
+          end
+
+          if (T_Res == 1'b1) begin
+            BTR_r <= (I_BT || I_BC || I_BTR) && ~No_BTR;
+            if (Jump == 1'b1) begin
+              A[15:8]  <= DI_Reg;
+              A[7:0]   <= TmpAddr[7:0];
+              PC[15:8] <= DI_Reg;
+              PC[7:0]  <= TmpAddr[7:0];
+            end else if (JumpXY == 1'b1) begin
+              A  <= RegBusC;
+              PC <= RegBusC;
+            end else if (Call == 1'b1 || RstP == 1'b1) begin
+              A  <= TmpAddr;
+              PC <= TmpAddr;
+            end else if (last_mcycle && NMICycle == 1'b1) begin
+              A  <= 16'b0000000001100110;
+              PC <= 16'b0000000001100110;
+            end else if (mcycle[2] && IntCycle == 1'b1 && IStatus == 2'b10) begin
+              A[15:8]  <= I;
+              A[7:0]   <= TmpAddr[7:0];
+              PC[15:8] <= I;
+              PC[7:0]  <= TmpAddr[7:0];
+            end else begin
+              case (Set_Addr_To)
+                aXY: begin
+                  if (XY_State == 2'b00) begin
+                    A <= RegBusC;
+                  end else begin
+                    if (NextIs_XY_Fetch == 1'b1) begin
+                      A <= PC;
+                    end else begin
+                      A <= TmpAddr;
+                    end
+                  end  // else: !if(XY_State == 2'b00 )
+                end  // case: aXY
+
+                aIOA: begin
+                  if (Mode == 3) begin
+                    // Memory map I/O on GBZ80
+                    A[15:8] <= 8'hFF;
+                  end else if (Mode == 2) begin
+                    // Duplicate I/O address on 8080
+                    A[15:8] <= DI_Reg;
+                  end else begin
+                    A[15:8] <= ACC;
+                  end
+                  A[7:0] <= DI_Reg;
+                end  // case: aIOA
+
+
+                aSP: begin
+                  A <= SP;
+                end
+
+                aBC: begin
+                  if (Mode == 3 && iorq_i == 1'b1) begin
+                    // Memory map I/O on GBZ80
+                    A[15:8] <= 8'hFF;
+                    A[7:0]  <= RegBusC[7:0];
+                  end else begin
+                    A <= RegBusC;
+                  end
+                end  // case: aBC
+
+                aDE: begin
+                  A <= RegBusC;
+                end
+
+                aZI: begin
+                  if (Inc_WZ == 1'b1) begin
+                    A <= TmpAddr + 1;
+                  end else begin
+                    A[15:8] <= DI_Reg;
+                    A[7:0]  <= TmpAddr[7:0];
+                  end
+                end  // case: aZI
+
+                default: begin
+                  A <= PC;
+                end
+              endcase  // case(Set_Addr_To)
+
+            end  // else: !if(mcycle[2] && IntCycle == 1'b1 && IStatus == 2'b10 )
+
+
+            Save_ALU_r <= Save_ALU;
+            ALU_Op_r   <= ALU_Op;
+
+            if (I_CPL == 1'b1) begin
+              // CPL
+              ACC       <= ~ACC;
+              F[Flag_Y] <= ~ACC[5];
+              F[Flag_H] <= 1'b1;
+              F[Flag_X] <= ~ACC[3];
+              F[Flag_N] <= 1'b1;
+            end
+            if (I_CCF == 1'b1) begin
+              // CCF
+              F[Flag_C] <= ~F[Flag_C];
+              F[Flag_Y] <= ACC[5];
+              F[Flag_H] <= F[Flag_C];
+              F[Flag_X] <= ACC[3];
+              F[Flag_N] <= 1'b0;
+            end
+            if (I_SCF == 1'b1) begin
+              // SCF
+              F[Flag_C] <= 1'b1;
+              F[Flag_Y] <= ACC[5];
+              F[Flag_H] <= 1'b0;
+              F[Flag_X] <= ACC[3];
+              F[Flag_N] <= 1'b0;
+            end
+          end  // if (T_Res == 1'b1 )
+
+
+          if (tstate[2] && wait_n == 1'b1) begin
+            if (ISet == 2'b01 && mcycle[6]) begin
+              IR <= dinst;
+            end
+            if (JumpE == 1'b1) begin
+              PC <= PC16;
+            end else if (Inc_PC == 1'b1) begin
+              //PC <=  PC + 1;
+              PC <= PC16;
+            end
+            if (BTR_r == 1'b1) begin
+              //PC <=  PC - 2;
+              PC <= PC16;
+            end
+            if (RstP == 1'b1) begin
+              TmpAddr <= {10'h0, IR[5:3], 3'h0};
+              //TmpAddr <=  (others =>1'b0);
+              //TmpAddr[5:3] <=  IR[5:3];
+            end
+          end
+          if (tstate[3] && mcycle[5]) begin
+            TmpAddr <= SP16;
+          end
+
+          if ((tstate[2] && wait_n == 1'b1) || (tstate[4] && mcycle[0])) begin
+            if (IncDec_16[2:0] == 3'b111) begin
+              SP <= SP16;
+            end
+          end
+
+          if (LDSPHL == 1'b1) begin
+            SP <= RegBusC;
+          end
+          if (ExchangeAF == 1'b1) begin
+            Ap  <= ACC;
+            ACC <= Ap;
+            Fp  <= F;
+            F   <= Fp;
+          end
+          if (ExchangeRS == 1'b1) begin
+            Alternate <= ~Alternate;
+          end
+        end  // else: !if(mcycle  == 3'b001 && tstate(2) == 1'b0 )
+
+
+        if (tstate[3]) begin
+          if (LDZ == 1'b1) begin
+            TmpAddr[7:0] <= DI_Reg;
+          end
+          if (LDW == 1'b1) begin
+            TmpAddr[15:8] <= DI_Reg;
+          end
+
+          if (Special_LD[2] == 1'b1) begin
+            case (Special_LD[1:0])
+              2'b00: begin
+                ACC       <= I;
+                F[Flag_P] <= IntE_FF2;
+                F[Flag_Z] <= (I == 0);
+                F[Flag_S] <= I[7];
+                F[Flag_H] <= 0;
+                F[Flag_N] <= 0;
+              end
+
+              2'b01: begin
+`ifdef TV80_REFRESH
+                ACC <= R;
+`else
+                ACC <= 0;
+`endif
+                F[Flag_P] <= IntE_FF2;
+                F[Flag_Z] <= (I == 0);
+                F[Flag_S] <= I[7];
+                F[Flag_H] <= 0;
+                F[Flag_N] <= 0;
+              end
+
+              2'b10: I <= ACC;
+
+`ifdef TV80_REFRESH
+              default: R <= ACC;
+`else
+              default: ;
+`endif
+            endcase
+          end
+        end  // if (tstate == 3 )
+
+
+        if ((I_DJNZ == 1'b0 && Save_ALU_r == 1'b1) || ALU_Op_r == 4'b1001) begin
+          if (Mode == 3) begin
+            F[6] <= F_Out[6];
+            F[5] <= F_Out[5];
+            F[7] <= F_Out[7];
+            if (PreserveC_r == 1'b0) begin
+              F[4] <= F_Out[4];
+            end
+          end else begin
+            F[7:1] <= F_Out[7:1];
+            if (PreserveC_r == 1'b0) begin
+              F[Flag_C] <= F_Out[0];
+            end
+          end
+        end  // if ((I_DJNZ == 1'b0 && Save_ALU_r == 1'b1) || ALU_Op_r == 4'b1001 )
+
+        if (T_Res == 1'b1 && I_INRC == 1'b1) begin
+          F[Flag_H] <= 1'b0;
+          F[Flag_N] <= 1'b0;
+          if (DI_Reg[7:0] == 8'b00000000) begin
+            F[Flag_Z] <= 1'b1;
+          end else begin
+            F[Flag_Z] <= 1'b0;
+          end
+          F[Flag_S] <= DI_Reg[7];
+          F[Flag_P] <= ~(^DI_Reg[7:0]);
+        end  // if (T_Res == 1'b1 && I_INRC == 1'b1 )
+
+
+        if (tstate[1] && Auto_Wait_t1 == 1'b0) begin
+          dout <= BusB;
+          if (I_RLD == 1'b1) begin
+            dout[3:0] <= BusA[3:0];
+            dout[7:4] <= BusB[3:0];
+          end
+          if (I_RRD == 1'b1) begin
+            dout[3:0] <= BusB[7:4];
+            dout[7:4] <= BusA[3:0];
+          end
+        end
+
+        if (T_Res == 1'b1) begin
+          Read_To_Reg_r[3:0] <= Set_BusA_To;
+          Read_To_Reg_r[4]   <= Read_To_Reg;
+          if (Read_To_Acc == 1'b1) begin
+            Read_To_Reg_r[3:0] <= 4'b0111;
+            Read_To_Reg_r[4]   <= 1'b1;
+          end
+        end
+
+        if (tstate[1] && I_BT == 1'b1) begin
+          F[Flag_X] <= ALU_Q[3];
+          F[Flag_Y] <= ALU_Q[1];
+          F[Flag_H] <= 1'b0;
+          F[Flag_N] <= 1'b0;
+        end
+        if (I_BC == 1'b1 || I_BT == 1'b1) begin
+          F[Flag_P] <= IncDecZ;
+        end
+
+        if ((tstate[1] && Save_ALU_r == 1'b0 && Auto_Wait_t1 == 1'b0) ||
+                  (Save_ALU_r == 1'b1 && ALU_Op_r != 4'b0111) ) 
+                begin
+          case (Read_To_Reg_r)
+            5'b10111: ACC <= Save_Mux;
+            5'b10110: dout <= Save_Mux;
+            5'b11000: SP[7:0] <= Save_Mux;
+            5'b11001: SP[15:8] <= Save_Mux;
+            5'b11011: F <= Save_Mux;
+            default:  ;
+          endcase
+        end  // if ((tstate == 1 && Save_ALU_r == 1'b0 && Auto_Wait_t1 == 1'b0) ||...              
+      end  // if (ClkEn == 1'b1 )         
+    end  // else: !if(reset_n == 1'b0 )
   end
-
-
   assign auto_ss_out[219+:16] = A;
   assign auto_ss_out[25+:8]   = ACC;
   assign auto_ss_out[206+:4]  = ALU_Op_r;
@@ -3855,38 +3848,31 @@ module tv80_core (  /*AUTOARG*/
   //
   //-----------------------------------------------------------------------
 
-  always @(posedge clk or negedge reset_n) begin
-
-    begin : sync_inputs
-      if (~reset_n) begin
-        BusReq_s <= 1'b0;
-        INT_s    <= 1'b0;
-        NMI_s    <= 1'b0;
-        Oldnmi_n <= 1'b0;
-      end else begin
-        if (cen == 1'b1) begin
-          BusReq_s <= ~busrq_n;
-          INT_s    <= ~int_n;
-          if (NMICycle == 1'b1) begin
-            NMI_s <= 1'b0;
-          end else if (nmi_n == 1'b0 && Oldnmi_n == 1'b1) begin
-            NMI_s <= 1'b1;
-          end
-          Oldnmi_n <= nmi_n;
-        end
-      end
-    end
+  always @(posedge clk or negedge reset_n) begin : sync_inputs
     if (~reset_n) begin
+      BusReq_s <= 1'b0;
+      INT_s    <= 1'b0;
+      NMI_s    <= 1'b0;
+      Oldnmi_n <= 1'b0;
     end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       BusReq_s <= auto_ss_in[166];
       INT_s    <= auto_ss_in[169];
       NMI_s    <= auto_ss_in[168];
       Oldnmi_n <= auto_ss_in[217];
+    end else begin
+      if (cen == 1'b1) begin
+        BusReq_s <= ~busrq_n;
+        INT_s    <= ~int_n;
+        if (NMICycle == 1'b1) begin
+          NMI_s <= 1'b0;
+        end else if (nmi_n == 1'b0 && Oldnmi_n == 1'b1) begin
+          NMI_s <= 1'b1;
+        end
+        Oldnmi_n <= nmi_n;
+      end
     end
   end
-
-
   assign auto_ss_out[166] = BusReq_s;
   assign auto_ss_out[169] = INT_s;
   assign auto_ss_out[168] = NMI_s;
@@ -3901,112 +3887,20 @@ module tv80_core (  /*AUTOARG*/
   //-----------------------------------------------------------------------
 
   always @(posedge clk or negedge reset_n) begin
-
-    begin
-      if (reset_n == 1'b0) begin
-        mcycle       <= 7'b0000001;
-        tstate       <= 7'b0000001;
-        Pre_XY_F_M   <= 3'b000;
-        Halt_FF      <= 1'b0;
-        BusAck       <= 1'b0;
-        NMICycle     <= 1'b0;
-        IntCycle     <= 1'b0;
-        IntE_FF1     <= 1'b0;
-        IntE_FF2     <= 1'b0;
-        No_BTR       <= 1'b0;
-        Auto_Wait_t1 <= 1'b0;
-        Auto_Wait_t2 <= 1'b0;
-        m1_n         <= 1'b1;
-      end else begin
-        if (cen == 1'b1) begin
-          if (T_Res == 1'b1) begin
-            Auto_Wait_t1 <= 1'b0;
-          end else begin
-            Auto_Wait_t1 <= Auto_Wait || (iorq_i & ~Auto_Wait_t2);
-          end
-          Auto_Wait_t2 <= Auto_Wait_t1 & !T_Res;
-          No_BTR <=  (I_BT && (~ IR[4] || ~ F[Flag_P])) ||
-                        (I_BC && (~ IR[4] || F[Flag_Z] || ~ F[Flag_P])) ||
-                        (I_BTR && (~ IR[4] || F[Flag_Z]));
-          if (tstate[2]) begin
-            if (SetEI == 1'b1) begin
-              if (!NMICycle) IntE_FF1 <= 1'b1;
-              IntE_FF2 <= 1'b1;
-            end
-            if (I_RETN == 1'b1) begin
-              IntE_FF1 <= IntE_FF2;
-            end
-          end
-          if (tstate[3]) begin
-            if (SetDI == 1'b1) begin
-              IntE_FF1 <= 1'b0;
-              IntE_FF2 <= 1'b0;
-            end
-          end
-          if (IntCycle == 1'b1 || NMICycle == 1'b1) begin
-            Halt_FF <= 1'b0;
-          end
-          if (mcycle[0] && tstate[2] && wait_n == 1'b1) begin
-            m1_n <= 1'b1;
-          end
-          if (BusReq_s == 1'b1 && BusAck == 1'b1) begin
-          end else begin
-            BusAck <= 1'b0;
-            if (tstate[2] && wait_n == 1'b0) begin
-            end else if (T_Res == 1'b1) begin
-              if (Halt == 1'b1) begin
-                Halt_FF <= 1'b1;
-              end
-              if (BusReq_s == 1'b1) begin
-                BusAck <= 1'b1;
-              end else begin
-                tstate <= 7'b0000010;
-                if (NextIs_XY_Fetch == 1'b1) begin
-                  mcycle     <= 7'b0100000;
-                  Pre_XY_F_M <= mcyc_to_number(mcycle);
-                  if (IR == 8'b00110110 && Mode == 0) begin
-                    Pre_XY_F_M <= 3'b010;
-                  end
-                end else if ((mcycle[6]) || (mcycle[5] && Mode == 1 && ISet != 2'b01)) begin
-                  mcycle <= number_to_bitvec(Pre_XY_F_M + 1);
-                end 
-                          else if ((last_mcycle) ||
-                                   No_BTR == 1'b1 ||
-                                   (mcycle[1] && I_DJNZ == 1'b1 && IncDecZ == 1'b1) ) 
-                            begin
-                  m1_n     <= 1'b0;
-                  mcycle   <= 7'b0000001;
-                  IntCycle <= 1'b0;
-                  NMICycle <= 1'b0;
-                  if (NMI_s == 1'b1 && Prefix == 2'b00) begin
-                    NMICycle <= 1'b1;
-                    IntE_FF1 <= 1'b0;
-                  end 
-                              else if ((IntE_FF1 == 1'b1 && INT_s == 1'b1) && Prefix == 2'b00 && SetEI == 1'b0 ) 
-                                begin
-                    IntCycle <= 1'b1;
-                    IntE_FF1 <= 1'b0;
-                    IntE_FF2 <= 1'b0;
-                  end
-                end else begin
-                  mcycle <= {mcycle[5:0], mcycle[6]};
-                end
-              end
-            end else begin  // verilog has no "nor" operator
-              if ( ~(Auto_Wait == 1'b1 && Auto_Wait_t2 == 1'b0) &&
-                           ~(IOWait == 1 && iorq_i == 1'b1 && Auto_Wait_t1 == 1'b0) ) 
-                        begin
-                tstate <= {tstate[5:0], tstate[6]};
-              end
-            end
-          end
-          if (tstate[0]) begin
-            m1_n <= 1'b0;
-          end
-        end
-      end
-    end
-    if (~reset_n) begin
+    if (reset_n == 1'b0) begin
+      mcycle       <= 7'b0000001;
+      tstate       <= 7'b0000001;
+      Pre_XY_F_M   <= 3'b000;
+      Halt_FF      <= 1'b0;
+      BusAck       <= 1'b0;
+      NMICycle     <= 1'b0;
+      IntCycle     <= 1'b0;
+      IntE_FF1     <= 1'b0;
+      IntE_FF2     <= 1'b0;
+      No_BTR       <= 1'b0;
+      Auto_Wait_t1 <= 1'b0;
+      Auto_Wait_t2 <= 1'b0;
+      m1_n         <= 1'b1;
     end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       Auto_Wait_t1 <= auto_ss_in[180];
@@ -4022,10 +3916,95 @@ module tv80_core (  /*AUTOARG*/
       m1_n         <= auto_ss_in[218];
       mcycle       <= auto_ss_in[156+:7];
       tstate       <= auto_ss_in[149+:7];
+    end else begin
+      if (cen == 1'b1) begin
+        if (T_Res == 1'b1) begin
+          Auto_Wait_t1 <= 1'b0;
+        end else begin
+          Auto_Wait_t1 <= Auto_Wait || (iorq_i & ~Auto_Wait_t2);
+        end
+        Auto_Wait_t2 <= Auto_Wait_t1 & !T_Res;
+        No_BTR <=  (I_BT && (~ IR[4] || ~ F[Flag_P])) ||
+                        (I_BC && (~ IR[4] || F[Flag_Z] || ~ F[Flag_P])) ||
+                        (I_BTR && (~ IR[4] || F[Flag_Z]));
+        if (tstate[2]) begin
+          if (SetEI == 1'b1) begin
+            if (!NMICycle) IntE_FF1 <= 1'b1;
+            IntE_FF2 <= 1'b1;
+          end
+          if (I_RETN == 1'b1) begin
+            IntE_FF1 <= IntE_FF2;
+          end
+        end
+        if (tstate[3]) begin
+          if (SetDI == 1'b1) begin
+            IntE_FF1 <= 1'b0;
+            IntE_FF2 <= 1'b0;
+          end
+        end
+        if (IntCycle == 1'b1 || NMICycle == 1'b1) begin
+          Halt_FF <= 1'b0;
+        end
+        if (mcycle[0] && tstate[2] && wait_n == 1'b1) begin
+          m1_n <= 1'b1;
+        end
+        if (BusReq_s == 1'b1 && BusAck == 1'b1) begin
+        end else begin
+          BusAck <= 1'b0;
+          if (tstate[2] && wait_n == 1'b0) begin
+          end else if (T_Res == 1'b1) begin
+            if (Halt == 1'b1) begin
+              Halt_FF <= 1'b1;
+            end
+            if (BusReq_s == 1'b1) begin
+              BusAck <= 1'b1;
+            end else begin
+              tstate <= 7'b0000010;
+              if (NextIs_XY_Fetch == 1'b1) begin
+                mcycle     <= 7'b0100000;
+                Pre_XY_F_M <= mcyc_to_number(mcycle);
+                if (IR == 8'b00110110 && Mode == 0) begin
+                  Pre_XY_F_M <= 3'b010;
+                end
+              end else if ((mcycle[6]) || (mcycle[5] && Mode == 1 && ISet != 2'b01)) begin
+                mcycle <= number_to_bitvec(Pre_XY_F_M + 1);
+              end 
+                          else if ((last_mcycle) ||
+                                   No_BTR == 1'b1 ||
+                                   (mcycle[1] && I_DJNZ == 1'b1 && IncDecZ == 1'b1) ) 
+                            begin
+                m1_n     <= 1'b0;
+                mcycle   <= 7'b0000001;
+                IntCycle <= 1'b0;
+                NMICycle <= 1'b0;
+                if (NMI_s == 1'b1 && Prefix == 2'b00) begin
+                  NMICycle <= 1'b1;
+                  IntE_FF1 <= 1'b0;
+                end 
+                              else if ((IntE_FF1 == 1'b1 && INT_s == 1'b1) && Prefix == 2'b00 && SetEI == 1'b0 ) 
+                                begin
+                  IntCycle <= 1'b1;
+                  IntE_FF1 <= 1'b0;
+                  IntE_FF2 <= 1'b0;
+                end
+              end else begin
+                mcycle <= {mcycle[5:0], mcycle[6]};
+              end
+            end
+          end else begin  // verilog has no "nor" operator
+            if ( ~(Auto_Wait == 1'b1 && Auto_Wait_t2 == 1'b0) &&
+                           ~(IOWait == 1 && iorq_i == 1'b1 && Auto_Wait_t1 == 1'b0) ) 
+                        begin
+              tstate <= {tstate[5:0], tstate[6]};
+            end
+          end
+        end
+        if (tstate[0]) begin
+          m1_n <= 1'b0;
+        end
+      end
     end
   end
-
-
   assign auto_ss_out[180]    = Auto_Wait_t1;
   assign auto_ss_out[181]    = Auto_Wait_t2;
   assign auto_ss_out[167]    = BusAck;
@@ -4189,57 +4168,12 @@ module tv80s (  /*AUTOARG*/
   );
 
   always @(posedge clk or negedge reset_n) begin
-
-    begin
-      if (!reset_n) begin
-        rd_n   <= 1'b1;
-        wr_n   <= 1'b1;
-        iorq_n <= 1'b1;
-        mreq_n <= 1'b1;
-        di_reg <= 0;
-      end else if (cen) begin
-        rd_n   <= 1'b1;
-        wr_n   <= 1'b1;
-        iorq_n <= 1'b1;
-        mreq_n <= 1'b1;
-        if (mcycle[0]) begin
-          if (tstate[1] || (tstate[2] && wait_n == 1'b0)) begin
-            rd_n   <= ~intcycle_n;
-            mreq_n <= ~intcycle_n;
-            iorq_n <= intcycle_n;
-          end
-`ifdef TV80_REFRESH
-          if (tstate[3]) mreq_n <= 1'b0;
-`endif
-        end // if (mcycle[0])          
-          else
-            begin
-          if ((tstate[1] || (tstate[2] && wait_n == 1'b0)) && no_read == 1'b0 && write == 1'b0)
-                begin
-            rd_n   <= 1'b0;
-            iorq_n <= ~iorq;
-            mreq_n <= iorq;
-          end
-          if (T2Write == 0) begin
-            if (tstate[2] && write == 1'b1) begin
-              wr_n   <= 1'b0;
-              iorq_n <= ~iorq;
-              mreq_n <= iorq;
-            end
-          end else begin
-            if ((tstate[1] || (tstate[2] && wait_n == 1'b0)) && write == 1'b1) begin
-              wr_n   <= 1'b0;
-              iorq_n <= ~iorq;
-              mreq_n <= iorq;
-            end
-          end  // else: !if(T2write == 0)
-
-        end  // else: !if(mcycle[0])
-
-        if (tstate[2] && wait_n == 1'b1 && !write && !no_read) di_reg <= di;
-      end  // else: !if(!reset_n)
-    end
-    if (~reset_n) begin
+    if (!reset_n) begin
+      rd_n   <= 1'b1;
+      wr_n   <= 1'b1;
+      iorq_n <= 1'b1;
+      mreq_n <= 1'b1;
+      di_reg <= 0;
     end else if (auto_ss_wr) begin
       integer auto_ss_idx;
       di_reg <= auto_ss_in[4+:8];
@@ -4247,10 +4181,47 @@ module tv80s (  /*AUTOARG*/
       mreq_n <= auto_ss_in[12];
       rd_n   <= auto_ss_in[14];
       wr_n   <= auto_ss_in[15];
-    end
+    end else if (cen) begin
+      rd_n   <= 1'b1;
+      wr_n   <= 1'b1;
+      iorq_n <= 1'b1;
+      mreq_n <= 1'b1;
+      if (mcycle[0]) begin
+        if (tstate[1] || (tstate[2] && wait_n == 1'b0)) begin
+          rd_n   <= ~intcycle_n;
+          mreq_n <= ~intcycle_n;
+          iorq_n <= intcycle_n;
+        end
+`ifdef TV80_REFRESH
+        if (tstate[3]) mreq_n <= 1'b0;
+`endif
+      end // if (mcycle[0])          
+          else
+            begin
+        if ((tstate[1] || (tstate[2] && wait_n == 1'b0)) && no_read == 1'b0 && write == 1'b0) begin
+          rd_n   <= 1'b0;
+          iorq_n <= ~iorq;
+          mreq_n <= iorq;
+        end
+        if (T2Write == 0) begin
+          if (tstate[2] && write == 1'b1) begin
+            wr_n   <= 1'b0;
+            iorq_n <= ~iorq;
+            mreq_n <= iorq;
+          end
+        end else begin
+          if ((tstate[1] || (tstate[2] && wait_n == 1'b0)) && write == 1'b1) begin
+            wr_n   <= 1'b0;
+            iorq_n <= ~iorq;
+            mreq_n <= iorq;
+          end
+        end  // else: !if(T2write == 0)
+
+      end  // else: !if(mcycle[0])
+
+      if (tstate[2] && wait_n == 1'b1 && !write && !no_read) di_reg <= di;
+    end  // else: !if(!reset_n)
   end
-
-
   assign auto_ss_out[4+:8] = di_reg;
   assign auto_ss_out[13]   = iorq_n;
   assign auto_ss_out[12]   = mreq_n;

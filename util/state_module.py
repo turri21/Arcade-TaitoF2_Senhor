@@ -91,22 +91,32 @@ class Assignment:
         self.syms = sorted(set(syms))
         self.registers = []
         self.always = always
-        self.reset_condition = ""
+        self.reset_signal = None
+        self.reset_polarity = False
 
         for ev in always.iter_find_all({"tag": "kEventExpression"}):
             signal = ev.children[1].text
             if signal.lower() in RESET_SIGNALS:
-                if ev.children[0].text == "negedge":
-                    self.reset_condition += f"if (~{signal}) begin end else "
-                else:
-                    self.reset_condition += f"if ({signal}) begin end else "
+                self.reset_signal = signal
+                self.reset_polarity = ev.children[0].text == "posedge"
 
             
     def modify_tree(self):
         need_generate = False
+
+        add_else = None
+
+        if (self.reset_signal):
+            # FIXME - we are assuming that the first if clause is going to be for reset
+            cond = find_path(self.always, ["kIfClause"])
+            if not self.reset_signal in cond.text:
+                raise Exception(f"Reset without if {cond.text}")
+            add_else = cond
+            
         ctrl = find_path(self.always, ["kProceduralTimingControlStatement", "kEventControl"])
-        add_text_after(ctrl, "begin")
-        wr_str = f"{self.reset_condition}if ({PREFIX}_wr) begin\ninteger {PREFIX}_idx;\n"
+        
+
+        wr_str = f"if ({PREFIX}_wr) begin\ninteger {PREFIX}_idx;\n"
         rd_str = ""
         for r in self.registers:
             if r.unpacked:
@@ -127,12 +137,17 @@ class Assignment:
             else:
                 wr_str += f"{r.name} <= {PREFIX}_in{r.allocated};\n"
                 rd_str += f"assign {PREFIX}_out{r.allocated} = {r.name};\n"
-        wr_str += "end\nend\n"
+        wr_str += "end"
 
         if need_generate:
             rd_str = "generate\n" + rd_str + "\nendgenerate\n"
 
-        add_text_after(ctrl.parent.children[-1], wr_str)
+        if add_else:
+            add_text_after(add_else, "else " + wr_str)
+        else:
+            add_text_after(ctrl, "begin")
+            add_text_after(ctrl.parent.children[-1], wr_str + "\nend\n")
+
         add_text_after(self.always, rd_str)
 
 

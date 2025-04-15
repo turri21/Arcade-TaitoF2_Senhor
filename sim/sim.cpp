@@ -156,25 +156,25 @@ int main(int argc, char **argv)
     tfp = nullptr;
 
 
-    FILE *fp = fopen("./roms/b82_10.ic5", "rb");
+    FILE *fp = fopen("../roms/b82_10.ic5", "rb");
     fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 64 * 1024, fp);
     fclose(fp);
 
-    sdram.load_data("./roms/b82-09.ic23", 1, 2);
-    sdram.load_data("./roms/b82-17.ic11", 0, 2);
+    sdram.load_data("../roms/b82-09.ic23", 1, 2);
+    sdram.load_data("../roms/b82-17.ic11", 0, 2);
 
     //sdram.load_data("b82-09.10", 1, 2);
     //sdram.load_data("b82-17.11", 0, 2);
      
-    sdram.load_data("./roms/b82-07.ic34", 0x200001, 2);
-    sdram.load_data("./roms/b82-06.ic33", 0x200000, 2);
+    sdram.load_data("../roms/b82-07.ic34", 0x200001, 2);
+    sdram.load_data("../roms/b82-06.ic33", 0x200000, 2);
     
-    sdram.load_data("./roms/b82-02.ic1",  0x400000, 1);
-    sdram.load_data("./roms/b82-01.ic2",  0x600000, 1);
+    sdram.load_data("../roms/b82-02.ic1",  0x400000, 1);
+    sdram.load_data("../roms/b82-01.ic2",  0x600000, 1);
 
-    ddr_memory.load_data("./roms/b82-03.ic9", 0x200000, 4);
-    ddr_memory.load_data("./roms/b82-04.ic8", 0x200001, 4);
-    ddr_memory.load_data("./roms/b82-05.ic7", 0x200002, 4);
+    ddr_memory.load_data("../roms/b82-03.ic9", 0x200000, 4);
+    ddr_memory.load_data("../roms/b82-04.ic8", 0x200001, 4);
+    ddr_memory.load_data("../roms/b82-05.ic7", 0x200002, 4);
 
     strcpy(trace_filename, "sim.fst");
 

@@ -10,26 +10,6 @@
 
 #include "palette.h"
 
-void set_color(int index, uint8_t r, uint8_t g, uint8_t b)
-{
-    if (index >= 0x1000) return;
-
-    uint16_t color = ((r >> 3) << 0) | ((g >> 3) << 5) | ((b >> 3) << 10);
-    
-    *TC011PCR_ADDR = index * 2;
-    *TC011PCR_DATA = color;
-}
-
-void set_16color_palette(int index, uint8_t r, uint8_t g, uint8_t b)
-{
-    int color_index = index * 16;
-    set_color(color_index, 0, 0, 0);
-    for( int i = 1; i < 16; i++ )
-    {
-        set_color(color_index + i, r, g, b);
-    }
-}
-
 void set_colors(uint16_t offset, uint16_t count, uint16_t *colors)
 {
     for( uint16_t i = 0; i < count; i++ )
@@ -37,6 +17,7 @@ void set_colors(uint16_t offset, uint16_t count, uint16_t *colors)
         *TC011PCR_ADDR = (offset + i) * 2;
         *TC011PCR_DATA = colors[i];
     }
+    *TC011PCR_WHAT = 0;
 }
 
 volatile uint32_t vblank_count = 0;
@@ -113,7 +94,7 @@ extern char _binary_font_chr_end[];
 
 static uint32_t frame_count;
 
-void init_scn_general()
+void reset_screen()
 {
     memset(TC0100SCN, 0, sizeof(TC0100SCN_Layout));
 
@@ -126,10 +107,15 @@ void init_scn_general()
     TC0100SCN_Ctrl->bg0_y = 0;
     TC0100SCN_Ctrl->bg0_x = 9;
     memcpy(TC0100SCN->fg0_gfx + ( 0x20 * 8 ), _binary_font_chr_start, _binary_font_chr_end - _binary_font_chr_start);
+    
+    memsetw(TC0200OBJ, 0, 0x8000);
 
     set_colors(0, sizeof(finalb_palette) / 2, finalb_palette);
+}
 
-    *TC011PCR_WHAT = 0;
+void init_scn_general()
+{
+    reset_screen();
 
     frame_count = 0;
 
@@ -210,21 +196,7 @@ uint16_t system_flags, layer_flags;
 
 void init_scn_control_access()
 {
-    memset(TC0100SCN, 0, sizeof(TC0100SCN_Layout));
-
-    TC0100SCN_Ctrl->bg1_y = 0;
-    TC0100SCN_Ctrl->bg1_x = 9;
-    TC0100SCN_Ctrl->fg0_y = 0;
-    TC0100SCN_Ctrl->fg0_x = 9;
-    TC0100SCN_Ctrl->system_flags = 0;
-    TC0100SCN_Ctrl->layer_flags = 0;
-    TC0100SCN_Ctrl->bg0_y = 0;
-    TC0100SCN_Ctrl->bg0_x = 9;
-    memcpy(TC0100SCN->fg0_gfx + ( 0x20 * 8 ), _binary_font_chr_start, _binary_font_chr_end - _binary_font_chr_start);
-
-    set_colors(0, sizeof(finalb_palette) / 2, finalb_palette);
-
-    *TC011PCR_WHAT = 0;
+    reset_screen();
 
     frame_count = 0;
     system_flags = 0;
@@ -316,20 +288,7 @@ void update_scn_control_access()
 
 void init_obj_general()
 {
-    memset(TC0100SCN, 0, sizeof(TC0100SCN_Layout));
-
-    TC0100SCN_Ctrl->bg1_y = 0;
-    TC0100SCN_Ctrl->bg1_x = 9;
-    TC0100SCN_Ctrl->fg0_y = 0;
-    TC0100SCN_Ctrl->fg0_x = 9;
-    TC0100SCN_Ctrl->system_flags = 0;
-    TC0100SCN_Ctrl->layer_flags = 0;
-    TC0100SCN_Ctrl->bg0_y = 0;
-    TC0100SCN_Ctrl->bg0_x = 9;
-    memcpy(TC0100SCN->fg0_gfx + ( 0x20 * 8 ), _binary_font_chr_start, _binary_font_chr_end - _binary_font_chr_start);
-
-    set_colors(0, sizeof(finalb_palette) / 2, finalb_palette);
-    *TC011PCR_WHAT = 0;
+    reset_screen();
 
     frame_count = 0;
 }
@@ -426,20 +385,7 @@ void init_sound_test()
     *SYT_ADDR = 4;
     *SYT_DATA = 0;
 
-    memset(TC0100SCN, 0, sizeof(TC0100SCN_Layout));
-
-    TC0100SCN_Ctrl->bg1_y = 0;
-    TC0100SCN_Ctrl->bg1_x = 9;
-    TC0100SCN_Ctrl->fg0_y = 0;
-    TC0100SCN_Ctrl->fg0_x = 9;
-    TC0100SCN_Ctrl->system_flags = 0;
-    TC0100SCN_Ctrl->layer_flags = 0;
-    TC0100SCN_Ctrl->bg0_y = 0;
-    TC0100SCN_Ctrl->bg0_x = 9;
-
-    set_colors(0, sizeof(finalb_palette) / 2, finalb_palette);
-
-    *TC011PCR_WHAT = 0;
+    reset_screen();
 
     wait_vblank();
     wait_vblank();
@@ -492,6 +438,7 @@ void update_sound_test()
     print_at(4, 6, "MESSAGE: %02X", sound_msg);
 }
 
+#define OBJ_TILE_NUMBERS 0x1A4e
 
 void init_screen(int screen)
 {
@@ -527,10 +474,6 @@ void deinit_screen(int screen)
 
 int main(int argc, char *argv[])
 {
-    memsetw(TC0200OBJ, 0, 0x8000);
-
-    //memset(TC0100SCN, 0, sizeof(TC0100SCN_Layout));
-
     enable_interrupts();
 
     uint32_t system_flags = 0;

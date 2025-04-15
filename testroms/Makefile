@@ -81,7 +81,7 @@ $(GAME_DIR):
 
 debug: $(BUILT_BINS)
 	mkdir -p mame
-	cd mame && ../$(MAME) -window -nomaximize -resolution0 640x480 -debug -rompath "$(ROMPATH)" $(GAME)
+	cd mame && ../$(MAME) -window -nomaximize -resolution0 640x480 -debug -debugscript ../debugscript.txt -rompath "$(ROMPATH)" $(GAME)
 
 run: $(BUILT_BINS)
 	mkdir -p mame

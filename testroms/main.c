@@ -90,7 +90,7 @@ uint8_t sine_wave[256] =
 extern char _binary_font_chr_start[];
 extern char _binary_font_chr_end[];
 
-#define NUM_SCREENS 5
+#define NUM_SCREENS 6
 
 static uint32_t frame_count;
 
@@ -453,6 +453,9 @@ typedef struct
     uint16_t inc_y;
     uint16_t latch_x;
     uint16_t latch_y;
+    uint16_t zoom;
+    uint16_t extra;
+
 } GridOptions;
 
 static void obj_grid(int x, int y, const GridOptions *opts, TC0200OBJ_Inst **ptr)
@@ -471,9 +474,9 @@ static void obj_grid(int x, int y, const GridOptions *opts, TC0200OBJ_Inst **ptr
         for( int yy = 0; yy < opts->h; yy++ )
         {
             obj_reset(o);
-            if (idx == 0)
+            if ( opts->extra & bit ) obj_extra_xy(o, x, y);
+            if ( opts->zoom & bit )
             {
-                obj_extra_xy(o, x, y);
                 o->zoom_x = opts->zoom_x;
                 o->zoom_y = opts->zoom_y;
             }
@@ -492,12 +495,12 @@ static void obj_grid(int x, int y, const GridOptions *opts, TC0200OBJ_Inst **ptr
     }
 }
 
-void init_obj_test()
+void init_obj_test1()
 {
     reset_screen();
 }
 
-void update_obj_test()
+void update_obj_test1()
 {
     wait_dma();
 
@@ -511,130 +514,126 @@ void update_obj_test()
   
     GridOptions opt;
     opt.w = 3; opt.h = 3;
+    opt.extra = opt.zoom = 0b100'000'000;
     opt.zoom_x = 0; opt.zoom_y = 0;
-    opt.seq = 0b111'111'110; opt.latch_y = 0b011'011'011; opt.latch_x = 0b000'111'111; opt.inc_x = 0b000'100'100; opt.inc_y = 0b011'011'011;
-   
+
+    // "Standard" way
+    opt.seq = 0b111'111'110;
+    opt.latch_y = 0b011'011'011; opt.inc_y = 0b011'011'011;
+    opt.latch_x = 0b000'111'111; opt.inc_x = 0b000'100'100;   
     obj_grid(10, 10, &opt, &obj_ptr);
 
-    /*
-    // "Standard" way
-    obj_extra_xy(o, 10, 10); o->code = 0x1a4e; o->is_seq = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a4f; o->is_seq = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a50; o->is_seq = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a51; o->is_seq = 1; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a52; o->is_seq = 1; o->latch_x = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a53; o->is_seq = 1; o->latch_x = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a54; o->is_seq = 1; o->latch_x = 1; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a55; o->is_seq = 1; o->latch_x = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a56; o->is_seq = 0; o->latch_x = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-*/
-
     // No sequence flags
-    obj_extra_xy(o, 70, 10); o->code = 0x1a4e; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a4f; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a50; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a51; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a52; o->latch_x = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a53; o->latch_x = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a54; o->latch_x = 1; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a55; o->latch_x = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a56; o->latch_x = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
+    opt.seq = 0b000'000'000;
+    opt.latch_y = 0b011'011'011; opt.inc_y = 0b011'011'011;
+    opt.latch_x = 0b000'111'111; opt.inc_x = 0b000'100'100;   
+    obj_grid(70, 10, &opt, &obj_ptr);
 
     // No inc y flags
-    obj_extra_xy(o, 130, 10); o->code = 0x1a4e; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a4f; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a50; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a51; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a52; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a53; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a54; o->latch_x = 1; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a55; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a56; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
+    opt.seq = 0b000'000'000;
+    opt.latch_y = 0b011'011'011; opt.inc_y = 0b000'000'000;
+    opt.latch_x = 0b000'111'111; opt.inc_x = 0b000'100'100;   
+    obj_grid(130, 10, &opt, &obj_ptr);
 
     // Latch x always flags
-    obj_extra_xy(o, 190, 10); o->code = 0x1a4e; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a4f; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a50; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a51; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a52; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a53; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a54; o->latch_x = 1; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a55; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a56; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
+    opt.seq = 0b000'000'000;
+    opt.latch_y = 0b011'011'011; opt.inc_y = 0b000'000'000;
+    opt.latch_x = 0b011'111'111; opt.inc_x = 0b000'100'100;   
+    obj_grid(190, 10, &opt, &obj_ptr);
 
-    
     obj_master_xy(o, 100, 90); obj_commit_reset(o, &obj_ptr);
 
     // Now with zoom
+    opt.zoom_x = 126; opt.zoom_y = 126;
     // "Standard" way
-    obj_extra_xy(o, 10, 10); o->code = 0x1a4e; o->zoom_x = 128; o->zoom_y = 128; o->is_seq = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a4f; o->is_seq = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a50; o->is_seq = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a51; o->is_seq = 1; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a52; o->is_seq = 1; o->latch_x = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a53; o->is_seq = 1; o->latch_x = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a54; o->is_seq = 1; o->latch_x = 1; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a55; o->is_seq = 1; o->latch_x = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a56; o->is_seq = 0; o->latch_x = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
+    opt.seq = 0b111'111'110;
+    opt.latch_y = 0b011'011'011; opt.inc_y = 0b011'011'011;
+    opt.latch_x = 0b000'111'111; opt.inc_x = 0b000'100'100;   
+    obj_grid(10, 10, &opt, &obj_ptr);
 
     // No sequence flags
-    obj_extra_xy(o, 70, 10); o->code = 0x1a4e; o->zoom_x = 128; o->zoom_y = 128; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a4f; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a50; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a51; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a52; o->latch_x = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a53; o->latch_x = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a54; o->latch_x = 1; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a55; o->latch_x = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a56; o->latch_x = 1; o->latch_y = 1; o->inc_y = 1; obj_commit_reset(o, &obj_ptr);
+    opt.seq = 0b000'000'000;
+    opt.latch_y = 0b011'011'011; opt.inc_y = 0b011'011'011;
+    opt.latch_x = 0b000'111'111; opt.inc_x = 0b000'100'100;   
+    obj_grid(70, 10, &opt, &obj_ptr);
 
     // No inc y flags
-    obj_extra_xy(o, 130, 10); o->code = 0x1a4e; o->zoom_x = 128; o->zoom_y = 128; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a4f; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a50; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a51; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a52; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a53; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a54; o->latch_x = 1; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a55; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a56; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
+    opt.seq = 0b000'000'000;
+    opt.latch_y = 0b011'011'011; opt.inc_y = 0b000'000'000;
+    opt.latch_x = 0b000'111'111; opt.inc_x = 0b000'100'100;   
+    obj_grid(130, 10, &opt, &obj_ptr);
 
     // Latch x always flags
-    obj_extra_xy(o, 190, 10); o->code = 0x1a4e; o->zoom_x = 128; o->zoom_y = 128; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a4f; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a50; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a51; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a52; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a53; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a54; o->latch_x = 1; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a55; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a56; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
+    opt.seq = 0b000'000'000;
+    opt.latch_y = 0b011'011'011; opt.inc_y = 0b000'000'000;
+    opt.latch_x = 0b011'111'111; opt.inc_x = 0b000'100'100;   
+    obj_grid(190, 10, &opt, &obj_ptr);
 
     obj_master_xy(o, 100, 150); obj_commit_reset(o, &obj_ptr);
 
     // Now with zoom and always set seq
     // No inc y flags
-    obj_extra_xy(o, 130, 10); o->code = 0x1a4e; o->is_seq = 1; o->zoom_x = 128; o->zoom_y = 128; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a4f; o->is_seq = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a50; o->is_seq = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a51; o->is_seq = 1; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a52; o->is_seq = 1; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a53; o->is_seq = 1; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a54; o->is_seq = 1; o->latch_x = 1; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a55; o->is_seq = 1; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a56; o->is_seq = 0; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
+    opt.seq = 0b111'111'110;
+    opt.latch_y = 0b011'011'011; opt.inc_y = 0b000'000'000;
+    opt.latch_x = 0b000'111'111; opt.inc_x = 0b000'100'100;   
+    obj_grid(130, 10, &opt, &obj_ptr);
 
     // Latch x always flags
-    obj_extra_xy(o, 190, 10); o->code = 0x1a4e; o->zoom_x = 128; o->zoom_y = 128; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a4f; o->is_seq = 1; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a50; o->is_seq = 1; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a51; o->is_seq = 1; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a52; o->is_seq = 1; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a53; o->is_seq = 1; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a54; o->is_seq = 1; o->latch_x = 1; o->latch_x = 1; o->inc_x = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a55; o->is_seq = 1; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
-    obj_xy(o,   0,   0); o->code = 0x1a56; o->is_seq = 0; o->latch_x = 1; o->latch_y = 1; obj_commit_reset(o, &obj_ptr);
+    opt.seq = 0b111'111'110;
+    opt.latch_y = 0b011'011'011; opt.inc_y = 0b000'000'000;
+    opt.latch_x = 0b011'111'111; opt.inc_x = 0b000'100'100;   
+    obj_grid(190, 10, &opt, &obj_ptr);
 }
+
+void init_obj_test2()
+{
+    reset_screen();
+}
+
+void update_obj_test2()
+{
+    wait_dma();
+
+    TC0200OBJ_Inst *obj_ptr = TC0200OBJ;
+    TC0200OBJ_Inst work;
+    TC0200OBJ_Inst *o = &work;
+
+    obj_reset(o);
+    obj_cmd_6bpp(o); obj_commit_reset(o, &obj_ptr);
+    obj_master_xy(o, 100, 30); obj_commit_reset(o, &obj_ptr);
+
+    GridOptions opt;
+    opt.w = 3; opt.h = 3;
+    opt.zoom_x = 0; opt.zoom_y = 0;
+    opt.zoom = 0b100'000'000;
+    opt.extra = 0b100'000'000;
+
+    opt.seq = 0b111'111'110;
+    opt.latch_y = 0b011'111'111; opt.inc_y = 0b011'111'111;
+    opt.latch_x = 0b011'000'100; opt.inc_x = 0b011'111'001;   
+    obj_grid(10, 10, &opt, &obj_ptr);
+
+    opt.seq = 0b000'000'000;
+    opt.latch_y = 0b111'011'011; opt.inc_y = 0b111'011'011;
+    opt.latch_x = 0b000'111'111; opt.inc_x = 0b000'100'100;   
+    obj_grid(70, 10, &opt, &obj_ptr);
+
+    obj_master_xy(o, 300, 30); obj_commit_reset(o, &obj_ptr);
+    obj_extra_xy(o, 0, 0); obj_commit_reset(o, &obj_ptr);
+
+    opt.extra = 0b010'000'000;
+    opt.seq = 0b000'000'000;
+    opt.latch_y = 0b011'011'011; opt.inc_y = 0b000'000'000;
+    opt.latch_x = 0b001'111'111; opt.inc_x = 0b000'100'100;   
+    obj_grid(20, 20, &opt, &obj_ptr);
+/*
+    opt.seq = 0b000'000'000;
+    opt.latch_y = 0b011'011'011; opt.inc_y = 0b000'000'000;
+    opt.latch_x = 0b011'111'111; opt.inc_x = 0b000'100'100;   
+    obj_grid(190, 10, &opt, &obj_ptr);
+*/
+}
+
 
 void init_screen(int screen)
 {
@@ -643,8 +642,9 @@ void init_screen(int screen)
         case 0: init_scn_general(); break;
         case 1: init_scn_control_access(); break;
         case 2: init_obj_general(); break;
-        case 3: init_obj_test(); break;
-        case 4: init_sound_test(); break;
+        case 3: init_obj_test1(); break;
+        case 4: init_obj_test2(); break;
+        case 5: init_sound_test(); break;
         default: break;
     }
 }
@@ -656,8 +656,9 @@ void update_screen(int screen)
         case 0: update_scn_general(); break;
         case 1: update_scn_control_access(); break;
         case 2: update_obj_general(); break;
-        case 3: update_obj_test(); break;
-        case 4: update_sound_test(); break;
+        case 3: update_obj_test1(); break;
+        case 4: update_obj_test2(); break;
+        case 5: update_sound_test(); break;
         default: break;
     }
 }

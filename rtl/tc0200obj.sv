@@ -295,21 +295,21 @@ always @(posedge clk) begin
             base_y = inst_y_coord + (inst_use_scroll ? ( master_y + (inst_use_extra ? extra_y : 12'd0) ) : 12'd0);
 
             if (inst_latch_extra) begin
-                extra_x <= base_x;
-                extra_y <= base_y;
+                extra_x <= inst_x_coord;
+                extra_y <= inst_y_coord;
             end
 
             if (inst_latch_master) begin
-                master_x <= base_x;
-                master_y <= base_y;
+                master_x <= inst_x_coord;
+                master_y <= inst_y_coord;
             end
 
             if (inst_use_latch_y) begin
-                latch_y <= latch_y + {7'd0, inst_inc_y, 4'd0};
+                latch_y <= latch_y + {7'd0, 1'b1, 4'd0};
             end else begin
-                latch_y <= base_y + {7'd0, inst_inc_y, 4'd0};
+                latch_y <= base_y;
             end
-            if (inst_use_latch_x) begin
+            if (inst_use_latch_x | inst_inc_x) begin
                 latch_x <= latch_x + {7'd0, inst_inc_x, 4'd0};
             end else begin
                 latch_x <= base_x + {7'd0, inst_inc_x, 4'd0};

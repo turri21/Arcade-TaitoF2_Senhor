@@ -8,6 +8,7 @@ MISTER_HOSTNAME=mister-dev
 
 TARGET = finalb_test
 SRCS = init.c main.c interrupts_default.c comms.c tilemap.c input.c printf/printf.c
+SRCS += obj_test.c
 CHR = font.chr 
 ASM = 
 

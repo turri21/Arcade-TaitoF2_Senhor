@@ -1,7 +1,8 @@
 ; Neo-Geo freemlib Sound Driver RAM (edited for the 240p test Suite)
 ;==============================================================================;
 ; Usable RAM exists from 0xF800 to 0xFFFF.
-    org $F800
+    dsect
+    org $C000
 ;==============================================================================;
 ; <Sound Driver Section>
 ;==============================================================================;
@@ -41,3 +42,4 @@ intPCMB_Loop        ds 1        ; loop B
 
 usedRAM:
 
+    dend

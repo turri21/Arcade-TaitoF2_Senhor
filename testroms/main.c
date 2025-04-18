@@ -425,9 +425,9 @@ void update_sound_test()
     if (status & 0x4)
     {
         *SYT_ADDR = 0;
-        sound_msg = *SYT_DATA;
+        sound_msg = (*SYT_DATA << 4);
         *SYT_ADDR = 1;
-        sound_msg |= (*SYT_DATA << 4);
+        sound_msg |= *SYT_DATA;
     }
 
 
@@ -690,14 +690,6 @@ int main(int argc, char *argv[])
             deinit_screen(current_screen);
             current_screen = ( current_screen + 1 ) % NUM_SCREENS;
             init_screen(current_screen);
-        }
-
-        if (input_pressed(BTN1))
-        {
-            *SYT_ADDR = 0;
-            *SYT_DATA = 1;
-            *SYT_ADDR = 1;
-            *SYT_DATA = 1;
         }
 
         update_screen(current_screen);

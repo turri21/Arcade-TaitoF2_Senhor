@@ -10,6 +10,17 @@
 writeDEportA    = $08
 writeDEportB    = $18
 waitYamaha      = $28
+
+; MIO addresses
+ym0Addr = $E000
+ym0Data = $E001
+ym1Addr = $E002
+ym1Data = $E003
+
+sytMode = $E200
+sytData = $E201
+
+
 ;------------------------------------------------------------------------------;
     org $0000
 Start:
@@ -26,11 +37,11 @@ Start:
 ;--------------------------------------------------------------------------;
 ; Writes data (from registers de) to port A (4 and 5, YM2610 A1 line=0)
     push    af
-    ld      a,d
-    out     (4),a           ; write to port 4 (address 1)
+    ld      a, d
+    ld      (ym0Addr), a
     rst     waitYamaha      ; wait for busy flag
-    ld      a,e
-    out     (5),a           ; write to port 5 (data 1)
+    ld      a, e
+    ld      (ym0Data), a
     rst     waitYamaha      ; wait for busy flag
     pop     af
     ret
@@ -42,11 +53,11 @@ Start:
 ;--------------------------------------------------------------------------;
 ; Writes data (from registers de) to port B (6 and 7, YM2610 A1 line=1)
     push    af
-    ld      a,d
-    out     (6),a           ; write to port 6 (address 2)
-    rst     waitYamaha      ; wait for busy flag
-    ld      a,e
-    out     (7),a           ; write to port 7 (data 2)
+    ld      a, d
+    ld      (ym1Addr), a
+    rst     waitYamaha ; wait for busy flag
+    ld      a, e
+    ld      (ym1Data), a
     rst     waitYamaha      ; wait for busy flag
     pop     af
     ret
@@ -58,7 +69,7 @@ Start:
 ;--------------------------------------------------------------------------;
 ; Keep checking the busy flag in Status 0 until it's clear.
 checkLoop:
-    in      a,(4)           ; read Status 0 (busy flag in bit 7)
+    ld      a,(ym0Addr)           ; read Status 0 (busy flag in bit 7)
     add     a
     jr      C,checkLoop
     ret
@@ -121,15 +132,15 @@ endNMI:
 ; The entry point for the sound driver.
 
 EntryPoint:
-    ld      sp,0xFFFC       ; Set stack pointer
+    ld      sp,0xDFFC       ; Set stack pointer
     im      1               ; Set Interrupt Mode 1 (IRQ at $38)
     xor     a               ; make value in A = 0
 
     ; Clear RAM at $F800-$FFFF
-    ld      (0xF800),a      ; set $F800 = 0
-    ld      hl,0xF800       ; 00 value is at $F800
-    ld      de,0xF801       ; write sequence begins at $F801
-    ld      bc,0x7FF        ; end at $FFFF
+    ld      (0xC000),a      ; set $F800 = 0
+    ld      hl,0xC000       ; 00 value is at $F800
+    ld      de,0xC001       ; write sequence begins at $F801
+    ld      bc,0x0FFF       ; end at $FFFF
     ldir                    ; clear out memory
 
     ;-------------------------------------------;
@@ -163,9 +174,18 @@ EntryPoint:
     call    command_PCMBStop
 
     ;-------------------------------------------;
-    ; write 1 to port $C0
-    ld      a,1
-    out     (0xC0),a
+    ; disable NMI
+    ld a, 5
+    ld (sytMode), a
+    ld (sytData), a
+
+    ; write 33
+    ld a, 0
+    ld (sytMode), a
+    ld a, 3
+    ld (sytData), a
+    ld a, 1
+    ld (sytData), a
 
     ; continue setting up the hardware, etc.
     ld      de,0x2730       ; Reset Timer flags, Disable Timer IRQs
@@ -176,7 +196,7 @@ EntryPoint:
     rst     writeDEportA    ; write to ports 4 and 5
 
     ; Initialize more variables
-    call    SetDefaultBanks ; Set default program banks
+    ;call    SetDefaultBanks ; Set default program banks
 
     ;-------------------------------------------;
     ; disable LFO
@@ -212,18 +232,78 @@ EntryPoint:
     ld      de,0x1A65       ; Set ADPCM-B Sampling Rate LSB
     rst     writeDEportA    ; write to ports 4 and 5
 
-    ;-------------------------------------------;
-    ; Enable NMIs so we can start receiving commands
-    ld      a,1
-    out     (8),a           ; Write to Port 8 (Enable NMI)
     ei                      ; was set at Startup
+
+    jp MainLoop
+
+
+; Byte in A
+readSYT:
+    push de
+    ld a, 0
+    ld (sytMode), a
+    ld a, (sytData)
+    sla a
+    sla a
+    sla a
+    sla a
+    ld d, a
+    ld a, (sytData)
+    and 0x0f
+    or d
+    pop de
+    ret
+
+; Byte in A
+writeSYT:
+    push de
+    push af
+
+    ld d, a
+    ld a, 0
+    ld (sytMode), a
+    ld a, d
+    rra
+    rra
+    rra
+    rra
+    ld (sytData), a
+    ld a, d
+    ld (sytData), a
+    pop af
+    pop de
+    ret
+
 
 ;==============================================================================;
 ; MainLoop
 ;==============================================================================;
-; Nothing here; everything is handled via NMI and IRQ
+
 
 MainLoop:
+    ld a, 4
+    ld (sytMode), a
+    ld a, (sytData) ; read status
+    rra
+    jr nc,MainLoop ; nothing
+
+    ; read byte
+    call readSYT
+    ld      b,a             ; make a copy
+    ld      a,0xff          ; set processing code
+    call    writeSYT         ; Write to port 0 (Processing sound code)
+    ld      a,b             ; set a for comparisons
+    ld      (curCommand),a  ; update curCommand
+
+    or      a               ; check if Command is 0
+    jp      Z,MainLoop        ; exit if Command 0
+
+    call    HandleCommand
+    
+    ld      a,(curCommand)
+    set     7,a             ; set bit 7 for reply, this is OK reply
+    call    writeSYT        ; Reply to 68K
+
     jp      MainLoop
 
 ;------------------------------------------------------------------------------;
@@ -2125,3 +2205,7 @@ FM_table_6:
 ;==============================================================================;
 ; Z80 ram
     include "soundram.inc"
+
+;==============================================================================;
+; Pad out to 16kb
+    org $4000

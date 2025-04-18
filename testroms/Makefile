@@ -4,7 +4,9 @@ OBJDUMP = m68k-elf-objdump
 MAME = ../util/taito_mame
 PYTHON = uv --project ../util run
 SPLIT_ROM = $(PYTHON) ../util/split_rom.py
+VASM = ../util/vasmz80_oldstyle
 MISTER_HOSTNAME=mister-dev
+
 
 TARGET = finalb_test
 SRCS = init.c main.c interrupts_default.c comms.c tilemap.c input.c printf/printf.c
@@ -32,15 +34,16 @@ LDFLAGS = -march=68000 -static -nostdlib -g
 
 ifeq ($(TARGET),finalb_test)
 GAME = finalb
-CPU_ROM_LOW = b82-09.ic23
-CPU_ROM_HIGH = b82-17.ic11
-CPU_ROM_SIZE = 0x40000
+CPU_ROM_LOW   = b82-09.ic23
+CPU_ROM_HIGH  = b82-17.ic11
+AUDIO_CPU_ROM = b82_10.ic5
+CPU_ROM_SIZE  = 0x40000
 else
 error
 endif
 
 GAME_DIR = $(BUILD_DIR)/$(GAME)
-BUILT_BINS = $(addprefix $(GAME_DIR)/, $(CPU_ROM_LOW) $(CPU_ROM_HIGH))
+BUILT_BINS = $(addprefix $(GAME_DIR)/, $(CPU_ROM_LOW) $(CPU_ROM_HIGH) $(AUDIO_CPU_ROM))
 
 ROMPATH = ../$(BUILD_DIR);../$(ROM_DIR)
 
@@ -54,6 +57,9 @@ $(GAME_DIR)/$(CPU_ROM_HIGH): $(BUILD_DIR)/cpu.bin | $(GAME_DIR)
 
 $(GAME_DIR)/$(CPU_ROM_LOW): $(BUILD_DIR)/cpu.bin | $(GAME_DIR)
 	$(SPLIT_ROM) $@ $< 2 0 $(CPU_ROM_SIZE)
+
+$(GAME_DIR)/$(AUDIO_CPU_ROM): artemio/sound.asm | $(GAME_DIR)
+	$(VASM) -Fbin -nosym -chklabels -o $@ $<
 
 
 $(BUILD_DIR)/%.o: %.c $(GLOBAL_DEPS) | $(BUILD_DIRS)

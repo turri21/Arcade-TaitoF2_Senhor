@@ -37,6 +37,16 @@ def format_output(s: str) -> str:
         check=True)
     return proc.stdout
 
+def preprocess_inputs(paths: List[str]) -> str:
+    res = []
+    for p in paths:
+        proc = subprocess.run(["verible-verilog-preprocessor", "preprocess", "+define+USE_AUTO_SS=1", p ],
+            stdout=subprocess.PIPE,
+            encoding="utf-8",
+            check=True)
+        res.append(proc.stdout)
+
+    return '\n'.join(res)
 
 def output_file(fp, node):
     begin = None
@@ -529,7 +539,7 @@ def resolve_modules(root: str, modules: List[Module]) -> Module:
     return name_map[root]
 
 
-def process_file_data(path: str, data: verible_verilog_syntax.SyntaxData) -> List[Module]:
+def process_file_data(data: verible_verilog_syntax.SyntaxData) -> List[Module]:
     if not data.tree:
         return
 
@@ -556,11 +566,9 @@ def main():
         out_fp = open(output_name, "wt")
 
     parser = verible_verilog_syntax.VeribleVerilogSyntax(executable="verible-verilog-syntax")
-    data = parser.parse_files(files)
-
-    modules = []
-    for file_path, file_data in data.items():
-        modules.extend(process_file_data(file_path, file_data))
+    preprocessed = preprocess_inputs(files)
+    data = parser.parse_string(preprocessed)
+    modules = process_file_data(data)
 
     root_module = resolve_modules(root_module_name, modules)
 

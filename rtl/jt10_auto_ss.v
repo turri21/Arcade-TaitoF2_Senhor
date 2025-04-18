@@ -106,9 +106,7 @@ module jt12_div (
     endcase  // div_setting
   end
 
-`ifdef SIMULATION
-  initial clk_en_666 = 1'b0;
-`endif
+
 
   reg       cen_55_int;
   reg [1:0] div2 = 2'b0;
@@ -120,21 +118,14 @@ module jt12_div (
       cen_adpcm_int  <= adpcm_cnt666 == 5'd0;
       cen_adpcm3_int <= adpcm_cnt111 == 3'd0;
       cen_55_int     <= adpcm_cnt55 == 3'd0;
-`ifdef FASTDIV
-      // always enabled for fast sims (use with GYM output, the timers will not work well)
-      clk_en     <= 1'b1;
-      clk_en_2   <= 1'b1;
-      clk_en_ssg <= 1'b1;
-      clk_en_666 <= 1'b1;
-      clk_en_55  <= 1'b1;
-`else
-      clk_en     <= cen & cen_int;
-      clk_en_2   <= cen && (div2 == 2'b00);
-      clk_en_ssg <= use_ssg ? (cen & cen_ssg_int) : 1'b0;
-      clk_en_666 <= cen & cen_adpcm_int;
-      clk_en_111 <= cen & cen_adpcm_int & cen_adpcm3_int;
-      clk_en_55  <= cen & cen_adpcm_int & cen_adpcm3_int & cen_55_int;
-`endif
+
+      clk_en         <= cen & cen_int;
+      clk_en_2       <= cen && (div2 == 2'b00);
+      clk_en_ssg     <= use_ssg ? (cen & cen_ssg_int) : 1'b0;
+      clk_en_666     <= cen & cen_adpcm_int;
+      clk_en_111     <= cen & cen_adpcm_int & cen_adpcm3_int;
+      clk_en_55      <= cen & cen_adpcm_int & cen_adpcm3_int & cen_55_int;
+
     end
     if (auto_ss_wr) begin
       integer auto_ss_idx;
@@ -282,14 +273,16 @@ module jt12_sh_rst #(
               stages = 32,
               rstval = 1'b0
 ) (
+
+    input  [width*stages-1:0] auto_ss_in,
+    output [width*stages-1:0] auto_ss_out,
+    input                     auto_ss_wr,
+    // USE_AUTO_SS
     input                     rst,
     input                     clk,
     input                     clk_en  /* synthesis direct_enable */,
     input  [       width-1:0] din,
-    output [       width-1:0] drop,
-    input  [width*stages-1:0] auto_ss_in,
-    output [width*stages-1:0] auto_ss_out,
-    input                     auto_ss_wr
+    output [       width-1:0] drop
 
 );
 
@@ -303,12 +296,16 @@ module jt12_sh_rst #(
         if (clk_en) begin
           bits[i] <= {bits[i][stages-2:0], din_mx[i]};
         end
+
         if (auto_ss_wr) begin
           bits[i] <= auto_ss_in[stages*i+:stages];
         end
+
       end
       assign drop[i]                       = bits[i][stages-1];
+
       assign auto_ss_out[stages*i+:stages] = bits[i];
+
     end
   endgenerate
 
@@ -1042,20 +1039,7 @@ module jt12_reg (
   reg [2:0] next_ch;
   reg       last;
 
-`ifdef SIMULATION
-  // These signals need to operate during rst
-  // initial state is not relevant (or critical) in real life
-  // but we need a clear value during simulation
-  // This does not work with NCVERILOG
-  initial begin
-    cur_op  = 2'd0;
-    cur_ch  = 3'd0;
-    next_op = 2'd0;
-    next_ch = 3'd1;
-    last    = 1'b0;
-    zero    = 1'b1;
-  end
-`endif
+
 
   assign s1_enters = cur_op == 2'b00;
   assign s3_enters = cur_op == 2'b01;
@@ -1176,7 +1160,7 @@ module jt12_reg (
 
 
 
-`ifndef NOFM
+
   jt12_kon #(
       .num_ch(num_ch)
   ) u_kon (
@@ -1333,7 +1317,7 @@ module jt12_reg (
 
   );
 
-`endif
+
 endmodule
 
 
@@ -1523,16 +1507,9 @@ reg     irq_zero_en, irq_brdy_en, irq_eos_en,
     end
   endgenerate
 
-  reg part;
+  reg        part;
 
-`ifdef SIMULATION
-  always @(posedge clk)
-    if (write && rst) begin
-      $display(
-          "WARNING [JT12]: detected write request while in reset.\nThis is likely a glue-logic error in the CPU-FM module.");
-      $finish;
-    end
-`endif
+
 
   wire [2:0] ch_sel = {part, selected_register[1:0]};
 
@@ -1641,10 +1618,10 @@ reg     irq_zero_en, irq_brdy_en, irq_eos_en,
                   csm <= din[7:6] == 2'b10;
                   {clr_flag_B, clr_flag_A, enable_irq_B, enable_irq_A, load_B, load_A} <= din[5:0];
                 end
-`ifndef NOLFO
-                REG_LFO:   {lfo_en, lfo_freq} <= din[3:0];
-`endif
-                default:   ;
+
+                REG_LFO: {lfo_en, lfo_freq} <= din[3:0];
+
+                default: ;
               endcase
             end
 
@@ -3090,13 +3067,16 @@ module jt12_sh #(
     parameter width  = 5,
               stages = 24
 ) (
-    input                       clk,
-    input                       clk_en  /* synthesis direct_enable */,
-    input  [         width-1:0] din,
-    output [         width-1:0] drop,
+
     input  [stages*width - 1:0] auto_ss_in,
     input                       auto_ss_wr,
-    output [stages*width - 1:0] auto_ss_out
+    output [stages*width - 1:0] auto_ss_out,
+    // USE_AUTO_SS
+
+    input              clk,
+    input              clk_en  /* synthesis direct_enable */,
+    input  [width-1:0] din,
+    output [width-1:0] drop
 );
 
   reg [stages-1:0] bits[width-1:0];
@@ -3108,12 +3088,18 @@ module jt12_sh #(
         if (clk_en) begin
           bits[i] <= {bits[i][stages-2:0], din[i]};
         end
+
+
         if (auto_ss_wr) begin
           bits[i] <= auto_ss_in[i*stages+:stages];
         end
+
       end
       assign drop[i]                       = bits[i][stages-1];
+
+
       assign auto_ss_out[i*stages+:stages] = bits[i];
+
     end
   endgenerate
 
@@ -4335,65 +4321,7 @@ module jt12_op (
 
 
 
-`ifdef SIMULATION
-  reg signed [13:0] op_sep2_0;
-  reg signed [13:0] op_sep4_0;
-  reg signed [13:0] op_sep5_0;
-  reg signed [13:0] op_sep6_0;
-  reg signed [13:0] op_sep0_0;
-  reg signed [13:0] op_sep1_0;
-  reg signed [13:0] op_sep2_1;
-  reg signed [13:0] op_sep4_1;
-  reg signed [13:0] op_sep5_1;
-  reg signed [13:0] op_sep6_1;
-  reg signed [13:0] op_sep0_1;
-  reg signed [13:0] op_sep1_1;
-  reg signed [13:0] op_sep2_2;
-  reg signed [13:0] op_sep4_2;
-  reg signed [13:0] op_sep5_2;
-  reg signed [13:0] op_sep6_2;
-  reg signed [13:0] op_sep0_2;
-  reg signed [13:0] op_sep1_2;
-  reg signed [13:0] op_sep2_3;
-  reg signed [13:0] op_sep4_3;
-  reg signed [13:0] op_sep5_3;
-  reg signed [13:0] op_sep6_3;
-  reg signed [13:0] op_sep0_3;
-  reg signed [13:0] op_sep1_3;
-  reg        [ 4:0] sepcnt;
 
-  always @(posedge clk)
-    if (clk_en) begin
-      sepcnt <= zero ? 5'd0 : sepcnt + 5'd1;
-      case ((sepcnt + 14) % 24)
-        0:  op_sep0_0 <= op_XII;
-        1:  op_sep1_0 <= op_XII;
-        2:  op_sep2_0 <= op_XII;
-        3:  op_sep4_0 <= op_XII;
-        4:  op_sep5_0 <= op_XII;
-        5:  op_sep6_0 <= op_XII;
-        6:  op_sep0_2 <= op_XII;
-        7:  op_sep1_2 <= op_XII;
-        8:  op_sep2_2 <= op_XII;
-        9:  op_sep4_2 <= op_XII;
-        10: op_sep5_2 <= op_XII;
-        11: op_sep6_2 <= op_XII;
-        12: op_sep0_1 <= op_XII;
-        13: op_sep1_1 <= op_XII;
-        14: op_sep2_1 <= op_XII;
-        15: op_sep4_1 <= op_XII;
-        16: op_sep5_1 <= op_XII;
-        17: op_sep6_1 <= op_XII;
-        18: op_sep0_3 <= op_XII;
-        19: op_sep1_3 <= op_XII;
-        20: op_sep2_3 <= op_XII;
-        21: op_sep4_3 <= op_XII;
-        22: op_sep5_3 <= op_XII;
-        23: op_sep6_3 <= op_XII;
-      endcase
-    end
-
-`endif
 
 endmodule
 
@@ -4542,12 +4470,10 @@ module jt10_adpcm_cnt (
 
 
 
-`ifdef SIMULATION
-  wire [11:0] addr1_cmp = addr1[20:9];
-`endif
 
-  assign start_top = {bank1, start1};
-  assign end_top   = {bank1, end1};
+
+  assign start_top           = {bank1, start1};
+  assign end_top             = {bank1, end1};
 
   reg [5:0] addr_ch_dec;
 
@@ -5936,128 +5862,7 @@ end
   );
 
 
-`ifdef SIMULATION
-  integer fch0, fch1, fch2, fch3, fch4, fch5;
-  initial begin
-    fch0 = $fopen("ch0.dec", "w");
-    fch1 = $fopen("ch1.dec", "w");
-    fch2 = $fopen("ch2.dec", "w");
-    fch3 = $fopen("ch3.dec", "w");
-    fch4 = $fopen("ch4.dec", "w");
-    fch5 = $fopen("ch5.dec", "w");
-  end
 
-  reg signed [15:0] pcm_ch0, pcm_ch1, pcm_ch2, pcm_ch3, pcm_ch4, pcm_ch5;
-  always @(posedge cen6)
-    if (en_ch[0]) begin
-      if (cur_ch[0]) begin
-        pcm_ch0 <= pcmdec;
-        $fwrite(fch0, "%d\n", pcmdec);
-      end
-      if (cur_ch[1]) begin
-        pcm_ch1 <= pcmdec;
-        $fwrite(fch1, "%d\n", pcmdec);
-      end
-      if (cur_ch[2]) begin
-        pcm_ch2 <= pcmdec;
-        $fwrite(fch2, "%d\n", pcmdec);
-      end
-      if (cur_ch[3]) begin
-        pcm_ch3 <= pcmdec;
-        $fwrite(fch3, "%d\n", pcmdec);
-      end
-      if (cur_ch[4]) begin
-        pcm_ch4 <= pcmdec;
-        $fwrite(fch4, "%d\n", pcmdec);
-      end
-      if (cur_ch[5]) begin
-        pcm_ch5 <= pcmdec;
-        $fwrite(fch5, "%d\n", pcmdec);
-      end
-    end
-
-  reg [15:0] sim_start0, sim_start1, sim_start2, sim_start3, sim_start4, sim_start5;
-  reg [15:0] sim_end0, sim_end1, sim_end2, sim_end3, sim_end4, sim_end5;
-  reg [7:0] sim_lracl0, sim_lracl1, sim_lracl2, sim_lracl3, sim_lracl4, sim_lracl5;
-  /*
-reg div3b;
-reg [2:0] chframe;
-always @(posedge clk) div3b<=div3;
-always @(negedge div3b) chframe <= chfast;
-
-
-reg [7:0] aon_cpy, aon_cpy2;
-always @(posedge clk) begin
-    aon_cpy<=aon_cmd; // This prevents a Verilator circular-logic warning 
-    aon_cpy2 <= aon_cmd;
-end
-
-always @(posedge aon_cpy[0]) if(!aon_cpy2[7]) $display("INFO: ADPCM-A ON 0 - %X",sim_start0);
-always @(posedge aon_cpy[1]) if(!aon_cpy2[7]) $display("INFO: ADPCM-A ON 1 - %X",sim_start1);
-always @(posedge aon_cpy[2]) if(!aon_cpy2[7]) $display("INFO: ADPCM-A ON 2 - %X",sim_start2);
-always @(posedge aon_cpy[3]) if(!aon_cpy2[7]) $display("INFO: ADPCM-A ON 3 - %X",sim_start3);
-always @(posedge aon_cpy[4]) if(!aon_cpy2[7]) $display("INFO: ADPCM-A ON 4 - %X",sim_start4);
-always @(posedge aon_cpy[5]) if(!aon_cpy2[7]) $display("INFO: ADPCM-A ON 5 - %X",sim_start5);
-*/
-  always @(posedge cen6)
-    if (up_start)
-      case (up_addr)
-        3'd0: sim_start0 <= addr_in;
-        3'd1: sim_start1 <= addr_in;
-        3'd2: sim_start2 <= addr_in;
-        3'd3: sim_start3 <= addr_in;
-        3'd4: sim_start4 <= addr_in;
-        3'd5: sim_start5 <= addr_in;
-        default: ;
-      endcase  // up_addr
-
-  always @(posedge cen6)
-    if (up_end)
-      case (up_addr)
-        3'd0: sim_end0 <= addr_in;
-        3'd1: sim_end1 <= addr_in;
-        3'd2: sim_end2 <= addr_in;
-        3'd3: sim_end3 <= addr_in;
-        3'd4: sim_end4 <= addr_in;
-        3'd5: sim_end5 <= addr_in;
-        default: ;
-      endcase  // up_addr
-
-  always @(posedge cen6)
-    case (up_lracl)
-      3'd0: sim_lracl0 <= lracl_in;
-      3'd1: sim_lracl1 <= lracl_in;
-      3'd2: sim_lracl2 <= lracl_in;
-      3'd3: sim_lracl3 <= lracl_in;
-      3'd4: sim_lracl4 <= lracl_in;
-      3'd5: sim_lracl5 <= lracl_in;
-      default: ;
-    endcase  // up_addr
-
-  /*
-reg start_error, end_error;
-always @(posedge cen6) begin
-    case(chframe)
-        3'd0: start_error <= start_top != sim_start0;
-        3'd1: start_error <= start_top != sim_start1;
-        3'd2: start_error <= start_top != sim_start2;
-        3'd3: start_error <= start_top != sim_start3;
-        3'd4: start_error <= start_top != sim_start4;
-        3'd5: start_error <= start_top != sim_start5;
-        default:;
-    endcase
-    case(chframe)
-        3'd0: end_error <= end_top != sim_end0;
-        3'd1: end_error <= end_top != sim_end1;
-        3'd2: end_error <= end_top != sim_end2;
-        3'd3: end_error <= end_top != sim_end3;
-        3'd4: end_error <= end_top != sim_end4;
-        3'd5: end_error <= end_top != sim_end5;
-        default:;
-    endcase
-end
-*/
-`endif
 
 endmodule
 
@@ -6713,7 +6518,7 @@ module jt10_adpcm_drvB (
 
   );
 
-`ifndef NOBINTERPOL
+
   jt10_adpcmb_interpol u_interpol (
       .rst_n      (rst_n),
       .clk        (clk),
@@ -6727,9 +6532,7 @@ module jt10_adpcm_drvB (
       .auto_ss_wr (auto_ss_wr)
 
   );
-`else
-  assign pcminter = pcmdec;
-`endif
+
 
   jt10_adpcmb_gain u_gain (
       .rst_n      (rst_n),
@@ -6881,26 +6684,20 @@ module jt10_acc (
       } : begin  // ADPCM-A:
         acc_input_l = (adpcmA_l <<< 2) + (adpcmA_l <<< 1);
         acc_input_r = (adpcmA_r <<< 2) + (adpcmA_r <<< 1);
-`ifndef NOMIX
-        acc_en_l = 1'b1;
-        acc_en_r = 1'b1;
-`else
-        acc_en_l = 1'b0;
-        acc_en_r = 1'b0;
-`endif
+
+        acc_en_l    = 1'b1;
+        acc_en_r    = 1'b1;
+
       end
       {
         2'd0, 3'd4
       } : begin  // ADPCM-B:
         acc_input_l = adpcmB_l >>> 1;  // Operator width is 14 bit, ADPCM-B is 16 bit
         acc_input_r = adpcmB_r >>> 1;  // accumulator width per input channel is 14 bit
-`ifndef NOMIX
-        acc_en_l = 1'b1;
-        acc_en_r = 1'b1;
-`else
-        acc_en_l = 1'b0;
-        acc_en_r = 1'b0;
-`endif
+
+        acc_en_l    = 1'b1;
+        acc_en_r    = 1'b1;
+
       end
       default: begin
         // Note by Jose Tejada:
@@ -6950,40 +6747,7 @@ module jt10_acc (
 
   );
 
-`ifdef SIMULATION
-  // Dump each channel independently
-  // It dumps values in decimal, left and right
-  integer f0, f1, f2, f4, f5, f6;
-  reg signed [15:0] sum_l[0:7], sum_r[0:7];
 
-  initial begin
-    f0 = $fopen("fm0.raw", "w");
-    f1 = $fopen("fm1.raw", "w");
-    f2 = $fopen("fm2.raw", "w");
-    f4 = $fopen("fm4.raw", "w");
-    f5 = $fopen("fm5.raw", "w");
-    f6 = $fopen("fm6.raw", "w");
-  end
-
-  always @(posedge clk) begin
-    if (cur_op == 2'b0) begin
-      sum_l[cur_ch] <= acc_en_l ? acc_input_l : 16'd0;
-      sum_r[cur_ch] <= acc_en_r ? acc_input_r : 16'd0;
-    end else begin
-      sum_l[cur_ch] <= sum_l[cur_ch] + (acc_en_l ? acc_input_l : 16'd0);
-      sum_r[cur_ch] <= sum_r[cur_ch] + (acc_en_r ? acc_input_r : 16'd0);
-    end
-  end
-
-  always @(posedge zero) begin
-    $fwrite(f0, "%d,%d\n", sum_l[0], sum_r[0]);
-    $fwrite(f1, "%d,%d\n", sum_l[1], sum_r[1]);
-    $fwrite(f2, "%d,%d\n", sum_l[2], sum_r[2]);
-    $fwrite(f4, "%d,%d\n", sum_l[4], sum_r[4]);
-    $fwrite(f5, "%d,%d\n", sum_l[5], sum_r[5]);
-    $fwrite(f6, "%d,%d\n", sum_l[6], sum_r[6]);
-  end
-`endif
 
 endmodule
 
@@ -8657,15 +8421,13 @@ module jt12_top (
   generate
     if (use_lfo == 1) begin : gen_lfo
       jt12_lfo u_lfo (
-          .rst        (rst),
-          .clk        (clk),
-          .clk_en     (clk_en),
-          .zero       (zero),
-`ifdef NOLFO
-          .lfo_rst    (1'b1),
-`else
-          .lfo_rst    (1'b0),
-`endif
+          .rst   (rst),
+          .clk   (clk),
+          .clk_en(clk_en),
+          .zero  (zero),
+
+          .lfo_rst(1'b0),
+
           .lfo_en     (lfo_en),
           .lfo_freq   (lfo_freq),
           .lfo_mod    (lfo_mod),
@@ -8681,7 +8443,7 @@ module jt12_top (
 
   // YM2203/YM2610 have a PSG
 
-`ifndef NOSSG
+
   generate
     if (use_ssg == 1) begin : gen_ssg
       jt49 #(
@@ -8731,16 +8493,11 @@ module jt12_top (
       assign IOB_out   = 0;
     end
   endgenerate
-`else
-  assign psg_snd   = 10'd0;
-  assign snd_left  = fm_snd_left;
-  assign snd_right = fm_snd_right;
-  assign psg_dout  = 8'd0;
-`endif
+
 
   wire [ 8:0] op_result;
   wire [13:0] op_result_hd;
-`ifndef NOFM
+
 
   jt12_pg #(
       .num_ch(num_ch)
@@ -8849,10 +8606,7 @@ module jt12_top (
       .auto_ss_wr    (auto_ss_wr)
 
   );
-`else
-  assign op_result    = 'd0;
-  assign op_result_hd = 'd0;
-`endif
+
 
   generate
     if (use_pcm == 1) begin : gen_pcm_acc  // YM2612 accumulator
@@ -8887,7 +8641,7 @@ module jt12_top (
 
       );
 
-`ifndef NOPCMLINEAR
+
       wire signed [10:0] pcm_full;
       always @(*) pcm2 = en_hifi_pcm ? pcm_full[9:1] : pcm;
 
@@ -8907,9 +8661,7 @@ module jt12_top (
           .auto_ss_wr (auto_ss_wr)
 
       );
-`else
-      assign pcm2 = pcm;
-`endif
+
 
       jt12_acc u_acc (
           .rst        (rst),
@@ -8965,16 +8717,7 @@ module jt12_top (
     end
   endgenerate
 
-`ifdef SIMULATION
-  integer fsnd;
-  initial begin
-    fsnd = $fopen("jt12.raw", "wb");
-  end
 
-  always @(posedge zero) begin
-    $fwrite(fsnd, "%u", {snd_left, snd_right});
-  end
-`endif
 endmodule
 
 

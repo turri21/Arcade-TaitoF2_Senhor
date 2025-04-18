@@ -423,8 +423,8 @@ class VeribleVerilogSyntax:
     options = {
       "gen_tree": True,
       "skip_null": False,
-      "gen_tokens": True,
-      "gen_rawtokens": True,
+      "gen_tokens": False,
+      "gen_rawtokens": False,
       **(options or {}),
     }
 

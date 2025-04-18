@@ -2848,11 +2848,9 @@ module tv80_core (  /*AUTOARG*/
   output IntE;
   output stop;
 
-  reg m1_n;
-  reg iorq;
-`ifdef TV80_REFRESH
-  reg rfsh_n;
-`endif
+  reg        m1_n;
+  reg        iorq;
+
   reg        halt_n;
   reg        busak_n;
   reg [15:0] A;
@@ -2875,9 +2873,7 @@ module tv80_core (  /*AUTOARG*/
   reg [7:0] ACC, F;
   reg [7:0] Ap, Fp;
   reg [7:0] I;
-`ifdef TV80_REFRESH
-  reg [7:0] R;
-`endif
+
   reg [15:0] SP, PC;
   reg  [ 7:0] RegDIH;
   reg  [ 7:0] RegDIL;
@@ -3145,24 +3141,22 @@ module tv80_core (  /*AUTOARG*/
 
   always @(posedge clk or negedge reset_n) begin
     if (reset_n == 1'b0) begin
-      PC       <= 0;  // Program Counter
-      A        <= 0;
-      TmpAddr  <= 0;
-      IR       <= 8'b00000000;
-      ISet     <= 2'b00;
-      XY_State <= 2'b00;
-      IStatus  <= 2'b00;
-      mcycles  <= 3'b000;
-      dout     <= 8'b00000000;
+      PC            <= 0;  // Program Counter
+      A             <= 0;
+      TmpAddr       <= 0;
+      IR            <= 8'b00000000;
+      ISet          <= 2'b00;
+      XY_State      <= 2'b00;
+      IStatus       <= 2'b00;
+      mcycles       <= 3'b000;
+      dout          <= 8'b00000000;
 
-      ACC      <= 8'hFF;
-      F        <= 8'hFF;
-      Ap       <= 8'hFF;
-      Fp       <= 8'hFF;
-      I        <= 0;
-`ifdef TV80_REFRESH
-      R <= 0;
-`endif
+      ACC           <= 8'hFF;
+      F             <= 8'hFF;
+      Ap            <= 8'hFF;
+      Fp            <= 8'hFF;
+      I             <= 0;
+
       SP            <= 16'hFFFF;
       Alternate     <= 1'b0;
 
@@ -3225,13 +3219,7 @@ module tv80_core (  /*AUTOARG*/
         if (mcycle[0] && (tstate[1] | tstate[2] | tstate[3])) begin
           // mcycle == 1 && tstate == 1, 2, || 3
           if (tstate[2] && wait_n == 1'b1) begin
-`ifdef TV80_REFRESH
-            if (Mode < 2) begin
-              A[7:0]  <= R;
-              A[15:8] <= I;
-              R[6:0]  <= R[6:0] + 1;
-            end
-`endif
+
             if (Jump == 1'b0 && Call == 1'b0 && NMICycle == 1'b0 && IntCycle == 1'b0 && ~ (Halt_FF == 1'b1 || Halt == 1'b1) ) 
                         begin
               PC <= PC16;
@@ -3459,11 +3447,9 @@ module tv80_core (  /*AUTOARG*/
               end
 
               2'b01: begin
-`ifdef TV80_REFRESH
-                ACC <= R;
-`else
-                ACC <= 0;
-`endif
+
+                ACC       <= 0;
+
                 F[Flag_P] <= IntE_FF2;
                 F[Flag_Z] <= (I == 0);
                 F[Flag_S] <= I[7];
@@ -3473,11 +3459,9 @@ module tv80_core (  /*AUTOARG*/
 
               2'b10: I <= ACC;
 
-`ifdef TV80_REFRESH
-              default: R <= ACC;
-`else
+
               default: ;
-`endif
+
             endcase
           end
         end  // if (tstate == 3 )
@@ -3810,23 +3794,9 @@ module tv80_core (  /*AUTOARG*/
   // Generate external control signals
   //
   //-------------------------------------------------------------------------
-`ifdef TV80_REFRESH
-  always @(posedge clk or negedge reset_n) begin
-    if (reset_n == 1'b0) begin
-      rfsh_n <= 1'b1;
-    end else begin
-      if (cen == 1'b1) begin
-        if (mcycle[0] && ((tstate[2] && wait_n == 1'b1) || tstate[3])) begin
-          rfsh_n <= 1'b0;
-        end else begin
-          rfsh_n <= 1'b1;
-        end
-      end
-    end
-  end  // always @ (posedge clk or negedge reset_n)
-`else  // !`ifdef TV80_REFRESH
-  assign rfsh_n = 1'b1;
-`endif
+  // !`ifdef TV80_REFRESH
+  assign rfsh_n              = 1'b1;
+
 
   always @(/*AUTOSENSE*/BusAck or Halt_FF or I_DJNZ or IntCycle
 	   or IntE_FF1 or di or iorq_i or mcycle or tstate)
@@ -4192,9 +4162,7 @@ module tv80s (  /*AUTOARG*/
           mreq_n <= ~intcycle_n;
           iorq_n <= intcycle_n;
         end
-`ifdef TV80_REFRESH
-        if (tstate[3]) mreq_n <= 1'b0;
-`endif
+
       end // if (mcycle[0])          
           else
             begin

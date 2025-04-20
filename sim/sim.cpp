@@ -72,14 +72,16 @@ void sim_tick(int count = 1)
         // Process memory stream operations
         ddr_memory.clock(top->ddr_addr, top->ddr_wdata, top->ddr_rdata, top->ddr_read, top->ddr_write, top->ddr_busy, top->ddr_read_complete, top->ddr_burstcnt, top->ddr_byteenable);
 
+        /*
         if (top->audio_sample == 1 && prev_audio_sample == false)
         {
             audio_samples[audio_sample_index + 0] = top->audio_left;
             audio_samples[audio_sample_index + 1] = top->audio_right;
             audio_sample_index = (audio_sample_index + 2) % NUM_SAMPLES;
         }
-        prev_audio_sample = top->audio_sample == 1;
 
+        prev_audio_sample = top->audio_sample == 1;
+*/
         contextp->timeInc(1);
         top->clk = 0;
 

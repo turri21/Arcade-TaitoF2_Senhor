@@ -10,7 +10,7 @@ from scipy import signal
 #  suffix to .txt and .png files, set to '_py' to avoid overriding original filters
 SUFFIX = '' 
 
-SR_7MHZ = 8000000
+SR_7MHZ = 4373280
 
 # --------------------------------------------------------------------------- #
 
@@ -41,21 +41,35 @@ def write_filter(b, a, shortName, longName, fs):
     # GAIN seems to be always 1/min(b) from Soltan's local matlab/octave results
     f.write('#Base gain\n')
     gain = float(sum(b) * 1.39)
+    coeff_x = []
+    coeff_y = []
+    for i in range(1, 4):
+        if i<=order:
+            coeff_x.append(round(b[i]/min(b)))
+        else:
+            coeff_x.append(0)
+    for i in range(1, 4):
+        if i<=order:
+            coeff_y.append(a[i])
+        else:
+            coeff_y.append(0)
+
+            
     f.write('%.20f\n\n' % gain)
     # output X coefficients. Zeros if filter is Order <3
-    for i in range(1, 4):
-        f.write('#gain scale for X%d\n'%(i-1))
-        if i<=order:
-            f.write('%d\n\n' % round(b[i]/min(b)))
-        else:
-            f.write('0\n\n')
+    for i in range(0, 3):
+        f.write('#gain scale for X%d\n'%i)
+        f.write('%d\n\n' % coeff_x[i])
     # output Y coefficients. Zeros if filter is order < 3
-    for i in range(1, 4):
-        f.write('#gain scale for Y%d\n'%(i-1))
-        if i<=order:
-            f.write('%.20f\n\n'% a[i])
-        else:
-            f.write('0\n\n')
+    for i in range(0, 3):
+        f.write('#gain scale for Y%d\n'%i)
+        f.write('%.20f\n\n'% coeff_y[i])
+
+    f.write('# IIR_filter coeff\n')
+    f.write('.coeff_x(%.20f),\n' % gain)
+    f.write('.coeff_x0(%d), .coeff_x1(%d), .coeff_x2(%d),\n' % (coeff_x[0], coeff_x[1], coeff_x[2]))
+    f.write('.coeff_y0(%.20f), .coeff_y1(%.20f), .coeff_y2(%.20f)\n' % (coeff_y[0], coeff_y[1], coeff_y[2]))
+
     f.flush()
     f.close()
     return fname

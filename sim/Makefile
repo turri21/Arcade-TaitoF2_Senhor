@@ -55,6 +55,7 @@ HDL_SRC += ../rtl/system_consts.sv
 HDL_SRC += ../rtl/F2.sv
 HDL_SRC += ../rtl/tc0100scn.sv ../rtl/tc0110pr.sv ../rtl/tc0220ioc.sv ../rtl/tc0200obj.sv ../rtl/tc0140syt.sv
 HDL_SRC += ../rtl/ram.sv ../rtl/jtframe_frac_cen.v ../rtl/memory_stream.sv ../rtl/savestates.sv ../rtl/ddram.sv
+HDL_SRC += ../rtl/audio_mix.sv ../sys/iir_filter.v
 
 
 ifeq ($(USE_AUTO_SS),1)

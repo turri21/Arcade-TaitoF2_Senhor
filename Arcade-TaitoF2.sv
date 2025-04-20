@@ -186,8 +186,9 @@ assign VGA_DISABLE = 0;
 assign HDMI_FREEZE = 0;
 assign HDMI_BLACKOUT = 0;
 
+assign AUDIO_R = AUDIO_L;
 assign AUDIO_S = 1;
-assign AUDIO_MIX = 0;
+assign AUDIO_MIX = 3;
 
 assign LED_DISK = 0;
 assign LED_POWER = 0;
@@ -205,6 +206,7 @@ localparam CONF_STR = {
     "TaitoF2;SS3E000000:200000;",
     "-;",
     "O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
+    "O[33:32],Audio Filter,Both,Main,Pre,None;",
     "R[64],Save State 1;",
     "R[65],Save State 2;",
     "R[66],Save State 3;",
@@ -228,6 +230,7 @@ wire   [1:0] buttons;
 wire [127:0] status;
 wire  [10:0] ps2_key;
 
+wire [1:0] audio_filter_en = ~status[33:32];
 wire [3:0] save_state_req = status[67:64];
 wire [3:0] load_state_req = status[71:68];
 
@@ -483,9 +486,8 @@ F2 F2(
     .start({joystick_p2[8], joystick_p1[8]}),
     .coin({joystick_p2[9], joystick_p1[9]}),
 
-    .audio_left(AUDIO_L),
-    .audio_right(AUDIO_R),
-    .audio_sample(),
+    .audio_out(AUDIO_L),
+    .audio_filter_en,
 
     .sdr_cpu_addr(sdr_cpu_addr),
     .sdr_cpu_q(sdr_cpu_dout[15:0]),

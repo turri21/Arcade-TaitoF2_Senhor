@@ -51,9 +51,8 @@ module F2(
 
     input      [12:0] obj_debug_idx,
 
-    output     [15:0] audio_left,
-    output     [15:0] audio_right,
-    output            audio_sample,
+    output     [15:0] audio_out,
+    input       [1:0] audio_filter_en,
 
     input             ss_do_save,
     input             ss_do_restore,
@@ -757,6 +756,10 @@ end
 //////////////////////////////////
 // AUDIO
 //
+
+wire [15:0] audio_left, audio_right;
+wire audio_sample;
+
 wire [15:0] SND_ADD;
 wire SRAMn, SNWRn, SNRDn, ROMCS0n, ROMCS1n;
 wire ROMA14, ROMA15;
@@ -958,6 +961,18 @@ TC0140SYT tc0140syt(
     .sdr_ack(sdr_audio_ack)
 );
 
+audio_mix audio_mix(
+    .clk,
+    .reset,
+    .en(audio_filter_en),
+
+    .fm_sample(audio_sample),
+    .fm_left(audio_left),
+    .fm_right(audio_right),
+    .psg(0),
+
+    .mono_output(audio_out)
+);
 
 save_state_data save_state_data(
     .clk,

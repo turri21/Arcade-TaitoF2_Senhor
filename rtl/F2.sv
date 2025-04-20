@@ -267,7 +267,7 @@ jtframe_frac_cen #(2) video_cen
     .clk(clk),
     .cen_in(1),
     .n(10'd1),
-    .m(10'd3),
+    .m(10'd4),
     .cen({ce_6m, ce_13m}),
     .cenb()
 );
@@ -277,8 +277,8 @@ jtframe_frac_cen #(2) cpu_cen
 (
     .clk(clk),
     .cen_in(~ss_pause),
-    .n(10'd3),
-    .m(10'd10),
+    .n(10'd172),
+    .m(10'd765),
     .cen({ce_dummy_6m, ce_12m}),
     .cenb({ce_dummy_6m_180, ce_12m_180})
 );
@@ -288,8 +288,8 @@ jtframe_frac_cen #(2) audio_cen
 (
     .clk(clk),
     .cen_in(~ss_pause),
-    .n(10'd1),
-    .m(10'd5),
+    .n(10'd137),
+    .m(10'd914),
     .cen({ce_4m, ce_8m}),
     .cenb()
 );

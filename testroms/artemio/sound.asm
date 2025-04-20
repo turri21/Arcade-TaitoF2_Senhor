@@ -91,38 +91,8 @@ IRQ:
 ;--------------------------------------------------------------------------;
 ; NMI
 ;--------------------------------------------------------------------------;
-; Inter-processor communications.
-; In this driver, the NMI gets the command from the 68K and interprets it.
 
 NMI:
-    di                      ; NMI di
-
-    exx
-    ex      af,af'
-
-    in      a,(0)           ; Acknowledge NMI, get command from 68K via Port 0
-    ld      b,a             ; make a copy
-    ld      a,0xff          ; set processing code
-    out     (0xC),a         ; Write to port 0 (Processing sound code)
-    ld      a,b             ; set a for comparisons
-    ld      (curCommand),a  ; update curCommand
-
-    or      a               ; check if Command is 0
-    jp      Z,endNMI        ; exit if Command 0
-
-    call    HandleCommand
-    
-    ld      a,(curCommand)
-    set     7,a             ; set bit 7 for reply, this is OK reply
-    out     (0xC),a         ; Reply to 68K
-    xor     a               ; clear a for response.
-    out     (0),a           ; Write to port 0 (Clear sound code)
-
-endNMI:
-    ex      af,af'
-    exx
-
-    ei                      ; end NMI di
     retn
 
 
@@ -132,6 +102,29 @@ endNMI:
 ; The entry point for the sound driver.
 
 EntryPoint:
+    ;-------------------------------------------;
+    ; disable NMI
+    ld a, 5
+    ld (sytMode), a
+    ld (sytData), a
+
+
+    ; flush input
+    ld a, 0
+    ld (sytMode), a
+    ld a, (sytData)
+    ld a, 1
+    ld (sytMode), a
+    ld a, (sytData)
+
+;    ld a, 0
+;    ld (0xe600), a
+;    ld (0xee00), a
+
+;    ld (0xf200), a
+;    ld a, 0x19
+;    ld (0xf000), a
+
     ld      sp,0xDFFC       ; Set stack pointer
     im      1               ; Set Interrupt Mode 1 (IRQ at $38)
     xor     a               ; make value in A = 0
@@ -172,20 +165,6 @@ EntryPoint:
     ; silence ADPCM-A, ADPCM-B
     ;call   command_PCMAStop    ; Commented so that the coin plays
     call    command_PCMBStop
-
-    ;-------------------------------------------;
-    ; disable NMI
-    ld a, 5
-    ld (sytMode), a
-    ld (sytData), a
-
-    ; write 33
-    ld a, 0
-    ld (sytMode), a
-    ld a, 3
-    ld (sytData), a
-    ld a, 1
-    ld (sytData), a
 
     ; continue setting up the hardware, etc.
     ld      de,0x2730       ; Reset Timer flags, Disable Timer IRQs
@@ -258,8 +237,17 @@ readSYT:
 writeSYT:
     push de
     push af
-
+    
     ld d, a
+
+    ; wait for master buffer to be empty (read by 68k)
+WaitEmpty:
+    ld a, 4
+    ld (sytMode), a
+    ld a, (sytData) ; read status
+    bit 2, a
+    ; jr nz,WaitEmpty ; nothing
+
     ld a, 0
     ld (sytMode), a
     ld a, d
@@ -350,15 +338,8 @@ HandleCommand:
 ; Performs setup work for Command $01 (Slot Change).
 
 command_SwitchSlot:
-    xor     a
-    out     (0xC),a         ; write 0 to port 0xC (Respond to 68K)
-    out     (0),a           ; write to port 0 (Clear sound code)
-    ld      sp,0xFFFC       ; set stack pointer
-
-    ; call Switch Command
-    ld      hl,executeSwitchSlot
-    push    hl
-    retn
+    halt
+    ret
 
 ;------------------------------------------------------------------------------;
 ; command_SoftReset
@@ -366,83 +347,7 @@ command_SwitchSlot:
 ; Performs setup work for Command $03 (Soft Reset).
 
 command_SoftReset:
-    xor     a
-    out     (0xC),a         ; write 0 to port 0xC (Respond to 68K)
-    out     (0),a           ; write to port 0 (Clear sound code)
-    ld      sp,0xFFFC       ; set stack pointer
-
-    ; call Soft Reset Routine
-    ld      hl,executeSoftReset
-    push    hl
-    retn
-
-;------------------------------------------------------------------------------;
-; executeSwitchSlot
-; Handles a slot switch.
-
-executeSwitchSlot:
-    xor     a
-    out     (0xC),a         ; Write 0 to port 0xC (Reply to 68K)
-    out     (0),a           ; Reset sound code
-
-    call    SetDefaultBanks ; initialize banks to default config
-
-    ; (FM) turn off Left/Right, AM Sense and PM Sense
-    ld      de,0xB500       ; $B500: turn off for channels 1/3
-    rst     writeDEportA
-    rst     writeDEportB
-    ld      de,0xB600       ; $B600: turn off for channels 2/4
-    rst     writeDEportA
-    rst     writeDEportB
-
-    ; (ADPCM-A, ADPCM-B) Reset ADPCM channels
-    ld      de,0x00BF       ; $00BF: ADPCM-A Dump=1, all channels=1
-    rst     writeDEportB
-    ld      de,0x1001       ; $1001: ADPCM-B Reset=1
-    rst     writeDEportA
-
-    ; (ADPCM-A, ADPCM-B) Poke ADPCM channel flags (write 1, then 0)
-    ld      de,0x1CBF       ; $1CBF: Reset flags for ADPCM-A 1-6 and ADPCM-B
-    rst     writeDEportA
-    ld      de,0x1C00       ; $1C00: Enable flags for ADPCM-A 1-6 and ADPCM-B
-    rst     writeDEportA
-
-    ; silence FM channels
-    ld      de,0x2801       ; FM channel 1 (1/4)
-    rst     writeDEportA
-    ld      de,0x2802       ; FM channel 2 (2/4)
-    rst     writeDEportA
-    ld      de,0x2805       ; FM channel 5 (3/4)
-    rst     writeDEportA
-    ld      de,0x2806       ; FM channel 6 (4/4)
-    rst     writeDEportA
-
-    ; silence SSG channels
-    ld      de,0x800        ;SSG Channel A
-    rst     writeDEportA
-    ld      de,0x900        ;SSG Channel B
-    rst     writeDEportA
-    ld      de,0xA00        ;SSG Channel C
-    rst     writeDEportA
-
-    ; set up infinite loop in RAM
-    ld      hl,0xFFFD
-    ld      (hl),0xC3       ; Set 0xFFFD = 0xC3 ($C3 is opcode for "jp")
-    ld      (0xFFFE),hl     ; Set 0xFFFE = 0xFFFD (making "jp $FFFD")
-    ld      a,1
-    out     (0xC),a         ; Write 1 to port 0xC (Reply to 68K)
-    jp      0xFFFD          ; jump to infinite loop in RAM
-
-;------------------------------------------------------------------------------;
-; executeSoftReset
-; Handles a soft reset.
-
-executeSoftReset:
-    ld      a,0
-    out     (0xC),a         ; Write to port 0xC (Reply to 68K)
-    out     (0),a           ; Reset sound code
-    ld      sp,0xFFFF
-    jp      Start           ; Go back to the top.
+    ret
 
 ;------------------------------------------------------------------------------;
 ; command_RAMTest
@@ -460,7 +365,7 @@ command_RAMTest:
     out     (0xC),a
     xor     a                       ; clear a for now.
     out     (0),a                   ; Write to port 0 (Clear sound code)
-    jp      endNMI                  ; finish NMI
+    ret                  ; finish NMI
 
 ;------------------------------------------------------------------------------;
 ; command_z80_version
@@ -486,7 +391,7 @@ command_z80_version:
     out     (0xC),a
     xor     a                       ; clear a for now.
     out     (0),a                   ; Write to port 0 (Clear sound code)
-    jp      endNMI                  ; finish NMI
+    ret                  ; finish NMI
 
 ;------------------------------------------------------------------------------;
 ; command_null
@@ -825,23 +730,23 @@ command_FMNextMDF:
 command_FMStopAll:
     push    af
     ld      a,0x28          ; Slot and Key On/Off
-    out     (4),a           ; write to port 4 (address 1)
+    ld     (ym0Addr),a      ; write to port 4 (address 1)
     rst     waitYamaha      ; Write delay 1 (17 cycles)
     ;---------------------------------------------------;
     ld      a,0x01          ; FM Channel 1
-    out     (5),a           ; write to port 5 (data 1)
+    ld     (ym0Data),a      ; write to port 5 (data 1)
     rst     waitYamaha      ; Write delay 2 (83 cycles)
     ;---------------------------------------------------;
     ld      a,0x02          ; FM Channel 2
-    out     (5),a           ; write to port 5 (data 1)
+    ld     (ym0Data),a      ; write to port 5 (data 1)
     rst     waitYamaha      ; Write delay 2 (83 cycles)
     ;---------------------------------------------------;
     ld      a,0x05          ; FM Channel 3
-    out     (5),a           ; write to port 5 (data 1)
+    ld     (ym0Data),a      ; write to port 5 (data 1)
     rst     waitYamaha      ; Write delay 2 (83 cycles)
     ;---------------------------------------------------;
     ld      a,0x06          ; FM Channel 4
-    out     (5),a           ; write to port 5 (data 1)
+    ld     (ym0Data),a      ; write to port 5 (data 1)
     rst     waitYamaha      ; Write delay 2 (83 cycles)
     pop     af
 

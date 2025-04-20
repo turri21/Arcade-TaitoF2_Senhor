@@ -12,12 +12,26 @@
 
 void set_colors(uint16_t offset, uint16_t count, uint16_t *colors)
 {
+#if HAS_TC0110PCR 
     for( uint16_t i = 0; i < count; i++ )
     {
-        *TC011PCR_ADDR = (offset + i) * 2;
-        *TC011PCR_DATA = colors[i];
+        *TC0110PCR_ADDR = (offset + i) * 2;
+        *TC0110PCR_DATA = colors[i];
     }
-    *TC011PCR_WHAT = 0;
+    *TC0110PCR_WHAT = 0;
+#endif
+
+#if HAS_TC0260DAR
+    for( uint16_t i = 0; i < count; i++ )
+    {
+        TC0260DAR[offset + i] = colors[i];
+    }
+
+    *(uint16_t *)0xa00008 = 0x00e0;
+    *(uint16_t *)0xa0000a = 0x0084;
+    *(uint16_t *)0xa0000c = 0x0062;
+    *(uint16_t *)0xa0000e = 0x00aa;
+#endif
 }
 
 volatile uint32_t vblank_count = 0;
@@ -26,6 +40,7 @@ volatile uint32_t dma_count = 0;
 void level5_handler()
 {
     vblank_count++;
+    *(uint16_t *)0xa00000 = 0;
     TC0220IOC->watchdog = 0;
 }
 
@@ -164,6 +179,7 @@ void init_scn_general()
 void update_scn_general()
 {
     wait_vblank();
+
     for( int y = 0; y < 24; y++ )
     {
         TC0100SCN->bg0_rowscroll[14 * 8 + y] = sine_wave[(frame_count*2+(y*4)) & 0xff] >> 4;
@@ -362,32 +378,60 @@ void update_obj_general()
 }
 
 
-volatile uint8_t *SYT_ADDR = (volatile uint8_t *)0x320001;
-volatile uint8_t *SYT_DATA = (volatile uint8_t *)0x320003;
-
 void send_sound_code(uint8_t code)
 {
     *SYT_ADDR = 0;
     *SYT_DATA = (code >> 4) & 0xf;
     *SYT_ADDR = 1;
     *SYT_DATA = code & 0xf;
+    *SYT_ADDR = 2;
+    *SYT_DATA = (code >> 4) & 0xf;
+    *SYT_ADDR = 3;
+    *SYT_DATA = code & 0xf;
+}
+
+bool read_sound_response(uint8_t *code)
+{
+    uint8_t r = 0;
+    *SYT_ADDR = 4;
+
+    uint8_t status = *SYT_DATA;
+
+    if (status & 0x4)
+    {
+        *SYT_ADDR = 0;
+        r = (*SYT_DATA << 4);
+        *SYT_ADDR = 1;
+        r |= *SYT_DATA;
+
+        if (code) *code = r;
+        return true;
+    }
+
+    return false;
 }
 
 static uint8_t sound_code = 0;
 static uint8_t sound_msg = 0;
+static uint8_t sound_msg2 = 0;
+
+static uint8_t sound_data[16];
 
 void init_sound_test()
 {
+    reset_screen();
+    
     // Reset
     *SYT_ADDR = 4;
     *SYT_DATA = 1;
 
+    wait_vblank();
+
     *SYT_ADDR = 4;
     *SYT_DATA = 0;
 
-    reset_screen();
 
-    wait_vblank();
+/*    wait_vblank();
     wait_vblank();
     wait_vblank();
     send_sound_code(0xFE);
@@ -396,7 +440,7 @@ void init_sound_test()
     wait_vblank();
     wait_vblank();
     send_sound_code(0xA0);
-    sound_code = 0xA0;
+    sound_code = 0xA0;*/
 }
 
 void update_sound_test()
@@ -415,27 +459,48 @@ void update_sound_test()
 
     if(input_pressed(BTN1))
     {
-        send_sound_code(sound_code);
+        //send_sound_code(sound_code);
+        extern void run_mdfourier();
+        run_mdfourier();
     }
         
     *SYT_ADDR = 4;
+    uint8_t status = (*SYT_DATA) & 0xf;
 
-    uint8_t status = *SYT_DATA;
-
-    if (status & 0x4)
+    if(status & 0x04)
     {
         *SYT_ADDR = 0;
-        sound_msg = (*SYT_DATA << 4);
+        sound_msg = (*SYT_DATA) << 4;
         *SYT_ADDR = 1;
-        sound_msg |= *SYT_DATA;
+        sound_msg |= (*SYT_DATA) & 0x0f;
     }
 
+    if(status & 0x08)
+    {
+        *SYT_ADDR = 2;
+        sound_msg2 = (*SYT_DATA << 4);
+        *SYT_ADDR = 3;
+        sound_msg2 |= (*SYT_DATA & 0x0f);
+    }
+
+    if(input_pressed(BTN3))
+    {
+        pen_color(1);
+        on_layer(FG0);
+        move_to(4, 10);
+        for( int i = 0; i < 16; i++ )
+        {
+            *SYT_ADDR = i;
+            sound_data[i] = *SYT_DATA;
+            print("%01X ", sound_data[i] & 0xf);
+        }
+    }
 
     pen_color(0);
-    on_layer(BG0);
+    on_layer(FG0);
     print_at(4, 4, "SOUND CODE: %02X", sound_code);
     print_at(4, 5, "STATUS: %02X", status);
-    print_at(4, 6, "MESSAGE: %02X", sound_msg);
+    print_at(4, 6, "MESSAGE: %02X %02X", sound_msg, sound_msg2);
 }
 
 
@@ -677,7 +742,7 @@ int main(int argc, char *argv[])
 
     uint32_t system_flags = 0;
 
-    int current_screen = 3;
+    int current_screen = 5;
 
     init_screen(current_screen);
     

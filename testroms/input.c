@@ -1,16 +1,14 @@
 #include "input.h"
 
-#include "tc0220ioc.h"
+#include "system.h"
 
 static uint16_t s_prev = 0;
 static uint16_t s_cur = 0;
 
-TC0220IOC_Control *IOC = (TC0220IOC_Control *)0x300000;
-
 void input_update()
 {
     s_prev = s_cur;
-    s_cur = IOC->p1;
+    s_cur = TC0220IOC->p1;
 }
 
 uint16_t input_state()

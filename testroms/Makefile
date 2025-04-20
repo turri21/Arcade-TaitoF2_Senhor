@@ -10,7 +10,7 @@ MISTER_HOSTNAME=mister-dev
 
 TARGET = finalb_test
 SRCS = init.c main.c interrupts_default.c comms.c tilemap.c input.c printf/printf.c
-SRCS += obj_test.c
+SRCS += obj_test.c audio_240p.c
 CHR = font.chr 
 ASM = 
 
@@ -38,6 +38,21 @@ CPU_ROM_LOW   = b82-09.ic23
 CPU_ROM_HIGH  = b82-17.ic11
 AUDIO_CPU_ROM = b82_10.ic5
 CPU_ROM_SIZE  = 0x40000
+DEFINES += -DGAME_FINALB=1
+else ifeq ($(TARGET),ssi_test)
+GAME = ssi
+CPU_ROM_LOW   = c64_15-1.ic9 
+CPU_ROM_HIGH  = c64_16-1.ic8
+AUDIO_CPU_ROM = c64-09.13
+CPU_ROM_SIZE  = 0x40000
+DEFINES += -DGAME_SSI=1
+else ifeq ($(TARGET),qjinsei_test)
+GAME = qjinsei
+CPU_ROM_LOW   = d48-09 
+CPU_ROM_HIGH  = d48-10
+AUDIO_CPU_ROM = d48-11 
+CPU_ROM_SIZE  = 0x40000
+DEFINES += -DGAME_QJINSEI=1
 else
 error
 endif
@@ -75,7 +90,7 @@ $(BUILD_DIR)/%.o: %.chr $(GLOBAL_DEPS) | $(BUILD_DIRS)
 
 $(BUILD_DIR)/cpu.elf: $(OBJS)
 	@echo $@
-	@$(CC) -T f2.ld -o $@ $(LDFLAGS) $^ $(LIBS)
+	@$(CC) -T $(GAME).ld -o $@ $(LDFLAGS) $^ $(LIBS)
 	@$(OBJDUMP) -d -S $@ > $(BUILD_DIR)/cpu.asm
 
 $(BUILD_DIRS):
@@ -94,10 +109,11 @@ run: $(BUILT_BINS)
 	mkdir -p mame
 	cd mame && ../$(MAME) -window -nomaximize -resolution0 640x480 -rompath "$(ROMPATH)" $(GAME)
 
-picorom: $(GAME_DIR)/$(CPU_ROM_HIGH) $(GAME_DIR)/$(CPU_ROM_LOW)
+picorom: $(GAME_DIR)/$(CPU_ROM_HIGH) $(GAME_DIR)/$(CPU_ROM_LOW) $(GAME_DIR)/$(AUDIO_CPU_ROM)
 	picorom reset cpu_low low
 	picorom upload cpu_low $(GAME_DIR)/$(CPU_ROM_LOW)
 	picorom upload cpu_high $(GAME_DIR)/$(CPU_ROM_HIGH)
+	picorom upload audio_cpu $(GAME_DIR)/$(AUDIO_CPU_ROM) 1mbit
 	picorom reset cpu_low z
 
 .PHONY: run debug picorom

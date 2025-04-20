@@ -19,8 +19,8 @@ static TC0100SCN_Control *TC0100SCN_Ctrl = (TC0100SCN_Control *)0x820000;
 
 static TC0200OBJ_Inst *TC0200OBJ = (TC0200OBJ_Inst *)0x900000;
 
-static volatile uint8_t *SYT_ADDR = (volatile uint8_t *)0x320001;
-static volatile uint8_t *SYT_DATA = (volatile uint8_t *)0x320003;
+static volatile uint8_t *SYT_ADDR = (volatile uint8_t *)0x320000;
+static volatile uint8_t *SYT_DATA = (volatile uint8_t *)0x320002;
 
 #elif GAME_SSI
 
@@ -35,8 +35,8 @@ static TC0220IOC_Control *TC0220IOC = (TC0220IOC_Control *)0x100000;
 
 static TC0200OBJ_Inst *TC0200OBJ = (TC0200OBJ_Inst *)0x800000;
 
-static volatile uint8_t *SYT_ADDR = (volatile uint8_t *)0x320001;
-static volatile uint8_t *SYT_DATA = (volatile uint8_t *)0x320003;
+static volatile uint8_t *SYT_ADDR = (volatile uint8_t *)0x320000;
+static volatile uint8_t *SYT_DATA = (volatile uint8_t *)0x320002;
 
 #elif GAME_QJINSEI
 

@@ -156,8 +156,9 @@ int main(int argc, char **argv)
     tfp = nullptr;
 
 
-    FILE *fp = fopen("../roms/b82_10.ic5", "rb");
-    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 64 * 1024, fp);
+    FILE *fp = fopen("../testroms/build/finalb_test/finalb/b82_10.ic5", "rb");
+    //FILE *fp = fopen("../roms/b82_10.ic5", "rb");
+    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 16 * 1024, fp);
     fclose(fp);
 
     sdram.load_data("../roms/b82-09.ic23", 1, 2);

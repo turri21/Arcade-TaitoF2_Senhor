@@ -213,7 +213,7 @@ EntryPoint:
 
     ei                      ; was set at Startup
 
-    jp MainLoop
+   jp MainLoop
 
 
 ; Byte in A

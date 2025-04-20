@@ -919,7 +919,7 @@ TC0140SYT tc0140syt(
     .RESn(~reset), // FIXME
 
     .MDin(cpu_data_out[11:8]),
-    .MDout(syt_cpu_dout), // FIXME
+    .MDout(syt_cpu_dout),
     .MA1(cpu_addr[0]),
     .MCSn(SOUNDn),
     .MRDn(~cpu_rw),

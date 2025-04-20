@@ -73,16 +73,19 @@ assign OPXn = ~(A[15:8] == 8'he0);
 
 assign ROUTn = RESn & ~reset_reg; // FIXME: don't think this is correct, software reset out
 
-wire reg_access = (A[15:8] == 8'he2) & ~MREQn;
-reg prev_reg_access;
+wire slave_access = (A[15:8] == 8'he2) & ~MREQn;
+wire master_access = ~MCSn;
+reg prev_slave_access;
+reg prev_master_access;
 
 always_ff @(posedge clk) begin
-    prev_reg_access <= reg_access;
+    prev_slave_access <= slave_access;
+    prev_master_access <= master_access;
     if (~RESn) begin
         rom_bank <= 3'b000;
         status_reg <= 0;
     end else begin
-        if (reg_access & ~prev_reg_access) begin
+        if (slave_access & ~prev_slave_access) begin
             if (~WRn) begin
                 if (A[0]) begin
                     case(slave_idx)
@@ -153,12 +156,12 @@ always_ff @(posedge clk) begin
         end
 
 
-        if (ce_12m) begin
-            if (~MCSn & ~MWRn & ~MA1) begin
+        if (master_access & ~prev_master_access) begin
+            if (~MWRn & ~MA1) begin
                 master_idx <= MDin;
             end
 
-            if (~MCSn & MA1) begin
+            if (MA1) begin
                 if (~MWRn) begin
                     case(master_idx)
                         0: begin

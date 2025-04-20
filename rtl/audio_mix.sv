@@ -15,14 +15,14 @@ module audio_mix(
 
 // 8.746560Mhz and 4.373280Mhz
 // 45555hz from PCM * 96. Dunno, maybe it helps
-//
+// 8mhz 16mhz
 wire ce_2x, ce;
 jtframe_frac_cen #(2) mix_cen
 (
     .clk(clk),
     .cen_in(1),
-    .n(10'd49),
-    .m(10'd299),
+    .n(10'd277),
+    .m(10'd924),
     .cen({ce, ce_2x}),
     .cenb()
 );
@@ -32,9 +32,9 @@ wire [15:0] fm_left_flt1, fm_left_flt2;
 wire [15:0] fm_right_flt1, fm_right_flt2;
 
 IIR_filter #( .use_params(1), .stereo(1),
-    .coeff_x(0.00123879403084787535),
+    .coeff_x(0.00037375572460605829),
     .coeff_x0(2), .coeff_x1(1), .coeff_x2(0),
-    .coeff_y0(-1.95733781940242113073), .coeff_y1(0.95822903812964987935), .coeff_y2(0.00000000000000000000)
+    .coeff_y0(-1.97667590380070512524), .coeff_y1(0.97694479281121304748), .coeff_y2(0.00000000000000000000)
     ) pre_filter (
     .clk(clk),
     .reset(reset),
@@ -51,9 +51,9 @@ IIR_filter #( .use_params(1), .stereo(1),
 );
 
 IIR_filter #( .use_params(1), .stereo(1),
-    .coeff_x(0.00000025702272529050),
+    .coeff_x(0.00000004211710923317),
     .coeff_x0(3), .coeff_x1(3), .coeff_x2(1),
-    .coeff_y0(-2.98641287614043893228), .coeff_y1(2.97290799312642972652), .coeff_y2(-0.98649493207755523105) 
+    .coeff_y0(-2.99256999191671635430), .coeff_y1(2.98516459847797177574), .coeff_y2(-0.99259457626117686413)
     ) main_filter (
     .clk(clk),
     .reset(reset),

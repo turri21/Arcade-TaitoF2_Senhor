@@ -99,6 +99,9 @@ $(BUILD_DIRS):
 $(GAME_DIR):
 	mkdir -p $@
 
+$(BUILD_DIR)/$(TARGET).zip: $(BUILT_BINS)
+	zip -j $(BUILD_DIR)/$(TARGET).zip $^
+
 
 
 debug: $(BUILT_BINS)
@@ -109,13 +112,15 @@ run: $(BUILT_BINS)
 	mkdir -p mame
 	cd mame && ../$(MAME) -window -nomaximize -resolution0 640x480 -rompath "$(ROMPATH)" $(GAME)
 
-picorom: $(GAME_DIR)/$(CPU_ROM_HIGH) $(GAME_DIR)/$(CPU_ROM_LOW) $(GAME_DIR)/$(AUDIO_CPU_ROM)
+picorom: $(BUILT_BINS)
 	picorom reset cpu_low low
 	picorom upload cpu_low $(GAME_DIR)/$(CPU_ROM_LOW)
 	picorom upload cpu_high $(GAME_DIR)/$(CPU_ROM_HIGH)
 	picorom upload audio_cpu $(GAME_DIR)/$(AUDIO_CPU_ROM) 1mbit
 	picorom reset cpu_low z
 
-.PHONY: run debug picorom
+mister: $(BUILD_DIR)/$(TARGET).zip
+
+.PHONY: run debug picorom mister
 
 -include $(OBJS:o=d)

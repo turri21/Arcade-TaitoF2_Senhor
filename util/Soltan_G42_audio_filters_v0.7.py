@@ -118,9 +118,8 @@ tf = []
 
 # --------------------------------------------------------------------------- #
 
-addSingleFilter('F2 Pre', '21khz 2nd order', hz=21000, order=2)
-addCombinedFilter('F2 Main', '3.1khz 1st order, 4.5khz 2nd order', hz1=3100, hz2=4500)
-
+addSingleFilter('F2 Pre', '21khz 2nd order', hz=21000, order=2, ripple=5)
+addSingleFilter('F2 Main', '4.5khz 2nd order', hz=5000, order=2, ripple=3.5)
 
 # --------------------------------------------------------------------------- #
 

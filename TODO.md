@@ -13,6 +13,9 @@
 - [ ] 360PRI support
 
 - [x] Move testbed into main repo
-- [ ] Audio ROM support in testbed
-- [ ] Port z80 asm for mdfourier
+- [x] Audio ROM support in testbed
+- [x] Port z80 asm for mdfourier
+- [x] Match filters
+- [ ] Implement correct upsampling
+
 

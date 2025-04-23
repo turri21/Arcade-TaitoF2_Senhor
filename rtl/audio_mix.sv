@@ -13,28 +13,28 @@ module audio_mix(
 
 );
 
-// 8.746560Mhz and 4.373280Mhz
-// 45555hz from PCM * 96. Dunno, maybe it helps
-// 8mhz 16mhz
+// 2mhz, 4mhz
 wire ce_2x, ce;
 jtframe_frac_cen #(2) mix_cen
 (
     .clk(clk),
     .cen_in(1),
-    .n(10'd277),
-    .m(10'd924),
+    .n(10'd35),
+    .m(10'd467),
     .cen({ce, ce_2x}),
     .cenb()
 );
 
 
-wire [15:0] fm_left_flt1, fm_left_flt2;
-wire [15:0] fm_right_flt1, fm_right_flt2;
+reg [15:0] stage1_in_l, stage1_in_r;
+wire [15:0] stage1_out_l, stage1_out_r;
+reg [15:0] stage2_in_l, stage2_in_r;
+wire [15:0] stage2_out_l, stage2_out_r;
 
 IIR_filter #( .use_params(1), .stereo(1),
-    .coeff_x(0.00037375572460605829),
+    .coeff_x(0.00202671686372780935),
     .coeff_x0(2), .coeff_x1(1), .coeff_x2(0),
-    .coeff_y0(-1.97667590380070512524), .coeff_y1(0.97694479281121304748), .coeff_y2(0.00000000000000000000)
+    .coeff_y0(-1.96768012268835534861), .coeff_y1(0.97027297798961131825), .coeff_y2(0.00000000000000000000)
     ) pre_filter (
     .clk(clk),
     .reset(reset),
@@ -44,16 +44,16 @@ IIR_filter #( .use_params(1), .stereo(1),
 
     .cx(), .cx0(), .cx1(), .cx2(), .cy0(), .cy1(), .cy2(),
 
-    .input_l(fm_left),
-    .input_r(fm_right),
-    .output_l(fm_left_flt1),
-    .output_r(fm_right_flt1)
+    .input_l(stage1_in_l),
+    .input_r(stage1_in_r),
+    .output_l(stage1_out_l),
+    .output_r(stage1_out_r)
 );
 
 IIR_filter #( .use_params(1), .stereo(1),
-    .coeff_x(0.00000004211710923317),
-    .coeff_x0(3), .coeff_x1(3), .coeff_x2(1),
-    .coeff_y0(-2.99256999191671635430), .coeff_y1(2.98516459847797177574), .coeff_y2(-0.99259457626117686413)
+    .coeff_x(0.00015337009365802624),
+    .coeff_x0(2), .coeff_x1(1), .coeff_x2(0),
+    .coeff_y0(-1.99065970687776427894), .coeff_y1(0.99082479882215979128), .coeff_y2(0.00000000000000000000)
     ) main_filter (
     .clk(clk),
     .reset(reset),
@@ -63,17 +63,40 @@ IIR_filter #( .use_params(1), .stereo(1),
 
     .cx(), .cx0(), .cx1(), .cx2(), .cy0(), .cy1(), .cy2(),
 
-    .input_l(en[0] ? fm_left_flt1 : fm_left),
-    .input_r(en[0] ? fm_right_flt1 : fm_right),
-    .output_l(fm_left_flt2),
-    .output_r(fm_right_flt2)
+    .input_l(stage2_in_l),
+    .input_r(stage2_in_r),
+    .output_l(stage2_out_l),
+    .output_r(stage2_out_r)
 );
 
-wire [15:0] fm_left_final = en[1] ? fm_left_flt2 : en[0] ? fm_left_flt1 : fm_left;
-wire [15:0] fm_right_final = en[1] ? fm_right_flt2 : en[0] ? fm_right_flt1 : fm_left;
+
+reg [15:0] fm_left_final, fm_right_final;
+reg [15:0] fm_combined;
 
 always @(posedge clk) begin
-    mono_output <= { fm_left_final[15], fm_left_final[15:1] } + { fm_right_final[15], fm_right_final[15:1] } + { 1'b0, psg[9:0], 5'd0 };
+    if (ce) begin
+        stage1_in_l <= fm_left;
+        stage1_in_r <= fm_right;
+        if (en[0]) begin
+            stage2_in_l <= stage1_out_l;
+            stage2_in_r <= stage1_out_r;
+        end else begin
+            stage2_in_l <= stage1_in_l;
+            stage2_in_r <= stage1_in_r;
+        end
+
+        if (en[1]) begin
+            fm_left_final <= stage2_out_l;
+            fm_right_final <= stage2_out_r;
+        end else begin
+            fm_left_final <= stage2_in_l;
+            fm_right_final <= stage2_in_r;
+        end
+
+
+        fm_combined <= fm_left_final + fm_right_final;
+        mono_output <= fm_combined + {fm_combined[15], fm_combined[15:1]} + { 1'b0, psg[9:0], 5'd0 };
+    end
 end
 
 endmodule

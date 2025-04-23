@@ -40,8 +40,10 @@ volatile uint32_t dma_count = 0;
 void level5_handler()
 {
     vblank_count++;
+#if HAS_TC0260DAR
     *(uint16_t *)0xa00000 = 0;
-    TC0220IOC->watchdog = 0;
+#endif
+TC0220IOC->watchdog = 0;
 }
 
 void level6_handler()
@@ -425,7 +427,6 @@ void init_sound_test()
     *SYT_ADDR = 4;
     *SYT_DATA = 1;
 
-    wait_vblank();
 
     *SYT_ADDR = 4;
     *SYT_DATA = 0;

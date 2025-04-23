@@ -10,7 +10,7 @@ from scipy import signal
 #  suffix to .txt and .png files, set to '_py' to avoid overriding original filters
 SUFFIX = '' 
 
-SR_7MHZ = 8000000
+SR_7MHZ = 2000000
 
 # --------------------------------------------------------------------------- #
 

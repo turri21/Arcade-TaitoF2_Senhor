@@ -758,6 +758,7 @@ end
 //
 
 wire [15:0] audio_left, audio_right;
+wire [9:0] psg_snd;
 wire audio_sample;
 
 wire [15:0] SND_ADD;
@@ -907,7 +908,7 @@ jt10 jt10(
     .psg_C(),
     .fm_snd(),
 
-    .psg_snd(),
+    .psg_snd(psg_snd),
     .snd_right(audio_right),
     .snd_left(audio_left),
     .snd_sample(audio_sample),
@@ -969,7 +970,7 @@ audio_mix audio_mix(
     .fm_sample(audio_sample),
     .fm_left(audio_left),
     .fm_right(audio_right),
-    .psg(0),
+    .psg(psg_snd),
 
     .mono_output(audio_out)
 );

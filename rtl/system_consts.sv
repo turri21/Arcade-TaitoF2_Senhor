@@ -1,7 +1,7 @@
 package system_consts;
     parameter int SSIDX_GLOBAL = 0;
     parameter int SSIDX_SCN_RAM_0 = 1;
-    parameter int SSIDX_PRI_RAM = 2;
+    parameter int SSIDX_COLOR_RAM = 2;
     parameter int SSIDX_CPU_RAM = 3;
     parameter int SSIDX_SCN_0 = 4;
     parameter int SSIDX_OBJ_RAM = 5;
@@ -21,10 +21,10 @@ package system_consts;
 `endif
 
     parameter bit [31:0] CPU_ROM_SDR_BASE  = 32'h0000_0000;
-    parameter bit [31:0] WORK_RAM_SDR_BASE = 32'h0010_0000;
-    parameter bit [31:0] SCN0_ROM_SDR_BASE = 32'h0020_0000;
-    parameter bit [31:0] ADPCMA_ROM_SDR_BASE  = 32'h0040_0000;
-    parameter bit [31:0] ADPCMB_ROM_SDR_BASE  = 32'h0060_0000;
+    parameter bit [31:0] WORK_RAM_SDR_BASE = 32'h0080_0000;
+    parameter bit [31:0] SCN0_ROM_SDR_BASE = 32'h0090_0000;
+    parameter bit [31:0] ADPCMA_ROM_SDR_BASE  = 32'h00b0_0000;
+    parameter bit [31:0] ADPCMB_ROM_SDR_BASE  = 32'h00d0_0000;
     parameter bit [31:0] AUDIO_ROM_BLOCK_BASE  = 32'h0010_0000;
 
     typedef enum bit [3:0] {

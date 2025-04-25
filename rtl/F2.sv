@@ -240,6 +240,8 @@ always_ff @(posedge clk) begin
     endcase
 end
 
+wire use_260dar = 1;
+
 //////////////////////////////////
 //// CHIP SELECTS
 
@@ -251,11 +253,11 @@ logic IOn;
 logic OBJECTn;
 logic SOUNDn /* verilator public_flat */;
 
-wire SDTACKn, CDTACKn, CPUENn;
+wire SDTACKn, CDTACKn, CPUENn, dar_dtack_n;
 
 wire sdr_dtack_n = sdr_cpu_req != sdr_cpu_ack;
 
-wire DTACKn = sdr_dtack_n | SDTACKn | CDTACKn | CPUENn;
+wire DTACKn = sdr_dtack_n | SDTACKn | (use_260dar ? dar_dtack_n : CDTACKn) | CPUENn;
 wire [2:0] IPLn;
 
 //////////////////////////////////
@@ -482,14 +484,16 @@ wire VBLn;
 wire HBLOn;
 wire VBLOn;
 
+wire [7:0] dar_red, dar_green, dar_blue;
+
 assign hsync = ~HSYNCn;
 assign vsync = ~VSYNCn;
 assign hblank = ~HBLn;
 assign vblank = ~VBLn;
 
-assign blue = {pri_ram_din[14:10], pri_ram_din[14:12]};
-assign green = {pri_ram_din[9:5], pri_ram_din[9:7]};
-assign red = {pri_ram_din[4:0], pri_ram_din[4:2]};
+assign blue = use_260dar ? dar_blue : {color_ram_q[14:10], color_ram_q[14:12]};
+assign green = use_260dar ? dar_green : {color_ram_q[9:5], color_ram_q[9:7]};
+assign red = use_260dar ? dar_red : {color_ram_q[4:0], color_ram_q[4:2]};
 
 wire [20:0] scn_main_rom_address;
 assign sdr_scn_main_addr = SCN0_ROM_SDR_BASE[26:0] + { 6'b0, scn_main_rom_address[20:0] };
@@ -541,37 +545,44 @@ TC0100SCN #(.SS_IDX(SSIDX_SCN_0)) scn_main(
 );
 
 
-wire [15:0] pri_data_out;
-wire [12:0] pri_ram_addr;
-wire [15:0] pri_ram_din, pri_ram_dout;
-wire pri_ram_we_l_n, pri_ram_we_h_n;
+wire [15:0] color_ram_q;
+wire [15:0] color_ram_data;
+wire [13:0] color_ram_address;
+wire color_ram_lds_n, color_ram_uds_n;
 
-wire [15:0] pri_ram_data;
-wire [11:0] pri_ram_address;
-wire pri_ram_lds_n, pri_ram_uds_n;
-
-m68k_ram #(.WIDTHAD(12)) pri_ram(
+m68k_ram #(.WIDTHAD(14)) color_ram(
     .clock(clk),
-    .address(pri_ram_address),
-    .we_lds_n(pri_ram_lds_n),
-    .we_uds_n(pri_ram_uds_n),
-    .data(pri_ram_data),
-    .q(pri_ram_din)
+    .address(color_ram_address),
+    .we_lds_n(color_ram_lds_n),
+    .we_uds_n(color_ram_uds_n),
+    .data(color_ram_data),
+    .q(color_ram_q)
 );
 
-m68k_ram_ss_adaptor #(.WIDTHAD(12), .SS_IDX(SSIDX_PRI_RAM)) pri_ram_ss(
+wire [15:0] pri_data_out;
+wire [12:0] pri_ram_addr;
+wire [15:0] pri_ram_dout;
+wire pri_ram_we_l_n, pri_ram_we_h_n;
+
+wire [15:0] dar_data_out;
+wire [13:0] dar_ram_addr;
+wire [15:0] dar_ram_dout;
+wire dar_ram_we_l_n, dar_ram_we_h_n;
+
+
+m68k_ram_ss_adaptor #(.WIDTHAD(14), .SS_IDX(SSIDX_COLOR_RAM)) color_ram_ss(
     .clk,
-    .addr_in(pri_ram_addr[12:1]),
-    .lds_n_in(pri_ram_we_l_n),
-    .uds_n_in(pri_ram_we_h_n),
-    .data_in(pri_ram_dout),
+    .addr_in(use_260dar ? dar_ram_addr : {2'b0, pri_ram_addr[12:1]}),
+    .lds_n_in(use_260dar ? dar_ram_we_l_n : pri_ram_we_l_n),
+    .uds_n_in(use_260dar ? dar_ram_we_h_n : pri_ram_we_h_n),
+    .data_in(use_260dar ? dar_ram_dout : pri_ram_dout),
 
-    .q(pri_ram_din),
+    .q(color_ram_q),
 
-    .addr_out(pri_ram_address),
-    .lds_n_out(pri_ram_lds_n),
-    .uds_n_out(pri_ram_uds_n),
-    .data_out(pri_ram_data),
+    .addr_out(color_ram_address),
+    .lds_n_out(color_ram_lds_n),
+    .uds_n_out(color_ram_uds_n),
+    .data_out(color_ram_data),
 
     .ssbus(ssb[6])
 );
@@ -602,11 +613,46 @@ TC0110PR tc0110pr(
 
     // RAM Interface
     .CA(pri_ram_addr),
-    .CDin(pri_ram_din),
+    .CDin(color_ram_q),
     .CDout(pri_ram_dout),
     .WELn(pri_ram_we_l_n),
     .WEHn(pri_ram_we_h_n)
 );
+
+TC0260DAR tc0260dar(
+    .clk,
+    .ce_pixel,
+
+    // CPU Interface
+    .MDin(cpu_data_out),
+    .MDout(dar_data_out),
+
+    .MA(cpu_addr[13:0]),
+    .RWn(cpu_rw),
+    .UDSn(cpu_ds_n[1]),
+    .LDSn(cpu_ds_n[0]),
+
+    .CS(~COLORn),
+    .DTACKn(dar_dtack_n),
+
+    // Video Input
+    .HBLANKn(HBLn),
+    .VBLANKn(VBLn),
+
+    .IM(|obj_dot ? { 2'b0, obj_dot } : scn_main_dot_color[13:0]),
+
+    .VIDEOR(dar_red),
+    .VIDEOG(dar_green),
+    .VIDEOB(dar_blue),
+
+    // RAM Interface
+    .RA(dar_ram_addr),
+    .RDin(color_ram_q),
+    .RDout(dar_ram_dout),
+    .RWELn(dar_ram_we_l_n),
+    .RWEHn(dar_ram_we_h_n)
+);
+
 
 
 //////////////////////////////////
@@ -674,25 +720,48 @@ always_comb begin
     SS_VECn = 1;
 
     if (~&cpu_ds_n) begin
-        casex(cpu_word_addr)
-            24'h00000x: begin
-                if (ss_restart) begin
-                    SS_RESETn = 0;
-                end else begin
-                    ROMn = 0;
+        if(use_260dar) begin
+            casex(cpu_word_addr)
+                24'h00000x: begin
+                    if (ss_restart) begin
+                        SS_RESETn = 0;
+                    end else begin
+                        ROMn = 0;
+                    end
                 end
-            end
-            24'h00007c: SS_VECn = 0;
-            24'h00007e: SS_VECn = 0;
-            24'h0xxxxx: ROMn = 0;
-            24'h1xxxxx: WORKn = 0;
-            24'h8xxxxx: SCREENn = 0;
-            24'h9xxxxx: OBJECTn = 0;
-            24'h2xxxxx: COLORn = 0;
-            24'h30xxxx: IOn = 0;
-            24'h32xxxx: SOUNDn = 0;
-            24'hff00xx: SS_SAVEn = 0;
-        endcase
+                24'h00007c: SS_VECn = 0;
+                24'h00007e: SS_VECn = 0;
+                24'h0xxxxx: ROMn = 0;
+                24'h1xxxxx: ROMn = 0;
+                24'h20xxxx: SOUNDn = 0;
+                24'h3xxxxx: WORKn = 0;
+                24'h7xxxxx: COLORn = 0;
+                24'h8xxxxx: SCREENn = 0;
+                24'h9xxxxx: OBJECTn = 0;
+                24'hb0xxxx: IOn = 0;
+                24'hff00xx: SS_SAVEn = 0;
+            endcase
+        end else begin
+            casex(cpu_word_addr)
+                24'h00000x: begin
+                    if (ss_restart) begin
+                        SS_RESETn = 0;
+                    end else begin
+                        ROMn = 0;
+                    end
+                end
+                24'h00007c: SS_VECn = 0;
+                24'h00007e: SS_VECn = 0;
+                24'h0xxxxx: ROMn = 0;
+                24'h1xxxxx: WORKn = 0;
+                24'h8xxxxx: SCREENn = 0;
+                24'h9xxxxx: OBJECTn = 0;
+                24'h2xxxxx: COLORn = 0;
+                24'h30xxxx: IOn = 0;
+                24'h32xxxx: SOUNDn = 0;
+                24'hff00xx: SS_SAVEn = 0;
+            endcase
+        end
     end
 end
 /* verilator lint_on CASEX */
@@ -701,7 +770,7 @@ assign cpu_data_in = ~ROMn ? sdr_cpu_q :
                      ~WORKn ? sdr_cpu_q :
                      ~SCREENn ? scn_main_data_out :
                      ~OBJECTn ? objram_data_out :
-                     ~COLORn ? pri_data_out :
+                     ~COLORn ? (use_260dar ? dar_data_out : pri_data_out) :
                      ~IOn ? { 8'b0, io_data_out } :
                      ~SOUNDn ? { 4'd0, syt_cpu_dout, 8'd0 } :
                      ~SS_SAVEn ? save_handler[cpu_addr[3:0]] :
@@ -740,8 +809,15 @@ always_ff @(posedge clk) begin
                 ssb[1].write_ack(SSIDX_CPU_RAM);
             end
         end
-    end else if (~(ROMn & WORKn) & prev_ds_n) begin
+    end else if (~ROMn & prev_ds_n) begin
         sdr_cpu_addr <= CPU_ROM_SDR_BASE[26:0] + { 3'b0, cpu_word_addr };
+        sdr_cpu_data <= cpu_data_out;
+        sdr_cpu_be <= ~cpu_ds_n;
+        sdr_cpu_rw <= cpu_rw;
+        sdr_cpu_req <= ~sdr_cpu_req;
+        ss_sdr_active <= 0;
+    end else if (~WORKn & prev_ds_n) begin
+        sdr_cpu_addr <= WORK_RAM_SDR_BASE[26:0] + { 11'b0, cpu_word_addr[15:0] };
         sdr_cpu_data <= cpu_data_out;
         sdr_cpu_be <= ~cpu_ds_n;
         sdr_cpu_rw <= cpu_rw;

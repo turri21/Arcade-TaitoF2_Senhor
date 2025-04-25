@@ -21,14 +21,20 @@
 #include <algorithm>
 #include <cstring>
 
-// TODO
+static const uint32_t CPU_ROM_SDR_BASE      = 0x00000000;
+static const uint32_t WORK_RAM_SDR_BASE     = 0x00800000;
+static const uint32_t SCN0_ROM_SDR_BASE     = 0x00900000;
+static const uint32_t ADPCMA_ROM_SDR_BASE   = 0x00b00000;
+static const uint32_t ADPCMB_ROM_SDR_BASE   = 0x00d00000;
+static const uint32_t OBJ_DATA_DDR_BASE     = 0x00200000;
+
 
 VerilatedContext *contextp;
 F2 *top;
 std::unique_ptr<VerilatedFstC> tfp;
 
 SimSDRAM sdram(128 * 1024 * 1024);
-SimMemory ddr_memory(4 * 1024 * 1024);
+SimMemory ddr_memory(8 * 1024 * 1024);
 SimVideo video;
 SimState* state_manager = nullptr;
 
@@ -130,9 +136,9 @@ ImU8 color_ram_read(const ImU8* , size_t off, void*)
     size_t word_off = off >> 1;
 
     if (off & 1)
-        return top->rootp->F2__DOT__pri_ram__DOT__ram_l[word_off];
+        return top->rootp->F2__DOT__color_ram__DOT__ram_l[word_off];
     else
-        return top->rootp->F2__DOT__pri_ram__DOT__ram_h[word_off];
+        return top->rootp->F2__DOT__color_ram__DOT__ram_h[word_off];
 }
 
 ImU8 obj_ram_read(const ImU8* , size_t off, void*)
@@ -143,6 +149,64 @@ ImU8 obj_ram_read(const ImU8* , size_t off, void*)
         return top->rootp->F2__DOT__objram__DOT__ram_l[word_off];
     else
         return top->rootp->F2__DOT__objram__DOT__ram_h[word_off];
+}
+
+void load_finalb_test()
+{
+    FILE *fp = fopen("../testroms/build/finalb_test/finalb/b82_10.ic5", "rb");
+    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 16 * 1024, fp);
+    fclose(fp);
+
+    sdram.load_data("../testroms/build/finalb_test/finalb/b82-09.ic23", CPU_ROM_SDR_BASE + 1, 2);
+    sdram.load_data("../testroms/build/finalb_test/finalb/b82-17.ic11", CPU_ROM_SDR_BASE + 0, 2);
+
+    sdram.load_data("../roms/b82-07.ic34", SCN0_ROM_SDR_BASE + 1, 2);
+    sdram.load_data("../roms/b82-06.ic33", SCN0_ROM_SDR_BASE + 0, 2);
+    
+    sdram.load_data("../roms/b82-02.ic1",  ADPCMA_ROM_SDR_BASE, 1);
+    sdram.load_data("../roms/b82-01.ic2",  ADPCMB_ROM_SDR_BASE, 1);
+
+    ddr_memory.load_data("../roms/b82-03.ic9", OBJ_DATA_DDR_BASE + 0, 4);
+    ddr_memory.load_data("../roms/b82-04.ic8", OBJ_DATA_DDR_BASE + 1, 4);
+    ddr_memory.load_data("../roms/b82-05.ic7", OBJ_DATA_DDR_BASE + 2, 4);
+}
+
+void load_finalb()
+{
+    FILE *fp = fopen("../roms/b82_10.ic5", "rb");
+    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 64 * 1024, fp);
+    fclose(fp);
+
+    sdram.load_data("../roms/b82-09.ic23", CPU_ROM_SDR_BASE + 1, 2);
+    sdram.load_data("../roms/b82-17.ic11", CPU_ROM_SDR_BASE + 0, 2);
+
+    sdram.load_data("../roms/b82-07.ic34", SCN0_ROM_SDR_BASE + 1, 2);
+    sdram.load_data("../roms/b82-06.ic33", SCN0_ROM_SDR_BASE + 0, 2);
+    
+    sdram.load_data("../roms/b82-02.ic1",  ADPCMA_ROM_SDR_BASE, 1);
+    sdram.load_data("../roms/b82-01.ic2",  ADPCMB_ROM_SDR_BASE, 1);
+
+    ddr_memory.load_data("../roms/b82-03.ic9", OBJ_DATA_DDR_BASE + 0, 4);
+    ddr_memory.load_data("../roms/b82-04.ic8", OBJ_DATA_DDR_BASE + 1, 4);
+    ddr_memory.load_data("../roms/b82-05.ic7", OBJ_DATA_DDR_BASE + 2, 4);
+}
+
+void load_qjinsei()
+{
+    FILE *fp = fopen("../roms/d48-11", "rb");
+    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 64 * 1024, fp);
+    fclose(fp);
+
+    sdram.load_data("../roms/d48-09", CPU_ROM_SDR_BASE + 1, 2);
+    sdram.load_data("../roms/d48-10", CPU_ROM_SDR_BASE + 0, 2);
+    sdram.load_data("../roms/d48-03", CPU_ROM_SDR_BASE + 0x100000, 1);
+
+    sdram.load_data("../roms/d48-04", SCN0_ROM_SDR_BASE, 1);
+    
+    sdram.load_data("../roms/d48-05",  ADPCMA_ROM_SDR_BASE, 1);
+
+    ddr_memory.load_data("../roms/d48-02", OBJ_DATA_DDR_BASE + 0, 4);
+    ddr_memory.load_data("../roms/d48-01", OBJ_DATA_DDR_BASE + 1, 4);
 }
 
 
@@ -157,27 +221,7 @@ int main(int argc, char **argv)
     top = new F2{contextp};
     tfp = nullptr;
 
-
-    FILE *fp = fopen("../testroms/build/finalb_test/finalb/b82_10.ic5", "rb");
-    //FILE *fp = fopen("../roms/b82_10.ic5", "rb");
-    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 16 * 1024, fp);
-    fclose(fp);
-
-    sdram.load_data("../roms/b82-09.ic23", 1, 2);
-    sdram.load_data("../roms/b82-17.ic11", 0, 2);
-
-    sdram.load_data("../testroms/build/finalb_test/finalb/b82-09.ic23", 1, 2);
-    sdram.load_data("../testroms/build/finalb_test/finalb/b82-17.ic11", 0, 2);
-
-    sdram.load_data("../roms/b82-07.ic34", 0x200001, 2);
-    sdram.load_data("../roms/b82-06.ic33", 0x200000, 2);
-    
-    sdram.load_data("../roms/b82-02.ic1",  0x400000, 1);
-    sdram.load_data("../roms/b82-01.ic2",  0x600000, 1);
-
-    ddr_memory.load_data("../roms/b82-03.ic9", 0x200000, 4);
-    ddr_memory.load_data("../roms/b82-04.ic8", 0x200001, 4);
-    ddr_memory.load_data("../roms/b82-05.ic7", 0x200002, 4);
+    load_qjinsei();
 
     strcpy(trace_filename, "sim.fst");
 
@@ -376,13 +420,13 @@ int main(int argc, char **argv)
                 
                 if (ImGui::BeginTabItem("CPU ROM"))
                 {
-                    rom_mem.DrawContents(sdram.data, 1024 * 1024);
+                    rom_mem.DrawContents(sdram.data + CPU_ROM_SDR_BASE, 1024 * 1024);
                     ImGui::EndTabItem();
                 }
                 
                 if (ImGui::BeginTabItem("Work RAM"))
                 {
-                    work_mem.DrawContents(sdram.data + (1024 * 1024), 64 * 1024);
+                    work_mem.DrawContents(sdram.data + WORK_RAM_SDR_BASE, 64 * 1024);
                     ImGui::EndTabItem();
                 }
                 

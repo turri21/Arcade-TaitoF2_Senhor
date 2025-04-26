@@ -65,6 +65,18 @@ module F2(
     input             bram_wr
 );
 
+wire cfg_260dar, cfg_110pcr, cfg_360pri;
+wire [1:0] cfg_obj_extender;
+
+game_board_config game_board_config(
+    .clk,
+    .game(game),
+
+    .cfg_110pcr,
+    .cfg_260dar,
+    .cfg_360pri,
+    .cfg_obj_extender
+);
 
 ddr_if ddr();
 assign ddr_addr = ddr.addr;
@@ -242,8 +254,6 @@ always_ff @(posedge clk) begin
     endcase
 end
 
-wire use_260dar = 1;
-
 //////////////////////////////////
 //// CHIP SELECTS
 
@@ -260,7 +270,7 @@ wire SDTACKn, CDTACKn, CPUENn, dar_dtack_n;
 
 wire sdr_dtack_n = sdr_cpu_req != sdr_cpu_ack;
 
-wire DTACKn = sdr_dtack_n | SDTACKn | (use_260dar ? dar_dtack_n : CDTACKn) | CPUENn;
+wire DTACKn = sdr_dtack_n | SDTACKn | (cfg_260dar ? dar_dtack_n : CDTACKn) | CPUENn;
 wire [2:0] IPLn;
 
 //////////////////////////////////
@@ -450,7 +460,7 @@ wire [15:0] extension_data;
 TC0200OBJ_Extender tc0200obj_extender(
     .clk,
 
-    .mode(use_260dar ? 2'b01 : 2'b00),
+    .mode(cfg_obj_extender),
 
     .cs(~extension_n),
     .cpu_addr(cpu_addr[11:0]),
@@ -525,9 +535,9 @@ assign vsync = ~VSYNCn;
 assign hblank = ~HBLn;
 assign vblank = ~VBLn;
 
-assign blue = use_260dar ? dar_blue : {color_ram_q[14:10], color_ram_q[14:12]};
-assign green = use_260dar ? dar_green : {color_ram_q[9:5], color_ram_q[9:7]};
-assign red = use_260dar ? dar_red : {color_ram_q[4:0], color_ram_q[4:2]};
+assign blue = cfg_260dar ? dar_blue : {color_ram_q[14:10], color_ram_q[14:12]};
+assign green = cfg_260dar ? dar_green : {color_ram_q[9:5], color_ram_q[9:7]};
+assign red = cfg_260dar ? dar_red : {color_ram_q[4:0], color_ram_q[4:2]};
 
 wire [20:0] scn_main_rom_address;
 assign sdr_scn_main_addr = SCN0_ROM_SDR_BASE[26:0] + { 6'b0, scn_main_rom_address[20:0] };
@@ -606,10 +616,10 @@ wire dar_ram_we_l_n, dar_ram_we_h_n;
 
 m68k_ram_ss_adaptor #(.WIDTHAD(14), .SS_IDX(SSIDX_COLOR_RAM)) color_ram_ss(
     .clk,
-    .addr_in(use_260dar ? dar_ram_addr : {2'b0, pri_ram_addr[12:1]}),
-    .lds_n_in(use_260dar ? dar_ram_we_l_n : pri_ram_we_l_n),
-    .uds_n_in(use_260dar ? dar_ram_we_h_n : pri_ram_we_h_n),
-    .data_in(use_260dar ? dar_ram_dout : pri_ram_dout),
+    .addr_in(cfg_260dar ? dar_ram_addr : {2'b0, pri_ram_addr[12:1]}),
+    .lds_n_in(cfg_260dar ? dar_ram_we_l_n : pri_ram_we_l_n),
+    .uds_n_in(cfg_260dar ? dar_ram_we_h_n : pri_ram_we_h_n),
+    .data_in(cfg_260dar ? dar_ram_dout : pri_ram_dout),
 
     .q(color_ram_q),
 
@@ -765,7 +775,7 @@ assign cpu_data_in = ~ROMn ? sdr_cpu_q :
                      ~WORKn ? sdr_cpu_q :
                      ~SCREENn ? scn_main_data_out :
                      ~OBJECTn ? objram_data_out :
-                     ~COLORn ? (use_260dar ? dar_data_out : pri_data_out) :
+                     ~COLORn ? (cfg_260dar ? dar_data_out : pri_data_out) :
                      ~IOn ? { 8'b0, io_data_out } :
                      ~SOUNDn ? { 4'd0, syt_cpu_dout, 8'd0 } :
                      ~extension_n ? extension_data :

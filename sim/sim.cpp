@@ -251,7 +251,7 @@ int main(int argc, char **argv)
     top = new F2{contextp};
     tfp = nullptr;
 
-    load_qjinsei();
+    load_dinorex();
 
     strcpy(trace_filename, "sim.fst");
 

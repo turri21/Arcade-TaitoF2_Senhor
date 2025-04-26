@@ -4,7 +4,7 @@ module F2(
     input             clk,
     input             reset,
 
-    input       [7:0] game,
+    input  game_t     game,
 
     output            ce_pixel,
     output            hsync,

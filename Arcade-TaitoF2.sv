@@ -472,6 +472,8 @@ F2 F2(
     .clk(clk_sys),
     .reset(reset),
 
+    .game(board_cfg.game),
+
     .ce_pixel(ce_pix),
     .hsync(HSync),
     .hblank(HBlank),

@@ -9,6 +9,7 @@ module tc0100scn_shifter #(
     input [2:0] tap,
     input [(PIXEL_WIDTH * 8) - 1:0] gfx_in,
     input [PALETTE_WIDTH - 1:0] palette_in,
+    input flip_x,
     output [PIXEL_WIDTH + PALETTE_WIDTH - 1:0] dot_out
 );
 
@@ -24,8 +25,14 @@ always_ff @(posedge clk) begin
         shift[SHIFT_END:DOT_WIDTH] <= shift[SHIFT_END-DOT_WIDTH:0];
         if (load) begin
             int i;
-            for( i = 0; i < 8; i = i + 1 ) begin
-                shift[(DOT_WIDTH * i) +: DOT_WIDTH] <= { palette_in, gfx_in[(PIXEL_WIDTH * i) +: PIXEL_WIDTH] };
+            if (flip_x) begin
+                for( i = 0; i < 8; i = i + 1 ) begin
+                    shift[(DOT_WIDTH * (7 - i)) +: DOT_WIDTH] <= { palette_in, gfx_in[(PIXEL_WIDTH * i) +: PIXEL_WIDTH] };
+                end
+            end else begin
+                for( i = 0; i < 8; i = i + 1 ) begin
+                    shift[(DOT_WIDTH * i) +: DOT_WIDTH] <= { palette_in, gfx_in[(PIXEL_WIDTH * i) +: PIXEL_WIDTH] };
+                end
             end
         end
     end
@@ -168,6 +175,15 @@ reg [15:0] bg0_code, bg1_code;
 reg [15:0] bg0_attrib, bg1_attrib;
 reg [15:0] fg0_code, fg0_gfx;
 
+wire bg0_flipx = bg0_attrib[14];
+wire bg0_flipy = bg0_attrib[15];
+wire bg1_flipx = bg1_attrib[14];
+wire bg1_flipy = bg1_attrib[15];
+wire fg0_flipx = fg0_code[14];
+wire fg0_flipy = fg0_code[15];
+
+
+
 wire [31:0] fg0_gfx_swizzle = { 2'b0, fg0_gfx[15], fg0_gfx[7],
                                 2'b0, fg0_gfx[14], fg0_gfx[6],
                                 2'b0, fg0_gfx[13], fg0_gfx[5],
@@ -182,6 +198,7 @@ tc0100scn_shifter bg0_shift(
     .tap(~bg0_hofs[2:0]),
     .gfx_in({bg0_gfx[15:8], bg0_gfx[7:0], bg0_gfx[31:24], bg0_gfx[23:16]}),
     .palette_in(bg0_attrib[7:0]),
+    .flip_x(bg0_flipx),
     .dot_out(bg0_dot),
     .load(access_cycle == 15)
 );
@@ -191,6 +208,7 @@ tc0100scn_shifter bg1_shift(
     .tap(~bg1_hofs[2:0]),
     .gfx_in({bg1_gfx[15:8], bg1_gfx[7:0], bg1_gfx[31:24], bg1_gfx[23:16]}),
     .palette_in(bg1_attrib[7:0]),
+    .flip_x(bg1_flipx),
     .dot_out(bg1_dot),
     .load(access_cycle == 15)
 );
@@ -200,6 +218,7 @@ tc0100scn_shifter fg0_shift(
     .tap(~fg0_x[2:0]),
     .gfx_in(fg0_gfx_swizzle),
     .palette_in({2'b0, fg0_code[13:8]}),
+    .flip_x(fg0_flipx),
     .dot_out(fg0_dot),
     .load(access_cycle == 15)
 );
@@ -259,7 +278,7 @@ always @(posedge clk) begin
             3: begin
                 bg0_code <= SDin;
                 v = vcnt - bg0_y[8:0];
-                rom_address <= { SDin, v[2:0], 2'b0 };
+                rom_address <= { SDin, bg0_flipy ? ~v[2:0] : v[2:0], 2'b0 };
                 rom_req <= ~rom_req;
             end
             // BG1 Address Colscroll
@@ -303,13 +322,13 @@ always @(posedge clk) begin
 
                 bg0_gfx <= rom_data;
                 v = vcnt - (bg1_y[8:0] + bg1_colscroll[8:0]);
-                rom_address <= { SDin, v[2:0], 2'b0 };
+                rom_address <= { SDin, bg1_flipy ? ~v[2:0] : v[2:0], 2'b0 };
                 rom_req <= ~rom_req;
             end
             // FG0 Address GFX
             12: begin
                 v = vcnt - fg0_y[8:0];
-                ram_addr <= { 5'b0_0110, fg0_code[7:0], v[2:0] };
+                ram_addr <= { 5'b0_0110, fg0_code[7:0], fg0_flipy ? ~v[2:0] : v[2:0] };
             end
             // FG0 Store GFX
             13: begin

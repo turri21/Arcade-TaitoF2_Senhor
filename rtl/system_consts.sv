@@ -8,6 +8,7 @@ package system_consts;
     parameter int SSIDX_AUDIO_RAM = 6;
     parameter int SSIDX_Z80 = 7;
     parameter int SSIDX_YM = 8;
+    parameter int SSIDX_EXTENSION_RAM = 9;
 
 
 `ifdef VERILATOR
@@ -59,8 +60,40 @@ package system_consts;
         REGION_ADPCMB
     };
 
+    typedef enum bit [7:0] {
+        GAME_FINALB,
+        GAME_DONDOKOD,
+        GAME_MEGAB,
+        GAME_THUNDFOX,
+        GAME_CAMELTRY,
+        GAME_QTORIMON,
+        GAME_LIQUIDK,
+        GAME_QUIZHQ,
+        GAME_SSI,
+        GAME_GUNFRONT,
+        GAME_GROWL,
+        GAME_MJNQUEST,
+        GAME_FOOTCHMP,
+        GAME_KOSHIEN,
+        GAME_YUYUGOGO,
+        GAME_NINJAK,
+        GAME_SOLFIGTR,
+        GAME_QZQUEST,
+        GAME_PULIRULA,
+        GAME_METALB,
+        GAME_QZCHIKYU,
+        GAME_YESNOJ,
+        GAME_DEADCONX,
+        GAME_DINOREX,
+        GAME_QJINSEI,
+        GAME_QCRAYON,
+        GAME_QCRAYON2,
+        GAME_DRIFTOUT
+    } game_t;
+
     typedef struct packed {
-        bit [15:0] unused;
+        game_t    game;
+        bit [7:0] unused;
     } board_cfg_t;
 
 endpackage

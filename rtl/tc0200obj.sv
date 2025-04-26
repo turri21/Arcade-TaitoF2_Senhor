@@ -25,6 +25,11 @@ module TC0200OBJ #(parameter SS_IDX=-1) (
     output reg HBLn,
     output reg VBLn,
 
+    // bank switching and extension support
+    output reg code_modify_req,
+    output [13:0] code_original,
+    input [19:0] code_modified,
+
     input [12:0] debug_idx,
 
     ddr_if.to_host ddr,
@@ -85,6 +90,9 @@ wire        inst_inc_y           =  work_buffer[4][13];
 wire        inst_use_latch_x     =  work_buffer[4][14];
 wire        inst_inc_x           =  work_buffer[4][15];
 reg         inst_debug;
+
+assign code_original = inst_tile_code;
+wire [19:0] tile_code = code_modified;
 
 typedef enum
 {
@@ -160,7 +168,7 @@ reg shifter_read;
 tc0200obj_data_shifter shifter(
     .clk,
     .reset(obj_state == ST_EVAL),
-    .bpp6(1),
+    .bpp6(0),
     .burstcnt(read_tile_burstcnt),
     .load_complete(read_tile_complete),
 
@@ -187,6 +195,7 @@ reg test_pause = 0;
 always @(posedge clk) begin
     bit [11:0] base_x, base_y;
     ddr_obj.acquire <= 0;
+    code_modify_req <= 0;
 
     prev_vbl_n <= VBLn;
     if (prev_vbl_n & ~VBLn) begin
@@ -280,6 +289,9 @@ always @(posedge clk) begin
         ST_READ: if (ce_13m) begin
             RA <= RA + 15'd1;
             work_buffer[RA[2:0]] <= Din;
+            if (RA[2:0] == 3'b101) begin
+                code_modify_req <= 1;
+            end
             if (RA[2:0] == 3'b111) begin
                 obj_state <= ST_EVAL;
                 EBUSY <= 0;
@@ -315,7 +327,7 @@ always @(posedge clk) begin
                 latch_x <= base_x + {7'd0, inst_inc_x, 4'd0};
             end
 
-            if (inst_tile_code == 0) begin
+            if (tile_code == 0) begin
                 obj_state <= ST_READ_START;
             end else begin
                 obj_state <= ST_CHECK_BOUNDS;
@@ -342,7 +354,7 @@ always @(posedge clk) begin
             if (~ddr_obj.busy) begin
                 ddr_obj.read <= 1;
                 ddr_obj.burstcnt <= read_tile_burstcnt;
-                ddr_obj.addr <= OBJ_DATA_DDR_BASE + {10'd0, inst_tile_code, 8'd0};
+                ddr_obj.addr <= OBJ_DATA_DDR_BASE + {4'd0, tile_code, 8'd0};
                 tile_burst <= 0;
                 obj_state <= ST_READ_TILE_WAIT;
             end
@@ -708,10 +720,18 @@ task prepare_draw();
     out_data <= 64'd0;
     out_ready <= 1;
 
-    out_data[15:0] <=  { 4'd0, color[7:2], row_data[0] };
-    out_data[31:16] <= { 4'd0, color[7:2], row_data[1] };
-    out_data[47:32] <= { 4'd0, color[7:2], row_data[2] };
-    out_data[63:48] <= { 4'd0, color[7:2], row_data[3] };
+    if (bpp6) begin
+        out_data[15:0] <=  { 4'd0, color[7:2], row_data[0] };
+        out_data[31:16] <= { 4'd0, color[7:2], row_data[1] };
+        out_data[47:32] <= { 4'd0, color[7:2], row_data[2] };
+        out_data[63:48] <= { 4'd0, color[7:2], row_data[3] };
+    end else begin
+        out_data[15:0] <=  { 4'd0, color[7:0], row_data[0][3:0] };
+        out_data[31:16] <= { 4'd0, color[7:0], row_data[1][3:0] };
+        out_data[47:32] <= { 4'd0, color[7:0], row_data[2][3:0] };
+        out_data[63:48] <= { 4'd0, color[7:0], row_data[3][3:0] };
+    end
+
     out_be[1:0] <= {2{|row_data[0]}};
     out_be[3:2] <= {2{|row_data[1]}};
     out_be[5:4] <= {2{|row_data[2]}};

@@ -1,5 +1,6 @@
 #include "F2.h"
 #include "F2___024root.h"
+#include "games.h"
 #include "imgui.h"
 #include "verilated.h"
 #include "verilated_fst_c.h"
@@ -12,7 +13,7 @@
 #include "sim_state.h"
 #include "tc0200obj.h"
 #include "dis68k/dis68k.h"
-
+#include "games.h"
 
 #include <stdio.h>
 #include <SDL.h>
@@ -169,6 +170,8 @@ void load_finalb_test()
     ddr_memory.load_data("../roms/b82-03.ic9", OBJ_DATA_DDR_BASE + 0, 4);
     ddr_memory.load_data("../roms/b82-04.ic8", OBJ_DATA_DDR_BASE + 1, 4);
     ddr_memory.load_data("../roms/b82-05.ic7", OBJ_DATA_DDR_BASE + 2, 4);
+
+    top->game = GAME_FINALB;
 }
 
 void load_finalb()
@@ -189,6 +192,8 @@ void load_finalb()
     ddr_memory.load_data("../roms/b82-03.ic9", OBJ_DATA_DDR_BASE + 0, 4);
     ddr_memory.load_data("../roms/b82-04.ic8", OBJ_DATA_DDR_BASE + 1, 4);
     ddr_memory.load_data("../roms/b82-05.ic7", OBJ_DATA_DDR_BASE + 2, 4);
+    
+    top->game = GAME_FINALB;
 }
 
 void load_qjinsei()
@@ -207,6 +212,31 @@ void load_qjinsei()
 
     ddr_memory.load_data("../roms/d48-02", OBJ_DATA_DDR_BASE + 0, 4);
     ddr_memory.load_data("../roms/d48-01", OBJ_DATA_DDR_BASE + 1, 4);
+    
+    top->game = GAME_QJINSEI;
+}
+
+void load_dinorex()
+{
+    FILE *fp = fopen("../roms/d39-12.5", "rb");
+    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 64 * 1024, fp);
+    fclose(fp);
+
+    sdram.load_data("../roms/d39-14.9", CPU_ROM_SDR_BASE + 1, 2);
+    sdram.load_data("../roms/d39-16.8", CPU_ROM_SDR_BASE + 0, 2);
+    sdram.load_data("../roms/d39-04.6", CPU_ROM_SDR_BASE + 0x100000, 1);
+    sdram.load_data("../roms/d39-05.7", CPU_ROM_SDR_BASE + 0x200000, 1);
+	
+    sdram.load_data("../roms/d39-06.2", SCN0_ROM_SDR_BASE, 1);
+    
+    sdram.load_data("../roms/d39-07.10",  ADPCMA_ROM_SDR_BASE, 1);
+    sdram.load_data("../roms/d39-08.4",  ADPCMB_ROM_SDR_BASE, 1);
+
+    ddr_memory.load_data("../roms/d39-01.29", OBJ_DATA_DDR_BASE, 1);
+    ddr_memory.load_data("../roms/d39-02.28", OBJ_DATA_DDR_BASE + 0x200000, 1);
+    ddr_memory.load_data("../roms/d39-03.27", OBJ_DATA_DDR_BASE + 0x400000, 1);
+    
+    top->game = GAME_DINOREX;
 }
 
 

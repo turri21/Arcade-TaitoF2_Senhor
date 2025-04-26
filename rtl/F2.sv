@@ -4,6 +4,8 @@ module F2(
     input             clk,
     input             reset,
 
+    input       [7:0] game,
+
     output            ce_pixel,
     output            hsync,
     output            hblank,
@@ -93,9 +95,9 @@ wire ss_busy;
 
 ssbus_if ssbus();
 //ssbuf_if ss_global(), ss_cpu_ram(), ss_obj(), ss_objram(), ss_pri_ram(), ss_scn_main(), ss_scn_ram_0();
-ssbus_if ssb[10]();
+ssbus_if ssb[11]();
 
-ssbus_mux #(.COUNT(10)) ssmux(
+ssbus_mux #(.COUNT(11)) ssmux(
     .clk,
     .slave(ssbus),
     .masters(ssb)
@@ -252,6 +254,7 @@ logic COLORn;
 logic IOn;
 logic OBJECTn;
 logic SOUNDn /* verilator public_flat */;
+logic extension_n;
 
 wire SDTACKn, CDTACKn, CPUENn, dar_dtack_n;
 
@@ -400,6 +403,10 @@ m68k_ram_ss_adaptor #(.WIDTHAD(15), .SS_IDX(SSIDX_OBJ_RAM)) objram_ss(
     .ssbus(ssb[2])
 );
 
+wire obj_code_modify_req;
+wire [13:0] obj_code_original;
+wire [19:0] obj_code_modified;
+
 TC0200OBJ tc0200obj(
     .clk,
 
@@ -427,12 +434,39 @@ TC0200OBJ tc0200obj(
     .HBLn,
     .VBLn,
 
+    .code_modify_req(obj_code_modify_req),
+    .code_original(obj_code_original),
+    .code_modified(obj_code_modified),
+
     .ddr(ddr_obj),
 
     .debug_idx(obj_debug_idx),
 
     .ssbus(ssb[3])
 );
+
+wire [15:0] extension_data;
+
+TC0200OBJ_Extender tc0200obj_extender(
+    .clk,
+
+    .mode(use_260dar ? 2'b01 : 2'b00),
+
+    .cs(~extension_n),
+    .cpu_addr(cpu_addr[11:0]),
+    .cpu_ds_n(cpu_ds_n),
+    .cpu_rw(cpu_rw),
+    .din(cpu_data_out),
+    .dout(extension_data),
+
+    .code_req(obj_code_modify_req),
+    .code_original(obj_code_original),
+    .code_modified(obj_code_modified),
+    .obj_addr(obj_ram_addr),
+
+    .ssb(ssb[10])
+);
+
 
 
 //////////////////////////////////
@@ -639,7 +673,7 @@ TC0260DAR tc0260dar(
     .HBLANKn(HBLn),
     .VBLANKn(VBLn),
 
-    .IM(|obj_dot ? { 2'b0, obj_dot } : scn_main_dot_color[13:0]),
+    .IM(|obj_dot[3:0] ? { 2'b0, obj_dot } : scn_main_dot_color[13:0]),
 
     .VIDEOR(dar_red),
     .VIDEOG(dar_green),
@@ -706,65 +740,26 @@ end
 
 logic SS_SAVEn, SS_RESETn, SS_VECn;
 
-/* verilator lint_off CASEX */
-always_comb begin
-    WORKn = 1;
-    ROMn = 1;
-    SCREENn = 1;
-    COLORn = 1;
-    IOn = 1;
-    OBJECTn = 1;
-    SOUNDn = 1;
-    SS_SAVEn = 1;
-    SS_RESETn = 1;
-    SS_VECn = 1;
+address_translator address_translator(
+    .game,
+    .cpu_ds_n,
+    .cpu_word_addr,
+    .ss_restart,
 
-    if (~&cpu_ds_n) begin
-        if(use_260dar) begin
-            casex(cpu_word_addr)
-                24'h00000x: begin
-                    if (ss_restart) begin
-                        SS_RESETn = 0;
-                    end else begin
-                        ROMn = 0;
-                    end
-                end
-                24'h00007c: SS_VECn = 0;
-                24'h00007e: SS_VECn = 0;
-                24'h0xxxxx: ROMn = 0;
-                24'h1xxxxx: ROMn = 0;
-                24'h20xxxx: SOUNDn = 0;
-                24'h3xxxxx: WORKn = 0;
-                24'h7xxxxx: COLORn = 0;
-                24'h8xxxxx: SCREENn = 0;
-                24'h9xxxxx: OBJECTn = 0;
-                24'hb0xxxx: IOn = 0;
-                24'hff00xx: SS_SAVEn = 0;
-            endcase
-        end else begin
-            casex(cpu_word_addr)
-                24'h00000x: begin
-                    if (ss_restart) begin
-                        SS_RESETn = 0;
-                    end else begin
-                        ROMn = 0;
-                    end
-                end
-                24'h00007c: SS_VECn = 0;
-                24'h00007e: SS_VECn = 0;
-                24'h0xxxxx: ROMn = 0;
-                24'h1xxxxx: WORKn = 0;
-                24'h8xxxxx: SCREENn = 0;
-                24'h9xxxxx: OBJECTn = 0;
-                24'h2xxxxx: COLORn = 0;
-                24'h30xxxx: IOn = 0;
-                24'h32xxxx: SOUNDn = 0;
-                24'hff00xx: SS_SAVEn = 0;
-            endcase
-        end
-    end
-end
-/* verilator lint_on CASEX */
+    .WORKn,
+    .ROMn,
+    .SCREENn,
+    .COLORn,
+    .IOn,
+    .OBJECTn,
+    .SOUNDn,
+
+    .extension_n,
+
+    .SS_SAVEn,
+    .SS_RESETn,
+    .SS_VECn
+);
 
 assign cpu_data_in = ~ROMn ? sdr_cpu_q :
                      ~WORKn ? sdr_cpu_q :
@@ -773,6 +768,7 @@ assign cpu_data_in = ~ROMn ? sdr_cpu_q :
                      ~COLORn ? (use_260dar ? dar_data_out : pri_data_out) :
                      ~IOn ? { 8'b0, io_data_out } :
                      ~SOUNDn ? { 4'd0, syt_cpu_dout, 8'd0 } :
+                     ~extension_n ? extension_data :
                      ~SS_SAVEn ? save_handler[cpu_addr[3:0]] :
                      ~SS_RESETn ? reset_vector[cpu_addr[1:0]] :
                      ~SS_VECn ? ( cpu_addr[0] ? 16'h0000 : 16'h00ff ) :

@@ -180,7 +180,7 @@ wire [31:0] fg0_gfx_swizzle = { 2'b0, fg0_gfx[15], fg0_gfx[7],
 tc0100scn_shifter bg0_shift(
     .clk, .ce_pixel,
     .tap(~bg0_hofs[2:0]),
-    .gfx_in({bg0_gfx[15:0], bg0_gfx[31:16]}),
+    .gfx_in({bg0_gfx[15:8], bg0_gfx[7:0], bg0_gfx[31:24], bg0_gfx[23:16]}),
     .palette_in(bg0_attrib[7:0]),
     .dot_out(bg0_dot),
     .load(access_cycle == 15)
@@ -189,7 +189,7 @@ tc0100scn_shifter bg0_shift(
 tc0100scn_shifter bg1_shift(
     .clk, .ce_pixel,
     .tap(~bg1_hofs[2:0]),
-    .gfx_in({bg1_gfx[15:0], bg1_gfx[31:16]}),
+    .gfx_in({bg1_gfx[15:8], bg1_gfx[7:0], bg1_gfx[31:24], bg1_gfx[23:16]}),
     .palette_in(bg1_attrib[7:0]),
     .dot_out(bg1_dot),
     .load(access_cycle == 15)

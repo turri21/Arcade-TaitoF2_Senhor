@@ -103,6 +103,7 @@ typedef enum
     ST_READ_START,
     ST_READ,
     ST_EVAL,
+    ST_EVAL2,
     ST_CHECK_BOUNDS,
     ST_READ_TILE,
     ST_READ_TILE_WAIT,
@@ -164,11 +165,12 @@ wire [7:0] shifter_be;
 wire [14:0] shifter_addr;
 wire shifter_ready, shifter_done;
 reg shifter_read;
+reg bpp6 = 0;
 
 tc0200obj_data_shifter shifter(
     .clk,
     .reset(obj_state == ST_EVAL),
-    .bpp6(0),
+    .bpp6,
     .burstcnt(read_tile_burstcnt),
     .load_complete(read_tile_complete),
 
@@ -191,9 +193,11 @@ tc0200obj_data_shifter shifter(
 
 reg [17:0] read_pacing;
 reg test_pause = 0;
+    
+reg [11:0] base_x, base_y;
+reg prev_seq;
 
 always @(posedge clk) begin
-    bit [11:0] base_x, base_y;
     ddr_obj.acquire <= 0;
     code_modify_req <= 0;
 
@@ -302,9 +306,13 @@ always @(posedge clk) begin
         ST_EVAL: begin
             if (inst_is_cmd) begin
             end
+            
+            if (inst_next_seq & ~prev_seq) begin
+                base_x = inst_x_coord + (inst_use_scroll ? ( master_x + (inst_use_extra ? extra_x : 12'd0) ) : 12'd0);
+                base_y = inst_y_coord + (inst_use_scroll ? ( master_y + (inst_use_extra ? extra_y : 12'd0) ) : 12'd0);
+            end
 
-            base_x = inst_x_coord + (inst_use_scroll ? ( master_x + (inst_use_extra ? extra_x : 12'd0) ) : 12'd0);
-            base_y = inst_y_coord + (inst_use_scroll ? ( master_y + (inst_use_extra ? extra_y : 12'd0) ) : 12'd0);
+            prev_seq <= inst_next_seq;
 
             if (inst_latch_extra) begin
                 extra_x <= inst_x_coord;
@@ -316,6 +324,10 @@ always @(posedge clk) begin
                 master_y <= inst_y_coord;
             end
 
+            obj_state <= ST_EVAL2;
+        end
+
+        ST_EVAL2: begin
             if (inst_use_latch_y) begin
                 latch_y <= latch_y + {7'd0, 1'b1, 4'd0};
             end else begin
@@ -354,7 +366,10 @@ always @(posedge clk) begin
             if (~ddr_obj.busy) begin
                 ddr_obj.read <= 1;
                 ddr_obj.burstcnt <= read_tile_burstcnt;
-                ddr_obj.addr <= OBJ_DATA_DDR_BASE + {4'd0, tile_code, 8'd0};
+                if (bpp6)
+                    ddr_obj.addr <= OBJ_DATA_DDR_BASE + {4'd0, tile_code, 8'd0};
+                else
+                    ddr_obj.addr <= OBJ_DATA_DDR_BASE + {5'd0, tile_code, 7'd0};
                 tile_burst <= 0;
                 obj_state <= ST_READ_TILE_WAIT;
             end

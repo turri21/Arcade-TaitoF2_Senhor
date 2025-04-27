@@ -22,7 +22,7 @@ module TC0200OBJ_Extender(
 wire [7:0] ram_a_data, ram_a_q;
 wire [11:0] ram_a_addr;
 wire ram_a_wr;
-wire [7:0] cpu_byte_din = din[15:8];
+wire [7:0] cpu_byte_din = din[7:0];
 wire [7:0] cpu_byte_dout;
 
 assign dout = { cpu_byte_dout, cpu_byte_dout };

@@ -276,6 +276,7 @@ int main(int argc, char **argv)
     MemoryEditor ddr_mem_editor;
     MemoryEditor sound_ram;
     MemoryEditor sound_rom;
+    MemoryEditor extension_ram;
 
     scn_main_mem.ReadFn = scn_mem_read;
     scn_main_mem.WriteFn = scn_mem_write;
@@ -447,6 +448,13 @@ int main(int argc, char **argv)
                     obj_ram.DrawContents(nullptr, 64 * 1024);
                     ImGui::EndTabItem();
                 }
+
+                if (ImGui::BeginTabItem("Extension RAM"))
+                {
+                    extension_ram.DrawContents(top->rootp->F2__DOT__tc0200obj_extender__DOT__extension_ram__DOT__ram.m_storage, 4 * 1024);
+                    ImGui::EndTabItem();
+                }
+
                 
                 if (ImGui::BeginTabItem("CPU ROM"))
                 {

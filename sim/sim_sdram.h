@@ -84,6 +84,29 @@ public:
         return true;
     }
 
+    bool load_data16be(const char *name, int offset)
+    {
+        FILE *fp = fopen(name, "rb");
+        if (fp == nullptr)
+        {
+            return false;
+        }
+
+        uint32_t addr = offset;
+        uint8_t bytes[2];
+
+        while( fread(bytes, 1, 2, fp) == 1 )
+        {
+            data[addr & mask] = bytes[1];
+            data[(addr + 1) & mask] = bytes[0];
+            addr += 2;
+        }
+
+        fclose(fp);
+        return true;
+    }
+
+
     bool save_data(const char *filename)
     {
         FILE *fp = fopen(filename, "wb");

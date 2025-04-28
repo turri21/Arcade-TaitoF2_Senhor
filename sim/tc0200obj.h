@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include <SDL.h>
+
 typedef struct
 {
     uint16_t code;
@@ -77,6 +79,11 @@ typedef struct
 static_assert(sizeof(TC0200OBJ_Inst) == 16, "TC0200OBJ mismatch");
 
 void draw_obj_window();
+void draw_obj_preview_window();
+
+void init_obj_cache(SDL_Renderer *renderer, const void *objmem, const void *palmem_low, const void *palmem_high);
+void prune_obj_cache();
+SDL_Texture *get_obj_texture(uint16_t code, uint8_t palette);
 
 #endif
 

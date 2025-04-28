@@ -35,7 +35,7 @@ F2 *top;
 std::unique_ptr<VerilatedFstC> tfp;
 
 SimSDRAM sdram(128 * 1024 * 1024);
-SimMemory ddr_memory(8 * 1024 * 1024);
+SimMemory ddr_memory(16 * 1024 * 1024);
 SimVideo video;
 SimState* state_manager = nullptr;
 
@@ -265,7 +265,7 @@ int main(int argc, char **argv)
     // Create state manager
     state_manager = new SimState(top, &ddr_memory, 0, 256 * 1024);
 
-    memset(&ddr_memory.memory[0x100000 + 8192], 0x01, 8192);
+    //memset(&ddr_memory.memory[0x100000 + 8192], 0x01, 8192);
 
     MemoryEditor obj_ram;
     MemoryEditor scn_main_mem;
@@ -285,10 +285,17 @@ int main(int argc, char **argv)
     
     video.init(320, 224, imgui_get_renderer());
 
+    init_obj_cache(imgui_get_renderer(),
+                   ddr_memory.memory.data() + OBJ_DATA_DDR_BASE, 
+                   top->rootp->F2__DOT__color_ram__DOT__ram_l.m_storage,
+                   top->rootp->F2__DOT__color_ram__DOT__ram_h.m_storage);
+
     Verilated::traceEverOn(true);
 
     while( imgui_begin_frame() )
     {
+        prune_obj_cache();
+
         if (simulation_run || simulation_step)
         {
             if (simulation_step_vblank)
@@ -306,7 +313,7 @@ int main(int argc, char **argv)
 
         if (ImGui::Begin("Simulation Control"))
         {
-            ImGui::LabelText("Ticks", "%zu", total_ticks);
+            ImGui::LabelText("Ticks", "%llu", total_ticks);
             ImGui::Checkbox("Run", &simulation_run);
             if (ImGui::Button("Step"))
             {
@@ -492,6 +499,7 @@ int main(int argc, char **argv)
         ImGui::End();
 
         draw_obj_window();
+        draw_obj_preview_window();
         video.draw();
 
         ImGui::Begin("68000");

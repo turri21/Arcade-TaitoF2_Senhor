@@ -48,9 +48,9 @@ always_ff @(posedge clk) begin
 //            VIDEOR <= { RDin[12], RDin[3:0], RDin[12], RDin[3:2] };
 //            VIDEOG <= { RDin[13], RDin[7:4], RDin[13], RDin[7:6] };
 //            VIDEOB <= { RDin[14], RDin[11:8], RDin[14], RDin[11:10] };
-            VIDEOR <= { RDin[15:12], 4'd0 };
-            VIDEOG <= { RDin[11:8], 4'd0 };
-            VIDEOB <= { RDin[7:4], 4'd0 };
+            VIDEOR <= { RDin[15:12], RDin[3], RDin[15:13] };
+            VIDEOG <= { RDin[11:8], RDin[2], RDin[11:9] };
+            VIDEOB <= { RDin[7:4], RDin[1], RDin[7:5] };
         end else begin
             VIDEOR <= 8'd0;
             VIDEOG <= 8'd0;

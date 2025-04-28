@@ -307,9 +307,9 @@ always @(posedge clk) begin
             if (inst_is_cmd) begin
             end
             
-            if (inst_next_seq & ~prev_seq) begin
-                base_x = inst_x_coord + (inst_use_scroll ? ( master_x + (inst_use_extra ? extra_x : 12'd0) ) : 12'd0);
-                base_y = inst_y_coord + (inst_use_scroll ? ( master_y + (inst_use_extra ? extra_y : 12'd0) ) : 12'd0);
+            if ((inst_next_seq & ~prev_seq) | (~inst_next_seq & ~prev_seq)) begin
+                base_x <= inst_x_coord + (inst_use_scroll ? ( master_x + (inst_use_extra ? extra_x : 12'd0) ) : 12'd0);
+                base_y <= inst_y_coord + (inst_use_scroll ? ( master_y + (inst_use_extra ? extra_y : 12'd0) ) : 12'd0);
             end
 
             prev_seq <= inst_next_seq;

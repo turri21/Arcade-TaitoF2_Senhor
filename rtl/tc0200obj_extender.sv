@@ -63,7 +63,9 @@ always_ff @(posedge clk) begin
     if (mode == 2'b00) begin // passthrough
         code_modified <= { 6'd0, code_original };
     end else if (mode == 2'b01) begin
-        code_modified <= { 4'd0, ram_a_q, code_original[7:0] };
+        if (code_req) begin
+            code_modified <= { 4'd0, ram_a_q, code_original[7:0] };
+        end
     end
 end
 

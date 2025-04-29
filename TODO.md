@@ -14,8 +14,8 @@
 - [ ] Parallax in finalb
 - [x] 260DAR support
 - [ ] 360PRI support
-- [ ] Sprite buffer banking
-- [ ] Sprite disable flag
+- [x] Sprite buffer banking
+- [x] Sprite disable flag
 - [ ] Unk1 usage in dinorex
 - [ ] Sprite position latch behavior
 

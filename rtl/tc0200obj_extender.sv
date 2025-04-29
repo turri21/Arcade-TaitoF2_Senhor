@@ -46,7 +46,7 @@ ram_ss_adaptor #(.WIDTH(8), .WIDTHAD(12), .SS_IDX(SSIDX_EXTENSION_RAM)) extensio
     .clk,
 
     .wren_in(0),
-    .addr_in(obj_addr[14:3]),
+    .addr_in({1'b0, obj_addr[14], obj_addr[12:3]}),
     .data_in(0),
 
     .wren_out(ram_a_wr),

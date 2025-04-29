@@ -4,9 +4,9 @@ module TC0200OBJ #(parameter SS_IDX=-1) (
     input ce_13m,
     input ce_pixel,
 
-    output reg [14:0] RA,
+    output [14:0] RA,
     input [15:0] Din,
-    output [15:0] Dout,
+    output reg [15:0] Dout,
 
     input RESET,
     output reg ERCSn, // TODO - what generates this
@@ -99,6 +99,17 @@ reg [15:0] cmd_ctrl;
 wire ctrl_disable = cmd_ctrl[12];
 wire ctrl_flipscreen = cmd_ctrl[13];
 wire ctrl_6bpp = cmd_ctrl[8];
+wire ctrl_a14 = cmd_ctrl[0];
+wire ctrl_a13 = cmd_ctrl[10];
+
+reg [12:0] obj_addr;
+
+reg is_cmd;
+// device always reads from the lowest bank when access the cmd data from the
+// first instance
+reg zero_bank;
+assign RA = zero_bank ? { 2'b00, obj_addr } : {ctrl_a14, ctrl_a13, obj_addr};
+
 
 typedef enum
 {
@@ -121,8 +132,9 @@ typedef enum
 draw_state_t obj_state = ST_IDLE;
 
 
+
 reg [12:0] dma_cycle;
-wire [14:0] dma_addr = {2'b00, dma_cycle[12:3], 3'b000};
+wire [12:0] dma_addr = {dma_cycle[12:3], 3'b000};
 
 reg scanout_buffer = 0;
 wire draw_buffer = ~scanout_buffer;
@@ -253,21 +265,21 @@ always @(posedge clk) begin
 
             unique case (dma_cycle[2:0])
                 0: begin
-                    RA <= dma_addr + 15'd2;
+                    obj_addr <= dma_addr + 13'd2;
                 end
                 1: work_buffer[1] <= Din;
                 2: begin
-                    RA <= dma_addr + 15'd3;
+                    obj_addr <= dma_addr + 13'd3;
                 end
                 3: work_buffer[2] <= Din;
                 4: begin
-                    RA <= dma_addr + 15'd6;
+                    obj_addr <= dma_addr + 13'd6;
                     Dout <= work_buffer[1];
                     RDWEn <= 0;
                 end
                 5: RDWEn <= 1;
                 6: begin
-                    RA <= dma_addr + 15'd7;
+                    obj_addr <= dma_addr + 13'd7;
                     Dout <= work_buffer[2];
                     RDWEn <= 0;
                 end
@@ -277,42 +289,58 @@ always @(posedge clk) begin
         end
         ST_DRAW_INIT: if (ce_13m) begin
             read_pacing <= 0;
-            RA <= 0;
+            obj_addr <= 0;
             RDWEn <= 1;
             obj_state <= ST_READ_START;
         end
 
         ST_READ_START: if (ce_13m) begin
-            if (RA[12:3] == 835 || vbl_edge) begin
+            if (obj_addr[12:3] == 835 || vbl_edge) begin
                 obj_state <= ST_IDLE;
             end else begin
-                if (read_pacing[17:8] >= RA[12:3]) begin
+                if (read_pacing[17:8] >= obj_addr[12:3]) begin
                     EBUSY <= 1;
                     ERCSn <= 0;
                     obj_state <= ST_READ;
-                    inst_debug <= {1'b0, RA[14:3]} == debug_idx;
+                    inst_debug <= {3'b0, obj_addr[12:3]} == debug_idx;
                 end
             end
         end
 
         ST_READ: if (ce_13m) begin
-            RA <= RA + 15'd1;
-            work_buffer[RA[2:0]] <= Din;
-            if (RA[2:0] == 3'b101) begin
-                code_modify_req <= 1;
-            end
-            if (RA[2:0] == 3'b111) begin
-                obj_state <= ST_EVAL;
-                EBUSY <= 0;
-                ERCSn <= 1;
-            end
+            obj_addr <= obj_addr + 13'd1;
+            work_buffer[obj_addr[2:0]] <= Din;
+
+            case(obj_addr[2:0])
+                3'd3: begin
+                    if (Din[15]) begin // is_cmd
+                        zero_bank <= ~Din[0];
+                        is_cmd <= 1;
+                    end
+                end
+
+                3'd5: begin
+                    if (is_cmd) begin
+                        cmd_ctrl <= Din;
+                        zero_bank <= 0;
+                        is_cmd <= 0;
+                    end
+                    code_modify_req <= 1;
+                end
+
+                3'd7: begin
+                   obj_state <= ST_EVAL;
+                    EBUSY <= 0;
+                    ERCSn <= 1;
+                end
+
+                default: begin
+                end
+
+            endcase
         end
 
         ST_EVAL: begin
-            if (inst_is_cmd) begin
-                cmd_ctrl <= inst_cmd;
-            end
-            
             if ((inst_next_seq & ~prev_seq) | (~inst_next_seq & ~prev_seq)) begin
                 base_x <= inst_x_coord + (inst_use_scroll ? ( master_x + (inst_use_extra ? extra_x : 12'd0) ) : 12'd0);
                 base_y <= inst_y_coord + (inst_use_scroll ? ( master_y + (inst_use_extra ? extra_y : 12'd0) ) : 12'd0);

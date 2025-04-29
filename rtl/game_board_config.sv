@@ -17,6 +17,7 @@ always_ff @(posedge clk) begin
         GAME_FINALB:  begin cfg_360pri <= 0; cfg_260dar <= 0; cfg_110pcr <= 1; cfg_obj_extender <= 2'b00; end
         GAME_QJINSEI: begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_obj_extender <= 2'b01; end
         GAME_DINOREX: begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_obj_extender <= 2'b01; end
+        GAME_LIQUIDK: begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_obj_extender <= 2'b00; end
         default:      begin cfg_360pri <= 0; cfg_260dar <= 0; cfg_110pcr <= 0; cfg_obj_extender <= 2'b00; end
     endcase
 end

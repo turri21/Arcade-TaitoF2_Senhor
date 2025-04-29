@@ -108,6 +108,29 @@ always_comb begin
                 endcase
             end
 
+            GAME_LIQUIDK: begin
+                casex(cpu_word_addr)
+                    24'h00000x: begin
+                        if (ss_restart) begin
+                            SS_RESETn = 0;
+                        end else begin
+                            ROMn = 0;
+                        end
+                    end
+                    //24'h00007c: SS_VECn = 0;
+                    //24'h00007e: SS_VECn = 0;
+                    24'h0xxxxx: ROMn = 0;
+                    24'h1xxxxx: WORKn = 0;
+                    24'h2xxxxx: COLORn = 0;
+                    24'h30xxxx: IOn = 0;
+                    24'h32xxxx: SOUNDn = 0;
+                    24'h8xxxxx: SCREENn = 0;
+                    24'h9xxxxx: OBJECTn = 0;
+                    24'hff00xx: SS_SAVEn = 0;
+                endcase
+            end
+
+
             default: begin
             end
         endcase

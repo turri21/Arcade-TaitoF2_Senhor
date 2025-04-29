@@ -89,10 +89,16 @@ wire        inst_use_latch_y     =  work_buffer[4][12];
 wire        inst_inc_y           =  work_buffer[4][13];
 wire        inst_use_latch_x     =  work_buffer[4][14];
 wire        inst_inc_x           =  work_buffer[4][15];
+wire [15:0] inst_cmd             =  work_buffer[5];
 reg         inst_debug;
 
 assign code_original = inst_tile_code;
 wire [19:0] tile_code = code_modified;
+
+reg [15:0] cmd_ctrl;
+wire ctrl_disable = cmd_ctrl[12];
+wire ctrl_flipscreen = cmd_ctrl[13];
+wire ctrl_6bpp = cmd_ctrl[8];
 
 typedef enum
 {
@@ -165,12 +171,11 @@ wire [7:0] shifter_be;
 wire [14:0] shifter_addr;
 wire shifter_ready, shifter_done;
 reg shifter_read;
-reg bpp6 = 0;
 
 tc0200obj_data_shifter shifter(
     .clk,
     .reset(obj_state == ST_EVAL),
-    .bpp6,
+    .bpp6(ctrl_6bpp),
     .burstcnt(read_tile_burstcnt),
     .load_complete(read_tile_complete),
 
@@ -305,6 +310,7 @@ always @(posedge clk) begin
 
         ST_EVAL: begin
             if (inst_is_cmd) begin
+                cmd_ctrl <= inst_cmd;
             end
             
             if ((inst_next_seq & ~prev_seq) | (~inst_next_seq & ~prev_seq)) begin
@@ -339,7 +345,7 @@ always @(posedge clk) begin
                 latch_x <= base_x + {7'd0, inst_inc_x, 4'd0};
             end
 
-            if (tile_code == 0) begin
+            if (tile_code == 0 || ctrl_disable) begin
                 obj_state <= ST_READ_START;
             end else begin
                 obj_state <= ST_CHECK_BOUNDS;
@@ -366,7 +372,7 @@ always @(posedge clk) begin
             if (~ddr_obj.busy) begin
                 ddr_obj.read <= 1;
                 ddr_obj.burstcnt <= read_tile_burstcnt;
-                if (bpp6)
+                if (ctrl_6bpp)
                     ddr_obj.addr <= OBJ_DATA_DDR_BASE + {4'd0, tile_code, 8'd0};
                 else
                     ddr_obj.addr <= OBJ_DATA_DDR_BASE + {5'd0, tile_code, 7'd0};

@@ -1,3 +1,6 @@
+- [ ] Dip switches
+- [ ] Cheats
+- [ ] MRA generation
 
 - [ ] CPU SDR cache
 - [ ] Clock enable catchup for CPU
@@ -9,8 +12,12 @@
 - [ ] Screen alignment
 - [ ] Sprite zoom
 - [ ] Parallax in finalb
-- [ ] 260DAR support
+- [x] 260DAR support
 - [ ] 360PRI support
+- [ ] Sprite buffer banking
+- [ ] Sprite disable flag
+- [ ] Unk1 usage in dinorex
+- [ ] Sprite position latch behavior
 
 - [x] Move testbed into main repo
 - [x] Audio ROM support in testbed

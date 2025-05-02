@@ -747,7 +747,11 @@ task prepare_row(int next_row);
     int i;
     int pa;
 
-    pa = next_row * 16;
+    if (flip_y) begin
+        pa = (15 - next_row) * 16;
+    end else begin
+        pa = next_row * 16;
+    end
 
     for( i = 0; i < 20; i = i + 1 ) begin
         row_data[i] <= 6'd0;
@@ -801,6 +805,7 @@ task prepare_draw();
     end
 endtask
 
+reg need_first_row;
 always_ff @(posedge clk) begin
     if (reset) begin
         burstidx <= 0;
@@ -850,11 +855,14 @@ always_ff @(posedge clk) begin
             burstidx <= burstidx + 1;
             if (burstidx == (burstcnt - 1)) begin
                 load_complete <= 1;
-                prepare_row(0);
+                need_first_row <= 1;
             end
         end
 
-        if (load_complete & ~out_ready) begin
+        if (load_complete & need_first_row) begin
+            prepare_row(0);
+            need_first_row <= 0;
+        end else if (load_complete & ~out_ready) begin
             prepare_draw();
         end else if (out_read & ~out_done) begin
             prepare_draw();

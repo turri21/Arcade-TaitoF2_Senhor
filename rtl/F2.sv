@@ -675,7 +675,7 @@ TC0360PRI #(.SS_IDX(SSIDX_PRIORITY)) tc0360pri(
     .ce_pixel,
     .reset,
 
-    .cpu_addr(cpu_addr[2:0]),
+    .cpu_addr(cpu_addr[3:0]),
     .cpu_din(cpu_data_out),
     .cpu_dout(pri360_data_out),
     .cpu_ds_n,

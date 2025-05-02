@@ -530,13 +530,20 @@ typedef enum { SCAN_IDLE, SCAN_START_READ, SCAN_WAIT_READ } scan_state_t;
 
 scan_state_t scan_state = SCAN_IDLE;
 
+logic [11:0] out_color;
 always_comb begin
     unique case (hcnt[1:0])
-        0: DOT = lb_dout[11:0];
-        1: DOT = lb_dout[27:16];
-        2: DOT = lb_dout[43:32];
-        3: DOT = lb_dout[59:48];
+        0: out_color = lb_dout[11:0];
+        1: out_color = lb_dout[27:16];
+        2: out_color = lb_dout[43:32];
+        3: out_color = lb_dout[59:48];
     endcase
+
+    if (ctrl_6bpp) begin
+        DOT = |out_color[5:0] ? out_color : 12'd0;
+    end else begin
+        DOT = |out_color[3:0] ? out_color : 12'd0;
+    end
 end
 
 assign ddr_fb.write = 0;

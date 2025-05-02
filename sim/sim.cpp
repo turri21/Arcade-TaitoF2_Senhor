@@ -12,6 +12,7 @@
 #include "sim_memory.h"
 #include "sim_state.h"
 #include "tc0200obj.h"
+#include "tc0360pri.h"
 #include "dis68k/dis68k.h"
 #include "games.h"
 
@@ -566,6 +567,7 @@ int main(int argc, char **argv)
 
         draw_obj_window();
         draw_obj_preview_window();
+        draw_pri_window();
         video.draw();
 
         ImGui::Begin("68000");

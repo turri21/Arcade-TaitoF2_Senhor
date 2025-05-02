@@ -3,6 +3,27 @@
 
 #include <stdint.h>
 
+#define OBJCMD_UNK0 0x0001
+#define OBJCMD_A14 0x0001
+#define OBJCMD_UNK1 0x0002
+#define OBJCMD_UNK2 0x0004
+#define OBJCMD_UNK3 0x0008
+#define OBJCMD_UNK4 0x0010
+#define OBJCMD_UNK5 0x0020
+#define OBJCMD_UNK6 0x0040
+#define OBJCMD_REFRESH_CHANGE 0x0080
+#define OBJCMD_UNK7 0x0080
+#define OBJCMD_6BPP 0x0300
+#define OBJCMD_UNKA 0x0400
+#define OBJCMD_A13 0x0400
+#define OBJCMD_UNKB 0x0800
+#define OBJCMD_DISABLE 0x1000
+#define OBJCMD_FLIPSCREEN 0x2000
+#define OBJCMD_UNKE 0x4000
+#define OBJCMD_DMA_LOOP 0x4000
+#define OBJCMD_UNKF 0x8000
+#define OBJCMD_STUCK_DRAWNING 0x8000
+
 typedef struct
 {
     uint16_t code;
@@ -105,10 +126,10 @@ static inline void obj_extra_xy(TC0200OBJ_Inst *o, int x, int y)
     o->ignore_extra = 1;
 }
 
-static inline void obj_cmd_6bpp(TC0200OBJ_Inst *o)
+static inline void obj_cmd(TC0200OBJ_Inst *o, uint16_t cmd)
 {
     o->has_cmd = 1;
-    o->cmd_bits |= 0x0300;
+    o->cmd_bits = cmd;
 }
 
 static inline void obj_seq_start(TC0200OBJ_Inst *o)

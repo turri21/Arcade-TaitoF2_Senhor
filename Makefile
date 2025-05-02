@@ -1,10 +1,12 @@
 MAKEFLAGS+=w
-PYTHON=uv --project util/ run
+PYTHON=uv --project util/ -q run
 QUARTUS_DIR = C:/intelFPGA_lite/17.0/quartus/bin64
 PROJECT = Arcade-TaitoF2
 CONFIG = Arcade-TaitoF2
 MISTER = root@mister-dev
 OUTDIR = output_files
+MAME_XML=util/mame.xml
+RELEASES_DIR=releases
 
 # Use wsl for submakes on windows
 ifeq ($(OS),Windows_NT)
@@ -70,8 +72,10 @@ rtl/jt10_auto_ss.v:
 rtl/tv80_auto_ss.v:
 	$(PYTHON) util/state_module.py tv80s rtl/tv80_auto_ss.v rtl/tv80/*.v
 
+# MRA rules
+mra_rules.mk: $(MAME_XML) util/mame2mra.py util/mame2mra.toml
+	$(PYTHON) util/mame2mra.py $(MAME_XML) --all-machines --makefile --output $(RELEASES_DIR) 2>&1 | grep -v "Reading\|Selected" > $@
 
-.PHONY: sim sim/run sim/test mister debug picorom rtl/jt10_auto_ss.v rtl/tv80_auto_ss.v
+-include mra_rules.mk
 
-MRA_finalb=F2
-
+.PHONY: sim sim/run sim/test mister debug picorom rtl/jt10_auto_ss.v rtl/tv80_auto_ss.v mra clean_mra

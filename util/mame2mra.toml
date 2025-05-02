@@ -40,4 +40,6 @@ default.snes = "B,A,X,Y,Start,Select"
 default.game = "Btn1,Btn2,Btn3,Btn4,Start,Coin"
 finalb = { snes = "B,A,X,Start,Select", game = "Btn1,Btn2,Btn2,-,Start,Coin" }
 
+[metadata]
+default.mameversion = 245
 

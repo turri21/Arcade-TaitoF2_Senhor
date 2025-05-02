@@ -1,6 +1,6 @@
 - [ ] Dip switches
 - [ ] Cheats
-- [ ] MRA generation
+- [x] MRA generation
 
 - [ ] CPU SDR cache
 - [ ] Clock enable catchup for CPU

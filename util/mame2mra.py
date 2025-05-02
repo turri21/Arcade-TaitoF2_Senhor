@@ -360,6 +360,9 @@ class MRAGenerator:
                 self._add_child(mra, "rotation", rotation_value)
                 break
         
+        # Add metadata from TOML file
+        self._add_metadata(mra)
+        
         # Add buttons configuration
         self._add_buttons_configuration(mra)
         
@@ -486,9 +489,17 @@ class MRAGenerator:
         
     def _sanitize_filename(self, filename):
         """Convert a string to a valid filename."""
-        # Replace invalid characters with underscores
-        invalid_chars = r'[<>:"/\\|?*]'
-        safe_name = re.sub(invalid_chars, '_', filename)
+        # Replace invalid characters with underscores or other valid characters
+        safe_name = filename
+        safe_name = safe_name.replace('/', '-')  # Replace slashes with hyphens
+        safe_name = safe_name.replace('\\', '-')  # Replace backslashes with hyphens
+        safe_name = safe_name.replace(':', '-')   # Replace colons with hyphens
+        safe_name = safe_name.replace('*', '_')   # Replace asterisks with underscores
+        safe_name = safe_name.replace('?', '_')   # Replace question marks with underscores
+        safe_name = safe_name.replace('<', '_')   # Replace less than with underscores
+        safe_name = safe_name.replace('>', '_')   # Replace greater than with underscores
+        safe_name = safe_name.replace('|', '_')   # Replace pipes with underscores
+        safe_name = safe_name.replace('"', '')    # Remove quotes
         
         # Remove leading/trailing spaces and dots
         safe_name = safe_name.strip('. ')
@@ -625,6 +636,34 @@ class MRAGenerator:
                 comment = ET.Comment(comment_text)
                 roms_elem.append(comment)
     
+    def _add_metadata(self, mra):
+        """Add metadata from TOML config to the MRA."""
+        # Get metadata from TOML
+        metadata_config = self.config.get("metadata", {})
+        
+        # Collect metadata for this machine, falling back to parent or default
+        metadata = {}
+        
+        # First try to get default metadata
+        default_metadata = metadata_config.get("default", {})
+        if isinstance(default_metadata, dict):
+            metadata.update(default_metadata)
+        
+        # Next try parent metadata if available
+        if self.machine.romof:
+            parent_metadata = metadata_config.get(self.machine.romof, {})
+            if isinstance(parent_metadata, dict):
+                metadata.update(parent_metadata)
+        
+        # Finally get machine-specific metadata (overrides previous)
+        machine_metadata = metadata_config.get(self.machine.name, {})
+        if isinstance(machine_metadata, dict):
+            metadata.update(machine_metadata)
+        
+        # Add all metadata as tags
+        for key, value in metadata.items():
+            self._add_child(mra, key, str(value))
+    
     def _add_buttons_configuration(self, mra):
         """Add buttons configuration from TOML to the MRA."""
         # Get buttons config from TOML
@@ -701,6 +740,71 @@ class MRAGenerator:
         return xml_declaration + pretty_string
 
 
+def _sanitize_makefile_path(description):
+    """Sanitize a description for use in a Makefile path."""
+    # Replace problematic characters
+    result = description
+    result = result.replace("'", "")
+    result = result.replace('"', "")
+    result = result.replace('/', '-')  # Replace slashes with hyphens
+    result = result.replace(':', '-')  # Replace colons with hyphens
+    result = result.replace(' ', '\\ ')  # Escape spaces
+    result = result.replace('&', '\\&')  # Escape ampersands
+    # Do not escape parentheses, commas, or plus signs
+    return result
+
+def _sanitize_makefile_target(path):
+    """Sanitize a path for use as a Makefile target."""
+    # Target names should not have parentheses escaped
+    # This is important for Makefile compatibility
+    return path
+
+def generate_makefile_rules(machines, output_dir="releases"):
+    """Generate Makefile rules for building MRA files."""
+    rules = []
+    
+    # Add phony targets
+    rules.append(".PHONY: mra clean_mra")
+    rules.append("")
+    
+    # Add main mra target
+    mra_targets = []
+    for machine in machines:
+        # Create a safe filename from the description
+        desc = _sanitize_makefile_path(machine.description)
+        target = f"{output_dir}/{desc}.mra"
+        mra_targets.append(target)
+    
+    rules.append("# Generate all MRA files")
+    rules.append(f"mra: {' '.join(mra_targets)}")
+    rules.append("")
+    
+    # Add clean_mra target
+    rules.append("# Clean MRA files")
+    rules.append(f"clean_mra:")
+    rules.append(f"\trm -f {output_dir}/*.mra")
+    rules.append("")
+    
+    # Add directory creation
+    rules.append(f"{output_dir}:")
+    rules.append(f"\tmkdir -p {output_dir}")
+    rules.append("")
+    
+    # Add individual MRA targets
+    rules.append("# Individual MRA targets")
+    for machine in machines:
+        # Create a safe filename from the description
+        desc = _sanitize_makefile_path(machine.description)
+        target = f"{output_dir}/{desc}.mra"
+        
+        # Add the rule - no need to escape the target as parentheses should not be escaped in Makefile targets
+        rules.append(f"{target}: {output_dir}")
+        rules.append(f"\t$(PYTHON) util/mame2mra.py $(MAME_XML) --generate --machine {machine.name} --output {output_dir}")
+        rules.append("")
+    
+    return "\n".join(rules)
+
+
 def main():
     """Main function to test the parser and MRA generator."""
     parser = argparse.ArgumentParser(description="Parse MAME XML and generate MRA files for MiSTer")
@@ -712,6 +816,7 @@ def main():
     parser.add_argument("--core", "-c", default="TaitoF2", help="Core name (default: TaitoF2)")
     parser.add_argument("--rbf", "-r", help="RBF filename (defaults to core name)")
     parser.add_argument("--config", help="Path to TOML configuration file (default: mame2mra.toml in script directory)")
+    parser.add_argument("--makefile", action="store_true", help="Generate Makefile rules for building MRA files")
     
     args = parser.parse_args()
     
@@ -751,8 +856,13 @@ def main():
             print(f"Machine '{args.machine}' not found in XML file")
             return
     
-    # Generate MRA files if requested
-    if args.generate:
+    # Handle different operation modes
+    if args.makefile:
+        # Generate Makefile rules
+        rules = generate_makefile_rules(machines, args.output)
+        print(rules)
+    elif args.generate:
+        # Generate MRA files
         print(f"Generating MRA files in directory: {args.output}")
         successful = 0
         failed = 0

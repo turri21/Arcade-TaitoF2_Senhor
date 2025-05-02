@@ -20,6 +20,9 @@ module F2(
     input       [1:0] start,
     input       [1:0] coin,
 
+    input       [7:0] dswa,
+    input       [7:0] dswb,
+
     output reg [26:0] sdr_cpu_addr,
     input      [15:0] sdr_cpu_q,
     output reg [15:0] sdr_cpu_data,
@@ -66,7 +69,7 @@ module F2(
 );
 
 wire cfg_260dar, cfg_110pcr, cfg_360pri;
-wire [1:0] cfg_obj_extender;
+wire [1:0] cfg_obj_extender /* verilator public_flat */;
 
 game_board_config game_board_config(
     .clk,
@@ -107,9 +110,9 @@ wire ss_busy;
 
 ssbus_if ssbus();
 //ssbuf_if ss_global(), ss_cpu_ram(), ss_obj(), ss_objram(), ss_pri_ram(), ss_scn_main(), ss_scn_ram_0();
-ssbus_if ssb[11]();
+ssbus_if ssb[12]();
 
-ssbus_mux #(.COUNT(11)) ssmux(
+ssbus_mux #(.COUNT(12)) ssmux(
     .clk,
     .slave(ssbus),
     .masters(ssb)
@@ -263,6 +266,7 @@ logic SCREENn;
 logic COLORn;
 logic IOn;
 logic OBJECTn;
+logic PRIORITYn;
 logic SOUNDn /* verilator public_flat */;
 logic extension_n;
 
@@ -366,7 +370,7 @@ TC0220IOC tc0220ioc(
     .INB({4'b1111, ~coin, 2'b11}),
     .IN(~{  start[1], joystick_p2[6:4], joystick_p2[0], joystick_p2[1], joystick_p2[2], joystick_p2[3],
             start[0], joystick_p1[6:4], joystick_p1[0], joystick_p1[1], joystick_p1[2], joystick_p1[3],
-            16'b0000_0000_0000_0000})
+            dswb, dswa})
 );
 
 wire [14:0] obj_ram_addr;
@@ -663,6 +667,29 @@ TC0110PR tc0110pr(
     .WEHn(pri_ram_we_h_n)
 );
 
+wire [13:0] pri360_color;
+wire [15:0] pri360_data_out;
+
+TC0360PRI #(.SS_IDX(SSIDX_PRIORITY)) tc0360pri(
+    .clk,
+    .ce_pixel,
+    .reset,
+
+    .cpu_addr(cpu_addr[2:0]),
+    .cpu_din(cpu_data_out),
+    .cpu_dout(pri360_data_out),
+    .cpu_ds_n,
+    .cpu_rw,
+    .cs(~PRIORITYn),
+
+    .color_in0({scn_main_dot_color[14:13], scn_main_dot_color[11:0]}),
+    .color_in1({obj_dot[11:10], obj_dot[11:0]}),
+    .color_in2(0),
+    .color_out(pri360_color),
+
+    .ssbus(ssb[11])
+);
+
 TC0260DAR tc0260dar(
     .clk,
     .ce_pixel,
@@ -683,7 +710,7 @@ TC0260DAR tc0260dar(
     .HBLANKn(HBLn),
     .VBLANKn(VBLn),
 
-    .IM(|obj_dot[3:0] ? { 2'b0, obj_dot } : scn_main_dot_color[13:0]),
+    .IM({2'b00, pri360_color[11:0]}),
 
     .VIDEOR(dar_red),
     .VIDEOG(dar_green),
@@ -762,6 +789,7 @@ address_translator address_translator(
     .COLORn,
     .IOn,
     .OBJECTn,
+    .PRIORITYn,
     .SOUNDn,
 
     .extension_n,
@@ -775,6 +803,7 @@ assign cpu_data_in = ~ROMn ? sdr_cpu_q :
                      ~WORKn ? sdr_cpu_q :
                      ~SCREENn ? scn_main_data_out :
                      ~OBJECTn ? objram_data_out :
+                     ~PRIORITYn ? pri360_data_out :
                      ~COLORn ? (cfg_260dar ? dar_data_out : pri_data_out) :
                      ~IOn ? { 8'b0, io_data_out } :
                      ~SOUNDn ? { 4'd0, syt_cpu_dout, 8'd0 } :

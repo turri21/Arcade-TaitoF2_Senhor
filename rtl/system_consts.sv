@@ -9,6 +9,7 @@ package system_consts;
     parameter int SSIDX_Z80 = 7;
     parameter int SSIDX_YM = 8;
     parameter int SSIDX_EXTENSION_RAM = 9;
+    parameter int SSIDX_PRIORITY = 10;
 
 
 `ifdef VERILATOR

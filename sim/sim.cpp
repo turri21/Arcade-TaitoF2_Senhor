@@ -55,6 +55,9 @@ int simulation_step_size = 100000;
 bool simulation_step_vblank = false;
 uint64_t simulation_reset_until = 100;
 
+uint32_t dipswitch_a = 0;
+uint32_t dipswitch_b = 0;
+
 bool prev_audio_sample = 0;
 void sim_tick(int count = 1)
 {
@@ -210,8 +213,8 @@ void load_qjinsei()
     
     sdram.load_data("../roms/d48-05",  ADPCMA_ROM_SDR_BASE, 1);
 
-    ddr_memory.load_data("../roms/d48-02", OBJ_DATA_DDR_BASE + 0, 4);
-    ddr_memory.load_data("../roms/d48-01", OBJ_DATA_DDR_BASE + 1, 4);
+    ddr_memory.load_data("../roms/d48-02", OBJ_DATA_DDR_BASE + 0, 2);
+    ddr_memory.load_data("../roms/d48-01", OBJ_DATA_DDR_BASE + 1, 2);
     
     top->game = GAME_QJINSEI;
 }
@@ -226,19 +229,42 @@ void load_dinorex()
     sdram.load_data("../roms/d39-16.8", CPU_ROM_SDR_BASE + 0, 2);
     sdram.load_data("../roms/d39-04.6", CPU_ROM_SDR_BASE + 0x100000, 1);
     sdram.load_data("../roms/d39-05.7", CPU_ROM_SDR_BASE + 0x200000, 1);
-	
+
     sdram.load_data("../roms/d39-06.2", SCN0_ROM_SDR_BASE, 1);
-    
+
     sdram.load_data("../roms/d39-07.10",  ADPCMA_ROM_SDR_BASE, 1);
     sdram.load_data("../roms/d39-08.4",  ADPCMB_ROM_SDR_BASE, 1);
 
     ddr_memory.load_data("../roms/d39-01.29", OBJ_DATA_DDR_BASE, 1);
     ddr_memory.load_data("../roms/d39-02.28", OBJ_DATA_DDR_BASE + 0x200000, 1);
     ddr_memory.load_data("../roms/d39-03.27", OBJ_DATA_DDR_BASE + 0x400000, 1);
-    
+
     top->game = GAME_DINOREX;
 }
 
+void load_liquidk()
+{
+    FILE *fp = fopen("../roms/c49-08.ic32", "rb");
+    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 64 * 1024, fp);
+    fclose(fp);
+
+    sdram.load_data("../roms/c49-09.ic47", CPU_ROM_SDR_BASE + 1, 2);
+    sdram.load_data("../roms/c49-11.ic48", CPU_ROM_SDR_BASE + 0, 2);
+    sdram.load_data("../roms/c49-10.ic45", CPU_ROM_SDR_BASE + 0x40001, 2);
+    sdram.load_data("../roms/c49-12.ic46", CPU_ROM_SDR_BASE + 0x40000, 2);
+	
+    sdram.load_data("../roms/c49-03.ic76", SCN0_ROM_SDR_BASE, 1);
+    
+    sdram.load_data("../roms/c49-04.ic33",  ADPCMA_ROM_SDR_BASE, 1);
+
+    ddr_memory.load_data("../roms/c49-01.ic54", OBJ_DATA_DDR_BASE, 1);
+    ddr_memory.load_data("../roms/c49-02.ic53", OBJ_DATA_DDR_BASE + 0x80000, 1);
+
+    dipswitch_a = 0x01;
+    dipswitch_b = 0x00;
+
+    top->game = GAME_LIQUIDK;
+}
 
 int main(int argc, char **argv)
 {
@@ -295,6 +321,9 @@ int main(int argc, char **argv)
     while( imgui_begin_frame() )
     {
         prune_obj_cache();
+
+        top->dswa = dipswitch_a & 0xff;
+        top->dswb = dipswitch_b & 0xff;
 
         if (simulation_run || simulation_step)
         {
@@ -494,6 +523,43 @@ int main(int argc, char **argv)
                 }
 
                 ImGui::EndTabBar();
+            }
+        }
+        ImGui::End();
+
+        if (ImGui::Begin("Input"))
+        {
+            if (ImGui::BeginTable("dipswitches", 9))
+            {
+                ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
+                for( int i = 0; i < 8; i++ )
+                {
+                    char n[2];
+                    n[0] = '0' + i;
+                    n[1] = 0;
+                    ImGui::TableSetupColumn(n, ImGuiTableColumnFlags_WidthFixed);
+                }
+                ImGui::TableHeadersRow();
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::Text("DWSA");
+                for( int i = 0; i < 8; i++ )
+                {
+                    ImGui::TableNextColumn();
+                    ImGui::PushID(i);
+                    ImGui::CheckboxFlags("##dwsa", &dipswitch_a, ((uint32_t)1 << i));
+                    ImGui::PopID();
+                }
+                ImGui::TableNextColumn();
+                ImGui::Text("DWSB");
+                for( int i = 0; i < 8; i++ )
+                {
+                    ImGui::TableNextColumn();
+                    ImGui::PushID(i);
+                    ImGui::CheckboxFlags("##dwsb", &dipswitch_b, ((uint32_t)1 << i));
+                    ImGui::PopID();
+                }
+                ImGui::EndTable();
             }
         }
         ImGui::End();

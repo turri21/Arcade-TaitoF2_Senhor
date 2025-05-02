@@ -160,9 +160,15 @@ void get_obj_inst(uint16_t index, TC0200OBJ_Inst *inst)
 
 uint16_t extended_code(uint16_t index, uint16_t code)
 {
-    uint8_t ext = top->rootp->F2__DOT__tc0200obj_extender__DOT__extension_ram__DOT__ram.m_storage[index];
-
-    return (code & 0xff) | (ext << 8);
+    if (top->rootp->F2__DOT__cfg_obj_extender == 1)
+    {
+        uint8_t ext = top->rootp->F2__DOT__tc0200obj_extender__DOT__extension_ram__DOT__ram.m_storage[index];
+        return (code & 0xff) | (ext << 8);
+    }
+    else
+    {
+        return code;
+    }
 }
 
 static void bullet(int x)

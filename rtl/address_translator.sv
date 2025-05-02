@@ -14,6 +14,7 @@ module address_translator(
     output logic IOn,
     output logic OBJECTn,
     output logic SOUNDn,
+    output logic PRIORITYn,
     output logic extension_n,
     output logic SS_SAVEn,
     output logic SS_RESETn,
@@ -27,6 +28,7 @@ always_comb begin
     ROMn = 1;
     SCREENn = 1;
     COLORn = 1;
+    PRIORITYn = 1;
     IOn = 1;
     OBJECTn = 1;
     SOUNDn = 1;
@@ -77,6 +79,7 @@ always_comb begin
                     24'h4xxxxx: extension_n = 0;
                     24'h5xxxxx: COLORn = 0;
                     24'h6xxxxx: WORKn = 0;
+                    24'h7xxxxx: PRIORITYn = 0;
                     24'h8xxxxx: OBJECTn = 0;
                     24'h9xxxxx: SCREENn = 0;
                     24'ha0xxxx: SOUNDn = 0;
@@ -117,8 +120,8 @@ always_comb begin
                             ROMn = 0;
                         end
                     end
-                    //24'h00007c: SS_VECn = 0;
-                    //24'h00007e: SS_VECn = 0;
+                    24'h00007c: SS_VECn = 0;
+                    24'h00007e: SS_VECn = 0;
                     24'h0xxxxx: ROMn = 0;
                     24'h1xxxxx: WORKn = 0;
                     24'h2xxxxx: COLORn = 0;

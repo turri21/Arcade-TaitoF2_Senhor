@@ -426,11 +426,11 @@ class MRAGenerator:
                             highest_bit = bit_pos
                     
                     # Create bits attribute - if only one bit, just show that bit
-                    # If multiple bits, show "highest,lowest"
+                    # If multiple bits, show "lowest,highest"
                     if lowest_bit == highest_bit:
                         bits_attr = str(lowest_bit)
                     else:
-                        bits_attr = f"{highest_bit},{lowest_bit}"
+                        bits_attr = f"{lowest_bit},{highest_bit}"
                     
                     # Create dipswitch entry
                     dip = ET.SubElement(switches, "dip")
@@ -454,7 +454,7 @@ class MRAGenerator:
                         values_list.append(str(normalized_value))
                     
                     dip.set("values", ",".join(values_list))
-                    dip.set("names", ",".join(value.name for value in dipswitch.values))
+                    dip.set("ids", ",".join(value.name for value in dipswitch.values))
                     
                 except Exception as e:
                     print(f"Error processing dipswitch '{dipswitch.name}': {e}. Skipping.")

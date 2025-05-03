@@ -216,6 +216,8 @@ localparam CONF_STR = {
     "R[70],Load State 3;",
     "R[71],Load State 4;",
     "-;",
+    "DIP;",
+    "-;",
     "T[0],Reset;",
     "R[0],Reset and close OSD;",
     "DEFMRA,/_Development/F2.mra;",
@@ -448,6 +450,14 @@ rom_loader rom_loader(
     .board_cfg(board_cfg)
 );
 
+// DIP SWITCHES
+reg [7:0] dip_sw[8];    // Active-LOW
+always @(posedge clk_sys) begin
+    if(ioctl_wr && (ioctl_index==254) && !ioctl_addr[24:3])
+        dip_sw[ioctl_addr[2:0]] <= ioctl_dout;
+end
+
+
 
 wire HBlank;
 wire HSync;
@@ -483,8 +493,8 @@ F2 F2(
     .green(VGA_G),
     .blue(VGA_B),
 
-    .dswa(0),
-    .dswb(0),
+    .dswa(~dip_sw[0]),
+    .dswb(~dip_sw[1]),
 
     .joystick_p1(joystick_p1[7:0]),
     .joystick_p2(joystick_p2[7:0]),

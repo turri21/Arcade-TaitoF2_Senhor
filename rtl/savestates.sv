@@ -140,6 +140,7 @@ module save_state_data(
 
     input             read_start,
     input             write_start,
+    input  [1:0]      index,
     output            busy,
 
     ssbus_if.master   ssbus
@@ -160,8 +161,8 @@ memory_stream memory_stream (
     .write_req(ssbus.write),
     .write_data(ssbus.data),
 
-    .start_addr(SS_DDR_BASE),
-    .length(32'h00100000),
+    .start_addr(SS_DDR_BASE + (index * 32'h00200000)),
+    .length(32'h00200000),
     .read_start(read_start),
     .write_start(write_start),
     .busy(busy),

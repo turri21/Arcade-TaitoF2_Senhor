@@ -61,6 +61,7 @@ module F2(
 
     input             ss_do_save,
     input             ss_do_restore,
+    input       [1:0] ss_index,
     output      [3:0] ss_state_out,
 
     input      [23:0] bram_addr,
@@ -133,7 +134,6 @@ reg ss_read = 0;
 wire ss_busy;
 
 ssbus_if ssbus();
-//ssbuf_if ss_global(), ss_cpu_ram(), ss_obj(), ss_objram(), ss_pri_ram(), ss_scn_main(), ss_scn_ram_0();
 ssbus_if ssb[12]();
 
 ssbus_mux #(.COUNT(12)) ssmux(
@@ -194,7 +194,7 @@ reg [15:0] reset_vector[4];
 wire ss_pause = (ss_state == SST_SAVE_PAUSED) || (ss_state == SST_WAIT_RESTORE) || (ss_state == SST_SAVE_PAUSED_SETTLE);
 wire ss_reset = (ss_state == SST_HOLD_RESET) || (ss_state == SST_RESTORE_SETTLE);
 wire ss_restart = (ss_state == SST_WAIT_RESET);
-wire ss_override = 1; //ss_state != SST_IDLE;
+wire ss_override = ss_state != SST_IDLE;
 
 assign ss_state_out = ss_state;
 
@@ -271,7 +271,7 @@ always_ff @(posedge clk) begin
         end
 
         SST_WAIT_RESET: begin
-            if (cpu_ds_n == 2'b00 && !cpu_rw && cpu_word_addr == 24'hff0002) begin
+            if (cpu_ds_n == 2'b00 && cpu_rw && cpu_fc == 3'b110 && SS_SAVEn && SS_RESETn) begin
                 ss_state <= SST_IDLE;
             end
         end
@@ -1130,6 +1130,7 @@ save_state_data save_state_data(
 
     .ddr(ddr_ss),
 
+    .index(ss_index),
     .read_start(ss_read),
     .write_start(ss_write),
     .busy(ss_busy),

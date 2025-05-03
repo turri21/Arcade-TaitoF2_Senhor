@@ -233,9 +233,6 @@ wire [127:0] status;
 wire  [10:0] ps2_key;
 
 wire [1:0] audio_filter_en = ~status[33:32];
-wire [3:0] save_state_req = status[67:64];
-wire [3:0] load_state_req = status[71:68];
-
 wire ioctl_rom_wait;
 /*wire ioctl_hs_upload_req;
 wire ioctl_m107_upload_req;
@@ -407,6 +404,7 @@ wire        bram_wr;
 
 board_cfg_t board_cfg;
 
+
 ddr_rom_loader_adaptor ddr_rom_loader(
     .clk(clk_sys),
 
@@ -457,6 +455,33 @@ always @(posedge clk_sys) begin
         dip_sw[ioctl_addr[2:0]] <= ioctl_dout;
 end
 
+
+wire [3:0] save_state_status = status[67:64];
+wire [3:0] load_state_status = status[71:68];
+reg save_state_req = 0;
+reg load_state_req = 0;
+reg [1:0] save_state_index;
+
+always_ff @(posedge sys_clk) begin
+    if (save_state_status | load_state_status) begin
+        case (save_state_status|load_state_status)
+            4'b0001: save_state_index <= 0;
+            4'b0010: save_state_index <= 1;
+            4'b0100: save_state_index <= 2;
+            4'b1000: save_state_index <= 3;
+            default: save_state_index <= 0;
+        endcase
+
+        save_state_req <= |save_state_status;
+        load_state_req <= |load_state_status;
+    end else begin
+        save_state_req <= 0;
+        load_state_req <= 0;
+    end
+end
+
+
+        
 
 
 wire HBlank;
@@ -536,8 +561,9 @@ F2 F2(
 
     .obj_debug_idx(13'h1fff),
 
-    .ss_do_save(save_state_req[0]),
-    .ss_do_restore(load_state_req[0]),
+    .ss_index(save_state_index),
+    .ss_do_save(save_state_req),
+    .ss_do_restore(load_state_req),
     .ss_state_out(),
 
     .bram_addr,

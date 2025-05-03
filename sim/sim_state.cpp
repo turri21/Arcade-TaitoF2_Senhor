@@ -16,6 +16,7 @@ SimState::SimState(F2* top, SimMemory* memory, int offset, int size)
 
 bool SimState::save_state(const char* filename)
 {
+    m_top->ss_index = 0;
     m_top->ss_do_save = 1;
     sim_tick_until([&]{ return m_top->ss_state_out != 0; });
 
@@ -31,6 +32,7 @@ bool SimState::restore_state(const char* filename)
 {
     m_memory->load_data(filename, m_offset, 1); // Pass stride=1 explicitly
 
+    m_top->ss_index = 0;
     m_top->ss_do_restore = 1;
     sim_tick_until([&]{ return m_top->ss_state_out != 0; });
     

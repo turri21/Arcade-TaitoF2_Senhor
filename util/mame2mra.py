@@ -306,12 +306,13 @@ class MAMEParser:
 class MRAGenerator:
     """Generates MRA files from Machine objects for MiSTer FPGA."""
     
-    def __init__(self, machine, core_name="TaitoF2", output_dir=".", rbf=None, config_file=None):
+    def __init__(self, machine, core_name="TaitoF2", output_dir=".", rbf=None, config_file=None, filename_prefix=""):
         self.machine = machine
         self.core_name = core_name
         self.output_dir = output_dir
         self.rbf = rbf or core_name
         self.config_file = config_file or os.path.join(os.path.dirname(__file__), "mame2mra.toml")
+        self.filename_prefix = filename_prefix
         self.region_map = self._load_region_map()
         
         # Create output directory if it doesn't exist
@@ -480,8 +481,11 @@ class MRAGenerator:
         # Replace invalid characters with underscores
         safe_description = self._sanitize_filename(self.machine.description)
         
+        # Add prefix to filename if provided
+        filename = f"{self.filename_prefix}{safe_description}.mra"
+        
         # Write to file
-        output_file = os.path.join(self.output_dir, f"{safe_description}.mra")
+        output_file = os.path.join(self.output_dir, filename)
         with open(output_file, 'w') as f:
             f.write(mra_string)
             
@@ -759,6 +763,39 @@ def _sanitize_makefile_target(path):
     # This is important for Makefile compatibility
     return path
 
+def generate_zip_list(machines, output_file=None):
+    """Generate a list of all required ZIP files for the machines.
+    
+    Args:
+        machines: List of Machine objects
+        output_file: Path to output file. If None, the list is just returned as a string.
+        
+    Returns:
+        A string containing the list of required ZIP files, one per line.
+    """
+    # Create a set of all required ZIP files
+    required_zips = set()
+    
+    for machine in machines:
+        # Add the machine's own ZIP
+        required_zips.add(f"{machine.name}.zip")
+        
+        # Add the parent ZIP if needed
+        if machine.romof:
+            required_zips.add(f"{machine.romof}.zip")
+    
+    # Sort the list for consistent output
+    zip_list = sorted(required_zips)
+    zip_list_text = '\n'.join(zip_list)
+    
+    # Write to file if requested
+    if output_file:
+        with open(output_file, 'w') as f:
+            f.write(zip_list_text)
+    
+    return zip_list_text
+
+
 def generate_makefile_rules(machines, output_dir="releases"):
     """Generate Makefile rules for building MRA files."""
     rules = []
@@ -817,6 +854,8 @@ def main():
     parser.add_argument("--rbf", "-r", help="RBF filename (defaults to core name)")
     parser.add_argument("--config", help="Path to TOML configuration file (default: mame2mra.toml in script directory)")
     parser.add_argument("--makefile", action="store_true", help="Generate Makefile rules for building MRA files")
+    parser.add_argument("--zip-list", "-z", help="Generate a list of required ZIP files and write to the specified file (use '-' for stdout)")
+    parser.add_argument("--filename-prefix", "-p", default="", help="Add a prefix to all generated MRA filenames")
     
     args = parser.parse_args()
     
@@ -857,7 +896,17 @@ def main():
             return
     
     # Handle different operation modes
-    if args.makefile:
+    if args.zip_list:
+        # Generate a list of required ZIP files
+        output_file = None if args.zip_list == '-' else args.zip_list
+        zip_list = generate_zip_list(machines, output_file)
+        
+        if args.zip_list == '-':
+            # Print to stdout
+            print(zip_list)
+        else:
+            print(f"Generated ZIP list with {len(zip_list.splitlines())} entries in: {args.zip_list}")
+    elif args.makefile:
         # Generate Makefile rules
         rules = generate_makefile_rules(machines, args.output)
         print(rules)
@@ -874,7 +923,8 @@ def main():
                     core_name=args.core,
                     output_dir=args.output,
                     rbf=args.rbf,
-                    config_file=args.config
+                    config_file=args.config,
+                    filename_prefix=args.filename_prefix
                 )
                 output_file = generator.generate_mra()
                 print(f"Generated MRA for {machine.name}: {output_file}")

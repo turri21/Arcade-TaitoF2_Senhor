@@ -483,6 +483,9 @@ F2 F2(
     .green(VGA_G),
     .blue(VGA_B),
 
+    .dswa(0),
+    .dswb(0),
+
     .joystick_p1(joystick_p1[7:0]),
     .joystick_p2(joystick_p2[7:0]),
     .start({joystick_p2[8], joystick_p1[8]}),

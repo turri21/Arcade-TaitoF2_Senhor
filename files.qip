@@ -16,6 +16,7 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/tc0220ioc.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/tc0200obj.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/tc0200obj_extender.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/tc0260dar.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/tc0360pri.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/tc0140syt.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/ram.sv
 set_global_assignment -name VERILOG_FILE rtl/jtframe_frac_cen.v

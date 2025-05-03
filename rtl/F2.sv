@@ -71,6 +71,18 @@ module F2(
 wire cfg_260dar, cfg_110pcr, cfg_360pri;
 wire [1:0] cfg_obj_extender /* verilator public_flat */;
 
+wire [15:0] cfg_addr_rom;
+wire [15:0] cfg_addr_rom1;
+wire [15:0] cfg_addr_work_ram;
+wire [15:0] cfg_addr_screen;
+wire [15:0] cfg_addr_obj;
+wire [15:0] cfg_addr_color;
+wire [15:0] cfg_addr_io;
+wire [15:0] cfg_addr_sound;
+wire [15:0] cfg_addr_extension;
+wire [15:0] cfg_addr_priority;
+wire [15:0] cfg_addr_roz;
+
 game_board_config game_board_config(
     .clk,
     .game(game),
@@ -78,7 +90,19 @@ game_board_config game_board_config(
     .cfg_110pcr,
     .cfg_260dar,
     .cfg_360pri,
-    .cfg_obj_extender
+    .cfg_obj_extender,
+
+    .cfg_addr_rom,
+    .cfg_addr_rom1,
+    .cfg_addr_work_ram,
+    .cfg_addr_screen,
+    .cfg_addr_obj,
+    .cfg_addr_color,
+    .cfg_addr_io,
+    .cfg_addr_sound,
+    .cfg_addr_extension,
+    .cfg_addr_priority,
+    .cfg_addr_roz
 );
 
 ddr_if ddr();
@@ -170,6 +194,7 @@ reg [15:0] reset_vector[4];
 wire ss_pause = (ss_state == SST_SAVE_PAUSED) || (ss_state == SST_WAIT_RESTORE) || (ss_state == SST_SAVE_PAUSED_SETTLE);
 wire ss_reset = (ss_state == SST_HOLD_RESET) || (ss_state == SST_RESTORE_SETTLE);
 wire ss_restart = (ss_state == SST_WAIT_RESET);
+wire ss_override = 1; //ss_state != SST_IDLE;
 
 assign ss_state_out = ss_state;
 
@@ -268,7 +293,7 @@ logic IOn;
 logic OBJECTn;
 logic PRIORITYn;
 logic SOUNDn /* verilator public_flat */;
-logic extension_n;
+logic EXTENSIONn;
 
 wire SDTACKn, CDTACKn, CPUENn, dar_dtack_n;
 
@@ -466,7 +491,7 @@ TC0200OBJ_Extender tc0200obj_extender(
 
     .mode(cfg_obj_extender),
 
-    .cs(~extension_n),
+    .cs(~EXTENSIONn),
     .cpu_addr(cpu_addr[11:0]),
     .cpu_ds_n(cpu_ds_n),
     .cpu_rw(cpu_rw),
@@ -781,7 +806,20 @@ address_translator address_translator(
     .game,
     .cpu_ds_n,
     .cpu_word_addr,
-    .ss_restart,
+
+    .ss_override,
+
+    .cfg_addr_rom,
+    .cfg_addr_rom1,
+    .cfg_addr_work_ram,
+    .cfg_addr_screen,
+    .cfg_addr_obj,
+    .cfg_addr_color,
+    .cfg_addr_io,
+    .cfg_addr_sound,
+    .cfg_addr_extension,
+    .cfg_addr_priority,
+    .cfg_addr_roz,
 
     .WORKn,
     .ROMn,
@@ -792,14 +830,17 @@ address_translator address_translator(
     .PRIORITYn,
     .SOUNDn,
 
-    .extension_n,
+    .EXTENSIONn,
 
     .SS_SAVEn,
     .SS_RESETn,
     .SS_VECn
 );
 
-assign cpu_data_in = ~ROMn ? sdr_cpu_q :
+assign cpu_data_in = ~SS_SAVEn ? save_handler[cpu_addr[3:0]] :
+                     ~SS_RESETn ? reset_vector[cpu_addr[1:0]] :
+                     ~SS_VECn ? ( cpu_addr[0] ? 16'h0000 : 16'h00ff ) :
+                     ~ROMn ? sdr_cpu_q :
                      ~WORKn ? sdr_cpu_q :
                      ~SCREENn ? scn_main_data_out :
                      ~OBJECTn ? objram_data_out :
@@ -807,10 +848,7 @@ assign cpu_data_in = ~ROMn ? sdr_cpu_q :
                      ~COLORn ? (cfg_260dar ? dar_data_out : pri_data_out) :
                      ~IOn ? { 8'b0, io_data_out } :
                      ~SOUNDn ? { 4'd0, syt_cpu_dout, 8'd0 } :
-                     ~extension_n ? extension_data :
-                     ~SS_SAVEn ? save_handler[cpu_addr[3:0]] :
-                     ~SS_RESETn ? reset_vector[cpu_addr[1:0]] :
-                     ~SS_VECn ? ( cpu_addr[0] ? 16'h0000 : 16'h00ff ) :
+                     ~EXTENSIONn ? extension_data :
                      16'd0;
 
 reg prev_ds_n;

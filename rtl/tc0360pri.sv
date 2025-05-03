@@ -62,11 +62,16 @@ wire [3:0] prio0 = prio_vals0[ 4 * sel0 +: 4 ];
 wire [3:0] prio1 = prio_vals1[ 4 * sel1 +: 4 ];
 wire [3:0] prio2 = prio_vals2[ 4 * sel1 +: 4 ];
 
+wire bm1 = ctrl[0][7] & ctrl[0][6]; 
 
 always_ff @(posedge clk) begin
     if (ce_pixel) begin
         color_out <= color_in0;
-        if (prio1 > prio0) begin
+        if (bm1 && (prio1 == (prio0 - 4'd1)) && |color_in1[3:0]) begin
+            color_out <= { color_in1[13:4], color_in0[3:0] };
+        end else if (bm1 && (prio1 == (prio0 + 4'd1)) && |color_in0[3:0]) begin
+            color_out <= { color_in0[13:4], color_in1[3:0] };
+        end else if (prio1 > prio0) begin
             if (prio2 > prio1) begin
                 color_out <= color_in2;
             end else if (|color_in1[3:0]) begin

@@ -129,8 +129,8 @@ assign VBLOn = VSYNn;
 
 assign SC = |fg0_dot[3:0] ? { 3'b010, fg0_dot } :
             |bg1_dot[3:0] ? { 3'b100, bg1_dot } :
-            |bg0_dot[3:0] ? { 3'b110, bg0_dot } :
-            { 3'b110, 12'd0 };
+            |bg0_dot[3:0] ? { 3'b000, bg0_dot } :
+            { 3'b000, 12'd0 };
 
 wire [5:0] col_count = full_hcnt[9:4];
 reg [3:0] state;

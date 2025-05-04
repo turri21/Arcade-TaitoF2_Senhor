@@ -546,8 +546,13 @@ class MRAGenerator:
         regions = {}
         unknown_regions = {}
         
+        sprites_hi_roms = []
+        
+        # First pass - handle sprites_hi region specially
         for rom in self.machine.roms:
-            if rom.region:
+            if rom.region == "sprites_hi":
+                sprites_hi_roms.append(rom)
+            elif rom.region:
                 if rom.region in self.region_map:
                     if rom.region not in regions:
                         regions[rom.region] = []
@@ -557,10 +562,18 @@ class MRAGenerator:
                         unknown_regions[rom.region] = []
                     unknown_regions[rom.region].append(rom)
         
+        # Check if we have both sprites and sprites_hi regions (special case)
+        has_sprites_hi = len(sprites_hi_roms) > 0 and "sprites" in regions
+        
         # Process known regions
         for region_name, region_roms in regions.items():
             # Sort ROMs by offset within the region
             region_roms.sort(key=lambda r: r.offset if r.offset is not None else 0)
+            
+            # Special handling for sprites region when sprites_hi exists
+            if region_name == "sprites" and has_sprites_hi:
+                self._process_sprites_with_hi(roms_elem, region_roms, sprites_hi_roms)
+                continue
             
             # Calculate total size of all ROMs in this region
             total_size = sum(rom.size for rom in region_roms)
@@ -639,6 +652,96 @@ class MRAGenerator:
                 comment_text = f"Region '{region_name}': {', '.join(rom_details)}"
                 comment = ET.Comment(comment_text)
                 roms_elem.append(comment)
+    
+    def _process_sprites_with_hi(self, roms_elem, sprites_roms, sprites_hi_roms):
+        """Special case processing for sprites + sprites_hi combination.
+        
+        In this case we expect:
+        - 2 ROMs in the sprites region
+        - 1 ROM in the sprites_hi region
+        
+        The sprites_hi ROM should be duplicated in the interleave with map="0100" and map="1000"
+        """
+        # Sort ROMs by offset within their respective regions
+        sprites_roms.sort(key=lambda r: r.offset if r.offset is not None else 0)
+        sprites_hi_roms.sort(key=lambda r: r.offset if r.offset is not None else 0)
+        
+        # Verify we have the expected number of ROMs
+        if len(sprites_roms) == 2 and len(sprites_hi_roms) == 1:
+            # Calculate total size, counting sprites_hi ROM twice (since we'll duplicate it)
+            total_size = sum(rom.size for rom in sprites_roms)
+            total_size += sprites_hi_roms[0].size * 2  # Count sprites_hi ROM twice
+            
+            # Get region ID from mapping
+            region_id = self.region_map["sprites"]
+            
+            # Add comment explaining the special case
+            comment_text = f"Region: sprites + sprites_hi (32-bit interleave), Size: {total_size} bytes"
+            comment = ET.Comment(comment_text)
+            roms_elem.append(comment)
+            
+            # Create region header part with ID and size
+            header_value = f"{region_id:02x}{total_size:06x}"
+            header_part = ET.SubElement(roms_elem, "part")
+            header_part.text = header_value
+            
+            # Create 32-bit interleave
+            interleave = ET.SubElement(roms_elem, "interleave")
+            interleave.set("output", "32")
+            
+            # Add the first sprite ROM with map="0001"
+            sprite1_part = ET.SubElement(interleave, "part")
+            if sprites_roms[0].crc:
+                sprite1_part.set("crc", sprites_roms[0].crc)
+            sprite1_part.set("name", sprites_roms[0].name)
+            sprite1_part.set("map", "0001")
+            
+            # Add the second sprite ROM with map="0010"
+            sprite2_part = ET.SubElement(interleave, "part")
+            if sprites_roms[1].crc:
+                sprite2_part.set("crc", sprites_roms[1].crc)
+            sprite2_part.set("name", sprites_roms[1].name)
+            sprite2_part.set("map", "0010")
+            
+            # Add the sprites_hi ROM twice with map="0100" and map="1000"
+            sprites_hi_part1 = ET.SubElement(interleave, "part")
+            if sprites_hi_roms[0].crc:
+                sprites_hi_part1.set("crc", sprites_hi_roms[0].crc)
+            sprites_hi_part1.set("name", sprites_hi_roms[0].name)
+            sprites_hi_part1.set("map", "0100")
+            
+            sprites_hi_part2 = ET.SubElement(interleave, "part")
+            if sprites_hi_roms[0].crc:
+                sprites_hi_part2.set("crc", sprites_hi_roms[0].crc)
+            sprites_hi_part2.set("name", sprites_hi_roms[0].name)
+            sprites_hi_part2.set("map", "1000")
+        else:
+            # Unexpected ROM count pattern - fallback to normal processing
+            print(f"Warning: Unexpected ROM count in sprites ({len(sprites_roms)}) or sprites_hi ({len(sprites_hi_roms)}) regions.")
+            print(f"Expected 2 sprites ROMs and 1 sprites_hi ROM. Reverting to standard processing.")
+            
+            # Calculate total size of sprites region only
+            total_size = sum(rom.size for rom in sprites_roms)
+            
+            # Get region ID from mapping
+            region_id = self.region_map["sprites"]
+            
+            # Add comment
+            comment_text = f"Region: sprites, Size: {total_size} bytes"
+            comment = ET.Comment(comment_text)
+            roms_elem.append(comment)
+            
+            # Create region header part with ID and size
+            header_value = f"{region_id:02x}{total_size:06x}"
+            header_part = ET.SubElement(roms_elem, "part")
+            header_part.text = header_value
+            
+            # Process sprites ROMs normally
+            for rom in sprites_roms:
+                part = ET.SubElement(roms_elem, "part")
+                if rom.crc:
+                    part.set("crc", rom.crc)
+                part.set("name", rom.name)
     
     def _add_metadata(self, mra):
         """Add metadata from TOML config to the MRA."""

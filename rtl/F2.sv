@@ -181,6 +181,7 @@ typedef enum bit [3:0] {
     SST_WAIT_SAVE,
     SST_SAVE_PAUSED_SETTLE,
     SST_SAVE_PAUSED,
+    SST_WAIT_SAVE_HANDLER,
     SST_RESTORE_SETTLE,
     SST_WAIT_RESTORE,
     SST_HOLD_RESET,
@@ -238,6 +239,12 @@ always_ff @(posedge clk) begin
             if (ss_busy & ss_write) begin
                 ss_write <= 0;
             end else if (~ss_busy & ~ss_write) begin
+                ss_state <= SST_WAIT_SAVE_HANDLER;
+            end
+        end
+
+        SST_WAIT_SAVE_HANDLER: begin
+            if (cpu_ds_n == 2'b00 && cpu_rw && cpu_fc == 3'b110 && SS_SAVEn) begin
                 ss_state <= SST_IDLE;
             end
         end

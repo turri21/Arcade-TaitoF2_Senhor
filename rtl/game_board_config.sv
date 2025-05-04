@@ -38,18 +38,18 @@ always_ff @(posedge clk) begin
 end
 
 always_ff @(posedge clk) begin
-    cfg_addr_rom      <= 16'b0;
-    cfg_addr_rom1     <= 16'b0;
-    cfg_addr_work_ram      <= 16'b0;
-    cfg_addr_color       <= 16'b0;
-    cfg_addr_io       <= 16'b0;
-    cfg_addr_sound    <= 16'b0;
-    cfg_addr_screen  <= 16'b0;
-    cfg_addr_screen <= 16'b0;
-    cfg_addr_obj    <= 16'b0;
-    cfg_addr_priority <= 16'b0;
-    cfg_addr_extension<= 16'b0;
-    cfg_addr_roz      <= 16'b0;
+    cfg_addr_rom       <= 16'hff00;
+    cfg_addr_rom1      <= 16'hff00;
+    cfg_addr_work_ram  <= 16'hff00;
+    cfg_addr_color     <= 16'hff00;
+    cfg_addr_io        <= 16'hff00;
+    cfg_addr_sound     <= 16'hff00;
+    cfg_addr_screen    <= 16'hff00;
+    cfg_addr_screen    <= 16'hff00;
+    cfg_addr_obj       <= 16'hff00;
+    cfg_addr_priority  <= 16'hff00;
+    cfg_addr_extension <= 16'hff00;
+    cfg_addr_roz       <= 16'hff00;
 
     //cfg_addr_cchip     <= 16'b0;
     //cfg_addr_screen2  <= 16'b0;

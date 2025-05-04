@@ -462,7 +462,7 @@ reg save_state_req = 0;
 reg load_state_req = 0;
 reg [1:0] save_state_index;
 
-always_ff @(posedge sys_clk) begin
+always_ff @(posedge clk_sys) begin
     if (save_state_status | load_state_status) begin
         case (save_state_status|load_state_status)
             4'b0001: save_state_index <= 0;

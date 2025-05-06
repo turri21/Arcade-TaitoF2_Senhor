@@ -22,4 +22,5 @@ bool input_down(InputKey key);
 bool input_released(InputKey key);
 bool input_pressed(InputKey key);
 
+uint16_t input_dsw();
 #endif // !defined(INPUT_H)

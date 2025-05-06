@@ -11,6 +11,8 @@ USE_AUTO_SS = 1
 OBJ_DIR = obj
 VERILATED_DIR = verilated
 
+GAME ?=
+
 VERILATOR = verilator
 VERILATOR_ARGS = --cc --make gmake --trace-fst --Mdir $(VERILATED_DIR) -Ihdl --MMD --MP -Wno-TIMESCALEMOD
 PYTHON = python3
@@ -28,6 +30,7 @@ SRCS = imgui/imgui.cpp \
 		dis68k/dis68k.cpp \
 		sim_state.cpp \
 		sim.cpp \
+		games.cpp \
 		imgui_wrap.cpp \
 		tc0200obj.cpp \
 		tc0360pri.cpp
@@ -99,7 +102,7 @@ sim: $(OBJS) $(VERILATOR_OBJS) $(VERILATED_DIR)/F2__ALL.a | microrom.mem nanorom
 	$(CXX) -o $@ $^ $(CPPFLAGS) $(LDFLAGS) $(LDLIBS) -lpthread -lz
 
 run: sim
-	./sim
+	./sim $(GAME)
 
 .PHONY: clean all run
 

@@ -1,6 +1,6 @@
 #include "sim_state.h"
 #include "F2.h"
-#include "sim_memory.h"
+#include "sim_ddr.h"
 #include "sim.h"
 
 #include <dirent.h>
@@ -9,7 +9,7 @@
 
 extern void sim_tick(int count);
 
-SimState::SimState(F2* top, SimMemory* memory, int offset, int size) 
+SimState::SimState(F2* top, SimDDR* memory, int offset, int size) 
     : m_top(top), m_memory(memory), m_offset(offset), m_size(size)
 {
 }

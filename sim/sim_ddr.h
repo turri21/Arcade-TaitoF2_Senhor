@@ -1,5 +1,5 @@
-#ifndef SIM_MEMORY_H
-#define SIM_MEMORY_H
+#ifndef SIM_DDR_H
+#define SIM_DDR_H
 
 #include <cstdint>
 #include <cstdio>
@@ -7,10 +7,10 @@
 #include <string>
 
 // Class to simulate a 64-bit wide memory device
-class SimMemory
+class SimDDR
 {
 public:
-    SimMemory(size_t size_bytes)
+    SimDDR(size_t size_bytes)
     {
         // Initialize memory with size rounded up to multiple of 8 bytes
         size = (size_bytes + 7) & ~7;  // Round up to multiple of 8
@@ -296,4 +296,6 @@ private:
     uint8_t burst_size;     // Total size of current burst
 };
 
-#endif // SIM_MEMORY_H
+extern SimDDR ddr_memory;
+
+#endif // SIM_DDR_H

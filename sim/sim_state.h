@@ -5,11 +5,11 @@
 
 // Forward declarations
 class F2;
-class SimMemory;
+class SimDDR;
 
 class SimState {
 public:
-    SimState(F2* top, SimMemory* memory, int offset, int size);
+    SimState(F2* top, SimDDR* memory, int offset, int size);
     
     // Save state to the specified file
     bool save_state(const char* filename);
@@ -25,7 +25,7 @@ public:
 
 private:
     F2* m_top;
-    SimMemory* m_memory;
+    SimDDR* m_memory;
     int m_offset;
     int m_size;
 };

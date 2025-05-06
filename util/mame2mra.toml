@@ -9,7 +9,7 @@ audiocpu = 3
 [machines]
 finalb = "00 00"
 dondokod = "01 00"
-megab = "02 00"
+megablst = "02 00"
 thundfox = "03 00"
 cameltry = "04 00"
 qtorimon = "05 00"

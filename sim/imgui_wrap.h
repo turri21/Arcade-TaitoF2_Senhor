@@ -3,7 +3,7 @@
 
 #include "imgui.h"
 
-bool imgui_init();
+bool imgui_init(const char *title);
 bool imgui_begin_frame();
 void imgui_end_frame();
 

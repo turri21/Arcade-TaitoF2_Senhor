@@ -9,7 +9,7 @@
 #include "imgui_memory_editor.h"
 #include "sim_sdram.h"
 #include "sim_video.h"
-#include "sim_memory.h"
+#include "sim_ddr.h"
 #include "sim_state.h"
 #include "tc0200obj.h"
 #include "tc0360pri.h"
@@ -23,20 +23,12 @@
 #include <algorithm>
 #include <cstring>
 
-static const uint32_t CPU_ROM_SDR_BASE      = 0x00000000;
-static const uint32_t WORK_RAM_SDR_BASE     = 0x00800000;
-static const uint32_t SCN0_ROM_SDR_BASE     = 0x00900000;
-static const uint32_t ADPCMA_ROM_SDR_BASE   = 0x00b00000;
-static const uint32_t ADPCMB_ROM_SDR_BASE   = 0x00d00000;
-static const uint32_t OBJ_DATA_DDR_BASE     = 0x00200000;
-
-
 VerilatedContext *contextp;
 F2 *top;
 std::unique_ptr<VerilatedFstC> tfp;
 
 SimSDRAM sdram(128 * 1024 * 1024);
-SimMemory ddr_memory(16 * 1024 * 1024);
+SimDDR ddr_memory(16 * 1024 * 1024);
 SimVideo video;
 SimState* state_manager = nullptr;
 
@@ -156,120 +148,26 @@ ImU8 obj_ram_read(const ImU8* , size_t off, void*)
         return top->rootp->F2__DOT__objram__DOT__ram_h[word_off];
 }
 
-void load_finalb_test()
-{
-    FILE *fp = fopen("../testroms/build/finalb_test/finalb/b82_10.ic5", "rb");
-    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 16 * 1024, fp);
-    fclose(fp);
-
-    sdram.load_data("../testroms/build/finalb_test/finalb/b82-09.ic23", CPU_ROM_SDR_BASE + 1, 2);
-    sdram.load_data("../testroms/build/finalb_test/finalb/b82-17.ic11", CPU_ROM_SDR_BASE + 0, 2);
-
-    sdram.load_data("../roms/b82-07.ic34", SCN0_ROM_SDR_BASE + 1, 2);
-    sdram.load_data("../roms/b82-06.ic33", SCN0_ROM_SDR_BASE + 0, 2);
-    
-    sdram.load_data("../roms/b82-02.ic1",  ADPCMA_ROM_SDR_BASE, 1);
-    sdram.load_data("../roms/b82-01.ic2",  ADPCMB_ROM_SDR_BASE, 1);
-
-    ddr_memory.load_data("../roms/b82-03.ic9", OBJ_DATA_DDR_BASE + 0, 4);
-    ddr_memory.load_data("../roms/b82-04.ic8", OBJ_DATA_DDR_BASE + 1, 4);
-    ddr_memory.load_data("../roms/b82-05.ic7", OBJ_DATA_DDR_BASE + 2, 4);
-
-    top->game = GAME_FINALB;
-}
-
-void load_finalb()
-{
-    FILE *fp = fopen("../roms/b82_10.ic5", "rb");
-    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 64 * 1024, fp);
-    fclose(fp);
-
-    sdram.load_data("../roms/b82-09.ic23", CPU_ROM_SDR_BASE + 1, 2);
-    sdram.load_data("../roms/b82-17.ic11", CPU_ROM_SDR_BASE + 0, 2);
-
-    sdram.load_data("../roms/b82-07.ic34", SCN0_ROM_SDR_BASE + 1, 2);
-    sdram.load_data("../roms/b82-06.ic33", SCN0_ROM_SDR_BASE + 0, 2);
-    
-    sdram.load_data("../roms/b82-02.ic1",  ADPCMA_ROM_SDR_BASE, 1);
-    sdram.load_data("../roms/b82-01.ic2",  ADPCMB_ROM_SDR_BASE, 1);
-
-    ddr_memory.load_data("../roms/b82-03.ic9", OBJ_DATA_DDR_BASE + 0, 4);
-    ddr_memory.load_data("../roms/b82-04.ic8", OBJ_DATA_DDR_BASE + 1, 4);
-    ddr_memory.load_data("../roms/b82-05.ic7", OBJ_DATA_DDR_BASE + 2, 4);
-    
-    top->game = GAME_FINALB;
-}
-
-void load_qjinsei()
-{
-    FILE *fp = fopen("../roms/d48-11", "rb");
-    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 64 * 1024, fp);
-    fclose(fp);
-
-    sdram.load_data("../roms/d48-09", CPU_ROM_SDR_BASE + 1, 2);
-    sdram.load_data("../roms/d48-10", CPU_ROM_SDR_BASE + 0, 2);
-    sdram.load_data("../roms/d48-03", CPU_ROM_SDR_BASE + 0x100000, 1);
-
-    sdram.load_data("../roms/d48-04", SCN0_ROM_SDR_BASE, 1);
-    
-    sdram.load_data("../roms/d48-05",  ADPCMA_ROM_SDR_BASE, 1);
-
-    ddr_memory.load_data("../roms/d48-02", OBJ_DATA_DDR_BASE + 0, 2);
-    ddr_memory.load_data("../roms/d48-01", OBJ_DATA_DDR_BASE + 1, 2);
-    
-    top->game = GAME_QJINSEI;
-}
-
-void load_dinorex()
-{
-    FILE *fp = fopen("../roms/d39-12.5", "rb");
-    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 64 * 1024, fp);
-    fclose(fp);
-
-    sdram.load_data("../roms/d39-14.9", CPU_ROM_SDR_BASE + 1, 2);
-    sdram.load_data("../roms/d39-16.8", CPU_ROM_SDR_BASE + 0, 2);
-    sdram.load_data("../roms/d39-04.6", CPU_ROM_SDR_BASE + 0x100000, 1);
-    sdram.load_data("../roms/d39-05.7", CPU_ROM_SDR_BASE + 0x200000, 1);
-
-    sdram.load_data("../roms/d39-06.2", SCN0_ROM_SDR_BASE, 1);
-
-    sdram.load_data("../roms/d39-07.10",  ADPCMA_ROM_SDR_BASE, 1);
-    sdram.load_data("../roms/d39-08.4",  ADPCMB_ROM_SDR_BASE, 1);
-
-    ddr_memory.load_data("../roms/d39-01.29", OBJ_DATA_DDR_BASE, 1);
-    ddr_memory.load_data("../roms/d39-02.28", OBJ_DATA_DDR_BASE + 0x200000, 1);
-    ddr_memory.load_data("../roms/d39-03.27", OBJ_DATA_DDR_BASE + 0x400000, 1);
-
-    top->game = GAME_DINOREX;
-}
-
-void load_liquidk()
-{
-    FILE *fp = fopen("../roms/c49-08.ic32", "rb");
-    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 64 * 1024, fp);
-    fclose(fp);
-
-    sdram.load_data("../roms/c49-09.ic47", CPU_ROM_SDR_BASE + 1, 2);
-    sdram.load_data("../roms/c49-11.ic48", CPU_ROM_SDR_BASE + 0, 2);
-    sdram.load_data("../roms/c49-10.ic45", CPU_ROM_SDR_BASE + 0x40001, 2);
-    sdram.load_data("../roms/c49-12.ic46", CPU_ROM_SDR_BASE + 0x40000, 2);
-	
-    sdram.load_data("../roms/c49-03.ic76", SCN0_ROM_SDR_BASE, 1);
-    
-    sdram.load_data("../roms/c49-04.ic33",  ADPCMA_ROM_SDR_BASE, 1);
-
-    ddr_memory.load_data("../roms/c49-01.ic54", OBJ_DATA_DDR_BASE, 1);
-    ddr_memory.load_data("../roms/c49-02.ic53", OBJ_DATA_DDR_BASE + 0x80000, 1);
-
-    dipswitch_a = 0x01;
-    dipswitch_b = 0x00;
-
-    top->game = GAME_LIQUIDK;
-}
-
 int main(int argc, char **argv)
 {
-    if( !imgui_init() )
+    const char *game_name = "finalb";
+    char title[64];
+
+    if (argc == 2)
+    {
+        game_name = argv[1];
+    }
+
+    const game_t game = game_find(game_name);
+    if (game == GAME_INVALID)
+    {
+        printf("Game '%s' is not found.\n", game_name);
+        return -1;
+    }
+
+    snprintf(title, 64, "F2 - %s", game_name);
+
+    if( !imgui_init(title) )
     {
         return -1;
     }
@@ -278,7 +176,7 @@ int main(int argc, char **argv)
     top = new F2{contextp};
     tfp = nullptr;
 
-    load_dinorex();
+    game_init(game);
 
     strcpy(trace_filename, "sim.fst");
 

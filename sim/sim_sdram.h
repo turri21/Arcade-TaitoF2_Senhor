@@ -130,4 +130,6 @@ public:
     uint8_t *data;
 };
 
+extern SimSDRAM sdram;
+
 #endif

@@ -53,11 +53,11 @@ sim:
 	$(MAKE) -j8 -C sim sim
 
 sim/run:
-	$(MAKE) -j8 -C sim run
+	$(MAKE) -j8 -C sim run GAME=finalb
 
 sim/test:
 	$(MAKE) -j8 -C testroms
-	$(MAKE) -j8 -C sim run
+	$(MAKE) -j8 -C sim run GAME=finalb_test
 
 debug:
 	$(MAKE) -j8 -C testroms debug

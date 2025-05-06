@@ -1,4 +1,4 @@
-- [ ] Dip switches
+- [x] Dip switches
 - [ ] Cheats
 - [x] MRA generation
 
@@ -6,6 +6,9 @@
 - [ ] Clock enable catchup for CPU
 - [ ] Clean up 68k savestate code
 - [ ] Clocked auto_ss
+
+- [ ] MAME keyboard inputs
+- [ ] Savestate mapping
 
 - [x] Sprite position issues
 - [ ] Screen flip

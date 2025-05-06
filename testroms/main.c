@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include "printf/printf.h"
 
+#include "tc0100scn.h"
 #include "tc0200obj.h"
 #include "util.h"
 #include "interrupts.h"
@@ -108,22 +109,40 @@ uint8_t sine_wave[256] =
 extern char _binary_font_chr_start[];
 extern char _binary_font_chr_end[];
 
-#define NUM_SCREENS 7
+#define NUM_SCREENS 8
 
 static uint32_t frame_count;
 
 void reset_screen()
 {
     memset(TC0100SCN, 0, sizeof(TC0100SCN_Layout));
+    int16_t base_x;
+    int16_t base_y;
+    uint16_t system_flags;
 
-    TC0100SCN_Ctrl->bg1_y = 0;
-    TC0100SCN_Ctrl->bg1_x = 9;
-    TC0100SCN_Ctrl->fg0_y = 0;
-    TC0100SCN_Ctrl->fg0_x = 9;
-    TC0100SCN_Ctrl->system_flags = 0;
+    bool flip = (input_dsw() & 0x02) == 0;
+
+    if (flip)
+    {
+        base_x = 7;
+        base_y = 16;
+        system_flags = TC0100SCN_SYSTEM_FLIP;
+    }
+    else
+    {
+        base_x = 9;
+        base_y = 0;
+        system_flags = 0;
+    }
+
+    TC0100SCN_Ctrl->bg1_y = base_y;
+    TC0100SCN_Ctrl->bg1_x = base_x;
+    TC0100SCN_Ctrl->fg0_y = base_y;
+    TC0100SCN_Ctrl->fg0_x = base_x;
+    TC0100SCN_Ctrl->system_flags = system_flags;
     TC0100SCN_Ctrl->layer_flags = 0;
-    TC0100SCN_Ctrl->bg0_y = 0;
-    TC0100SCN_Ctrl->bg0_x = 9;
+    TC0100SCN_Ctrl->bg0_y = base_y;
+    TC0100SCN_Ctrl->bg0_x = base_x;
     memcpy(TC0100SCN->fg0_gfx + ( 0x20 * 8 ), _binary_font_chr_start, _binary_font_chr_end - _binary_font_chr_start);
     
     memsetw(TC0200OBJ, 0, 0x8000);
@@ -185,7 +204,7 @@ void update_scn_general()
 
     for( int y = 0; y < 24; y++ )
     {
-        TC0100SCN->bg0_rowscroll[14 * 8 + y] = sine_wave[(frame_count*2+(y*4)) & 0xff] >> 4;
+//        TC0100SCN->bg0_rowscroll[14 * 8 + y] = sine_wave[(frame_count*2+(y*4)) & 0xff] >> 4;
     }
 
     for( int y = 0; y < 32; y++ )
@@ -199,7 +218,7 @@ void update_scn_general()
     }*/
     for( int y = 0; y < 16; y++ )
     {
-        TC0100SCN->bg1_rowscroll[20 * 8 + y] = sine_wave[(frame_count*2+(y*4)) & 0xff] >> 4;
+//        TC0100SCN->bg1_rowscroll[20 * 8 + y] = sine_wave[(frame_count*2+(y*4)) & 0xff] >> 4;
     }
 
 
@@ -210,6 +229,90 @@ void update_scn_general()
 
     frame_count++;
 }
+
+void init_scn_align()
+{
+    reset_screen();
+
+    // Max extent corner boundaries
+    on_layer(BG0); pen_color(0);
+    sym_at(1, 1, 1);
+    sym_at(1, 28, 1);
+    sym_at(40, 1, 1);
+    sym_at(40, 28, 1);
+
+    // Should not be visible
+    pen_color(1);
+    sym_at(0, 1, 0x1b);
+    sym_at(1, 0, 0x1b);
+    sym_at(0, 28, 0x1b);
+    sym_at(1, 29, 0x1b);
+    sym_at(40, 0, 0x1b);
+    sym_at(41, 1, 0x1b);
+    sym_at(40, 29, 0x1b);
+    sym_at(41, 28, 0x1b);
+
+    pen_color(6);
+    print_at(4, 3, "LAYER BG0");
+    on_layer(BG1);
+    pen_color(3);
+    print_at(4, 4, "LAYER BG1");
+    on_layer(FG0);
+    pen_color(0);
+    print_at(4, 5, "LAYER FG0");
+
+    on_layer(BG0);
+    pen_color(9);
+    print_at(10, 8, "NO SCROLL");
+    print_at(10, 9, "NO SCROLL");
+    print_at(10, 20, "NO SCROLL");
+    print_at(10, 21, "NO SCROLL");
+    for (int y = 0; y < 10; y++)
+    {
+        sym_at(8, 10 + y, 0x12);
+        print_at(10, 10 + y, "%d SCROLL", y);
+    }
+
+    for( int y = 0; y < 10 * 8; y++ )
+    {
+        TC0100SCN->bg0_rowscroll[(8 * 10) + y] = y - 39;
+    }
+}
+
+void update_scn_align()
+{
+    wait_vblank();
+
+    bool flip = (input_dsw() & 0x02) == 0;
+
+    int16_t base_x;
+    int16_t base_y;
+    uint16_t system_flags;
+
+    if (flip)
+    {
+        base_x = 7;
+        base_y = 16;
+        system_flags = TC0100SCN_SYSTEM_FLIP;
+    }
+    else
+    {
+        base_x = 9;
+        base_y = 0;
+        system_flags = 0;
+    }
+
+    TC0100SCN_Ctrl->bg1_y = base_y;
+    TC0100SCN_Ctrl->bg1_x = base_x;
+    TC0100SCN_Ctrl->fg0_y = base_y;
+    TC0100SCN_Ctrl->fg0_x = base_x;
+    TC0100SCN_Ctrl->system_flags = system_flags;
+    TC0100SCN_Ctrl->layer_flags = 0;
+    TC0100SCN_Ctrl->bg0_y = base_y;
+    TC0100SCN_Ctrl->bg0_x = base_x;
+}
+
+
 
 uint16_t system_flags, layer_flags;
 
@@ -875,6 +978,7 @@ void init_screen(int screen)
         case 4: init_obj_test2(); break;
         case 5: init_obj_test3(); break;
         case 6: init_sound_test(); break;
+        case 7: init_scn_align(); break;
         default: break;
     }
 }
@@ -890,6 +994,7 @@ void update_screen(int screen)
         case 4: update_obj_test2(); break;
         case 5: update_obj_test3(); break;
         case 6: update_sound_test(); break;
+        case 7: update_scn_align(); break;
         default: break;
     }
 }
@@ -908,7 +1013,7 @@ int main(int argc, char *argv[])
 
     uint32_t system_flags = 0;
 
-    int current_screen = 5;
+    int current_screen = 7;
 
     init_screen(current_screen);
     

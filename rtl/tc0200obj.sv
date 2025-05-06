@@ -184,8 +184,8 @@ wire [14:0] shifter_addr;
 wire shifter_ready, shifter_done;
 reg shifter_read;
 
-wire [11:0] flip_x_origin /* verilator public_flat */ = 0;
-wire [11:0] flip_y_origin /* verilator public_flat */ = 0;
+wire [11:0] flip_x_origin /* verilator public_flat */ = 496;
+wire [11:0] flip_y_origin /* verilator public_flat */ = 240;
 
 tc0200obj_data_shifter shifter(
     .clk,

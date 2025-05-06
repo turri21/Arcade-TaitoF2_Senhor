@@ -184,6 +184,9 @@ wire [14:0] shifter_addr;
 wire shifter_ready, shifter_done;
 reg shifter_read;
 
+wire [11:0] flip_x_origin /* verilator public_flat */ = 0;
+wire [11:0] flip_y_origin /* verilator public_flat */ = 0;
+
 tc0200obj_data_shifter shifter(
     .clk,
     .reset(obj_state == ST_EVAL),
@@ -191,10 +194,10 @@ tc0200obj_data_shifter shifter(
     .burstcnt(read_tile_burstcnt),
     .load_complete(read_tile_complete),
 
-    .x(latch_x),
-    .y(latch_y),
-    .flip_x(inst_x_flip),
-    .flip_y(inst_y_flip),
+    .x(ctrl_flipscreen ? (flip_x_origin - latch_x) : latch_x),
+    .y(ctrl_flipscreen ? (flip_y_origin - latch_y) : latch_y),
+    .flip_x(inst_x_flip ^ ctrl_flipscreen),
+    .flip_y(inst_y_flip ^ ctrl_flipscreen),
     .color(latch_color),
 
     .out_data(shifter_data),

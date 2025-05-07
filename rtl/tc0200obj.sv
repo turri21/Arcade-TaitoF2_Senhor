@@ -599,7 +599,7 @@ always_ff @(posedge clk) begin
             ddr_fb.acquire <= 0;
             ddr_fb.read <= 0;
             fb_dirty_scan_addr <= { fb_dirty_scan_addr[15:7], hcnt[6:0] };
-            fb_dirty_scan_clear <= 1;
+            fb_dirty_scan_clear <= scanout_active;
 
             if (scanout_newline) begin
                 scan_state <= SCAN_START_READ;

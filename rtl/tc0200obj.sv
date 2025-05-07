@@ -351,12 +351,14 @@ always @(posedge clk) begin
 
             prev_seq <= inst_next_seq;
 
-            if (inst_latch_extra) begin
+            // FIXME confirm hardware behavior when only latch bit is set
+            // liquidk sometimes does this and mame ignores it
+            if (inst_latch_extra & ~inst_use_extra) begin
                 extra_x <= inst_x_coord;
                 extra_y <= inst_y_coord;
             end
 
-            if (inst_latch_master) begin
+            if (inst_latch_master & ~inst_use_scroll) begin
                 master_x <= inst_x_coord;
                 master_y <= inst_y_coord;
             end

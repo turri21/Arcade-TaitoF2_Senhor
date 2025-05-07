@@ -891,9 +891,8 @@ always_ff @(posedge clk) begin
         end
     end else if (~ROMn & prev_ds_n) begin
         sdr_cpu_addr <= CPU_ROM_SDR_BASE[26:0] + { 3'b0, cpu_word_addr };
-        sdr_cpu_data <= cpu_data_out;
         sdr_cpu_be <= ~cpu_ds_n;
-        sdr_cpu_rw <= cpu_rw;
+        sdr_cpu_rw <= 1;
         sdr_cpu_req <= ~sdr_cpu_req;
         ss_sdr_active <= 0;
     end else if (~WORKn & prev_ds_n) begin

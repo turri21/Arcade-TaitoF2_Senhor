@@ -369,7 +369,7 @@ always @(posedge clk) begin
         // FIXME: we could overlap this with ST_EVAL and not waste these
         // cycles
         ST_POST_READ: if (ce_13m) begin
-            if (busy_count == 7) begin
+            if (busy_count == 15) begin
                 obj_state <= ST_EVAL;
                 EBUSY <= 0;
             end

@@ -352,7 +352,7 @@ wire [1:0]  cpu_ds_n;
 wire [2:0]  cpu_fc;
 wire [15:0] cpu_data_in, cpu_data_out;
 wire [22:0] cpu_addr;
-wire [23:0] cpu_word_addr = { cpu_addr, 1'b0 };
+wire [23:0] cpu_word_addr /* verilator public_flat */ = { cpu_addr, 1'b0 };
 wire IACKn = ~&cpu_fc;
 
 fx68k m68000(
@@ -417,8 +417,8 @@ reg obj_cpu_latch;
 always @(posedge clk) if (ce_6m) obj_cpu_latch <= ~OBJECTn & (~BUSY | obj_cpu_latch);
 
 wire OBJWEn = ~((BUSY & ~ORDWEn) | (~OBJECTn & ~cpu_rw & obj_cpu_latch));
-wire LOBJRAMn = ~((BUSY & ~RCSn) | (~cpu_ds_n[1] & obj_cpu_latch));
-wire UOBJRAMn = ~((BUSY & ~RCSn) | (~cpu_ds_n[0] & obj_cpu_latch));
+wire UOBJRAMn = ~((BUSY & ~RCSn) | (~cpu_ds_n[1] & obj_cpu_latch));
+wire LOBJRAMn = ~((BUSY & ~RCSn) | (~cpu_ds_n[0] & obj_cpu_latch));
 wire [14:0] OBJ_ADD = (obj_cpu_latch & ~OBJECTn) ? cpu_addr[14:0] : obj_ram_addr;
 wire [15:0] OBJ_DATA = (obj_cpu_latch & ~OBJECTn) ? cpu_data_out : obj_dout;
 assign CPUENn = OBJECTn ? 0 : ~obj_cpu_latch;

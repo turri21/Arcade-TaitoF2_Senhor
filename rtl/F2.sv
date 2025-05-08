@@ -412,12 +412,16 @@ wire [11:0] obj_dot;
 
 wire RCSn, BUSY, ORDWEn, DMAn;
 
-wire OBJWEn = BUSY ? ORDWEn : (OBJECTn | cpu_rw);
-wire LOBJRAMn = BUSY ? RCSn : cpu_ds_n[0];
-wire UOBJRAMn = BUSY ? RCSn : cpu_ds_n[1];
-wire [14:0] OBJ_ADD = BUSY ? obj_ram_addr : cpu_addr[14:0];
-wire [15:0] OBJ_DATA = BUSY ? obj_dout : cpu_data_out;
-assign CPUENn = BUSY ? ~OBJECTn : 0;
+reg obj_cpu_latch;
+
+always @(posedge clk) if (ce_6m) obj_cpu_latch <= ~OBJECTn & (~BUSY | obj_cpu_latch);
+
+wire OBJWEn = BUSY ? ORDWEn : (OBJECTn | cpu_rw | ~obj_cpu_latch);
+wire LOBJRAMn = BUSY ? RCSn : (cpu_ds_n[0] | ~obj_cpu_latch);
+wire UOBJRAMn = BUSY ? RCSn : (cpu_ds_n[1] | ~obj_cpu_latch);
+wire [14:0] OBJ_ADD = (obj_cpu_latch & ~OBJECTn) ? cpu_addr[14:0] : obj_ram_addr;
+wire [15:0] OBJ_DATA = (obj_cpu_latch & ~OBJECTn) ? cpu_data_out : obj_dout;
+assign CPUENn = OBJECTn ? 0 : ~obj_cpu_latch;
 
 wire [14:0] objram_addr;
 wire [15:0] objram_data;

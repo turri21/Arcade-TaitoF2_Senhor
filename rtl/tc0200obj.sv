@@ -115,10 +115,13 @@ typedef enum
 {
     ST_IDLE = 0,
     ST_DMA_INIT,
+    ST_PRE_DMA,
     ST_DMA,
     ST_DRAW_INIT,
     ST_READ_START,
+    ST_PRE_READ,
     ST_READ,
+    ST_POST_READ,
     ST_EVAL,
     ST_EVAL2,
     ST_CHECK_BOUNDS,
@@ -212,6 +215,7 @@ tc0200obj_data_shifter shifter(
 );
 
 reg [17:0] read_pacing;
+reg [4:0] busy_count;
 reg test_pause = 0;
     
 reg [11:0] base_x, base_y;
@@ -228,6 +232,7 @@ always @(posedge clk) begin
 
     if (ce_13m) begin
         read_pacing <= read_pacing + 1;
+        busy_count <= busy_count + 1;
     end
 
     case(obj_state)
@@ -246,12 +251,23 @@ always @(posedge clk) begin
             end
         end
 
-        ST_DMA_INIT: begin
+        ST_DMA_INIT: if (ce_13m) begin
             EBUSY <= 1;
-            EDMAn <= 0;
             dma_cycle <= 0;
             scanout_buffer <= ~scanout_buffer;
-            obj_state <= ST_DMA;
+            busy_count <= 0;
+            obj_state <= ST_PRE_DMA;
+
+            // FIXME, verify that this resets
+            extra_x <= 0;
+            extra_y <= 0;
+        end
+
+        ST_PRE_DMA: if (ce_13m) begin
+            if (busy_count == 3) begin
+                obj_state <= ST_DMA;
+                EDMAn <= 0;
+            end
         end
 
         ST_DMA: if (ce_13m) begin
@@ -303,10 +319,17 @@ always @(posedge clk) begin
             end else begin
                 if (read_pacing[17:8] >= obj_addr[12:3]) begin
                     EBUSY <= 1;
-                    ERCSn <= 0;
-                    obj_state <= ST_READ;
+                    obj_state <= ST_PRE_READ;
+                    busy_count <= 0;
                     inst_debug <= {3'b0, obj_addr[12:3]} == debug_idx;
                 end
+            end
+        end
+
+        ST_PRE_READ: if (ce_13m) begin
+            if (busy_count == 13) begin
+                obj_state <= ST_READ;
+                ERCSn <= 0;
             end
         end
 
@@ -332,8 +355,8 @@ always @(posedge clk) begin
                 end
 
                 3'd7: begin
-                   obj_state <= ST_EVAL;
-                    EBUSY <= 0;
+                    obj_state <= ST_POST_READ;
+                    busy_count <= 0;
                     ERCSn <= 1;
                 end
 
@@ -341,6 +364,15 @@ always @(posedge clk) begin
                 end
 
             endcase
+        end
+
+        // FIXME: we could overlap this with ST_EVAL and not waste these
+        // cycles
+        ST_POST_READ: if (ce_13m) begin
+            if (busy_count == 7) begin
+                obj_state <= ST_EVAL;
+                EBUSY <= 0;
+            end
         end
 
         ST_EVAL: begin

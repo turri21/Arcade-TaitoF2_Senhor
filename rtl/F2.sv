@@ -69,7 +69,7 @@ module F2(
     input             bram_wr
 );
 
-wire cfg_260dar, cfg_110pcr, cfg_360pri;
+wire cfg_260dar, cfg_110pcr, cfg_360pri, cfg_io_swap;
 wire [1:0] cfg_obj_extender /* verilator public_flat */;
 
 wire [15:0] cfg_addr_rom;
@@ -92,6 +92,7 @@ game_board_config game_board_config(
     .cfg_260dar,
     .cfg_360pri,
     .cfg_obj_extender,
+    .cfg_io_swap,
 
     .cfg_addr_rom,
     .cfg_addr_rom1,
@@ -386,7 +387,7 @@ TC0220IOC tc0220ioc(
     .RES_INn(1),
     .RES_OUTn(),
 
-    .A(cpu_addr[3:0]),
+    .A(cfg_io_swap ? { cpu_addr[3:1], ~cpu_addr[0] } : cpu_addr[3:0]),
     .WEn(cpu_rw),
     .CSn(IOn),
     .OEn(0),
@@ -746,7 +747,7 @@ TC0260DAR tc0260dar(
     .HBLANKn(HBLn),
     .VBLANKn(VBLn),
 
-    .IM({2'b00, pri360_color[11:0]}),
+    .IM({2'b00, cfg_360pri ? pri360_color[11:0] : obj_dot}),
 
     .VIDEOR(dar_red),
     .VIDEOG(dar_green),

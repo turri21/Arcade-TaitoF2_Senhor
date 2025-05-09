@@ -8,6 +8,7 @@ module game_board_config(
     output reg       cfg_110pcr,
     output reg       cfg_260dar,
     output reg [1:0] cfg_obj_extender,
+    output reg       cfg_io_swap,
 
     output reg [15:0] cfg_addr_rom,
     output reg [15:0] cfg_addr_rom1,
@@ -25,14 +26,20 @@ module game_board_config(
 // register these values to help with timing
 //
 always_ff @(posedge clk) begin
+    cfg_io_swap <= 0;
+    cfg_obj_extender <= 2'b00;
+
     case(game)
         GAME_FINALB:  begin cfg_360pri <= 0; cfg_260dar <= 0; cfg_110pcr <= 1; cfg_obj_extender <= 2'b00; end
-        GAME_QTORIMON:  begin cfg_360pri <= 0; cfg_260dar <= 0; cfg_110pcr <= 1; cfg_obj_extender <= 2'b00; end
-        GAME_QUIZHQ:  begin cfg_360pri <= 0; cfg_260dar <= 0; cfg_110pcr <= 1; cfg_obj_extender <= 2'b00; end
-        GAME_SSI:  begin cfg_360pri <= 0; cfg_260dar <= 1; cfg_110pcr <= 1; cfg_obj_extender <= 2'b00; end
-        GAME_QJINSEI: begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_obj_extender <= 2'b01; end
         GAME_DINOREX: begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_obj_extender <= 2'b01; end
         GAME_LIQUIDK: begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_obj_extender <= 2'b00; end
+
+        GAME_SSI:  begin cfg_360pri <= 0; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_obj_extender <= 2'b00; end
+        GAME_GUNFRONT: begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_io_swap <= 1; cfg_obj_extender <= 2'b00; end
+
+        GAME_QTORIMON:  begin cfg_360pri <= 0; cfg_260dar <= 0; cfg_110pcr <= 1; cfg_obj_extender <= 2'b00; end
+        GAME_QUIZHQ:  begin cfg_360pri <= 0; cfg_260dar <= 0; cfg_110pcr <= 1; cfg_obj_extender <= 2'b00; end
+        GAME_QJINSEI: begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_obj_extender <= 2'b01; end
         default:      begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_obj_extender <= 2'b00; end
     endcase
 end

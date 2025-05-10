@@ -20,11 +20,13 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/tc0360pri.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/tc0140syt.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/ram.sv
 set_global_assignment -name VERILOG_FILE rtl/jtframe_frac_cen.v
+set_global_assignment -name VERILOG_FILE rtl/jtframe_resync.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/memory_stream.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/savestates.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/ddram.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/rom_loader.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/audio_mix.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/video_path.sv
 
 if (0) {
     set_global_assignment -name VERILOG_MACRO "USE_AUTO_SS=1"

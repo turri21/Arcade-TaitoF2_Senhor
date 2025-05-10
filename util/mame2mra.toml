@@ -34,6 +34,7 @@ dinorex = "17 00"
 qjinsei = "18 00"
 qcrayon = "19 00"
 qcrayon2 = "1a 00"
+driftout = "1b 00"
 
 [buttons]
 default.snes = "B,A,X,Y,Start,Select"
@@ -41,5 +42,5 @@ default.game = "Btn1,Btn2,Btn3,Btn4,Start,Coin"
 finalb = { snes = "B,A,X,Start,Select", game = "Btn1,Btn2,Btn2,-,Start,Coin" }
 
 [metadata]
-default.mameversion = 245
+default.mameversion = 261
 

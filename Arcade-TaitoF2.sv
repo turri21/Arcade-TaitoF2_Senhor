@@ -179,7 +179,6 @@ assign USER_OUT = '1;
 assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 
-assign VGA_SL = 0;
 assign VGA_F1 = 0;
 assign VGA_SCALER  = 0;
 assign VGA_DISABLE = 0;
@@ -196,16 +195,21 @@ assign BUTTONS = 0;
 
 //////////////////////////////////////////////////////////////////
 
-wire [1:0] ar = status[122:121];
-
-assign VIDEO_ARX = (!ar) ? 12'd4 : (ar - 1'd1);
-assign VIDEO_ARY = (!ar) ? 12'd3 : 12'd0;
-
 `include "build_id.v"
 localparam CONF_STR = {
     "TaitoF2;SS3E000000:200000;",
     "-;",
-    "O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
+    "P1,Video Settings;",
+    "P1O[2:1],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
+    "P1O[5:3],Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
+    "P1O[7:6],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
+    "P1-;",
+    "P1O[8],Orientation,Horz,Vert;",
+    "P1-;",
+    "P1O[19],Consumer CRT Sync,On,Off;",
+    "P1O[13:9],Analog Video H-Pos,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
+    "P1O[18:14],Analog Video V-Pos,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
+    "-;",
     "O[33:32],Audio Filter,Both,Main,Pre,None;",
     "R[64],Save State 1;",
     "R[65],Save State 2;",
@@ -377,13 +381,13 @@ sdram sdram
     .ch4_ack()
 );
 
-ddr_if ddr_host(), ddr_romload(), ddr_romload_adaptor(), ddr_romload_loader(), ddr_f2();
+ddr_if ddr_host(), ddr_romload(), ddr_x(), ddr_romload_adaptor(), ddr_romload_loader(), ddr_f2(), ddr_rotate();
 
 ddr_mux ddr_mux(
     .clk(clk_sys),
     .x(ddr_host),
     .a(ddr_f2),
-    .b(ddr_romload)
+    .b(ddr_x)
 );
 
 ddr_mux ddr_mux2(
@@ -391,6 +395,13 @@ ddr_mux ddr_mux2(
     .x(ddr_romload),
     .a(ddr_romload_adaptor),
     .b(ddr_romload_loader)
+);
+
+ddr_mux ddr_mux3(
+    .clk(clk_sys),
+    .x(ddr_x),
+    .a(ddr_rotate),
+    .b(ddr_romload)
 );
 
 wire rom_load_busy;
@@ -481,15 +492,9 @@ always_ff @(posedge clk_sys) begin
 end
 
 
-        
-
-
-wire HBlank;
-wire HSync;
-wire VBlank;
-wire VSync;
-wire ce_pix;
-wire [7:0] video;
+wire [7:0] core_r, core_g, core_b;
+wire core_hb, core_vb, core_hs, core_vs;
+wire core_ce_pix;
 
 wire [31:0] DDRAM_ADDR_32 = ddr_host.addr;
 
@@ -503,20 +508,22 @@ assign ddr_host.rdata = DDRAM_DOUT;
 assign ddr_host.rdata_ready = DDRAM_DOUT_READY;
 assign ddr_host.busy = DDRAM_BUSY;
 
+wire sync_fix = ~status[19];
+
 F2 F2(
     .clk(clk_sys),
     .reset(reset),
 
     .game(board_cfg.game),
 
-    .ce_pixel(ce_pix),
-    .hsync(HSync),
-    .hblank(HBlank),
-    .vsync(VSync),
-    .vblank(VBlank),
-    .red(VGA_R),
-    .green(VGA_G),
-    .blue(VGA_B),
+    .ce_pixel(core_ce_pix),
+    .hsync(core_hs),
+    .hblank(core_hb),
+    .vsync(core_vs),
+    .vblank(core_vb),
+    .red(core_r),
+    .green(core_g),
+    .blue(core_b),
 
     .dswa(~dip_sw[0]),
     .dswb(~dip_sw[1]),
@@ -568,16 +575,54 @@ F2 F2(
 
     .bram_addr,
     .bram_data,
-    .bram_wr
+    .bram_wr,
+
+    .sync_fix
 );
 
 
 assign CLK_VIDEO = clk_sys;
 assign DDRAM_CLK = clk_sys;
-assign CE_PIXEL = ce_pix;
 
-assign VGA_DE = ~(HBlank | VBlank);
-assign VGA_HS = HSync;
-assign VGA_VS = VSync;
+wire [1:0] ar             = status[2:1];
+wire [2:0] scandoubler_fx = status[5:3];
+wire [1:0] scale          = status[7:6];
+wire       rotate         = status[8];
+wire [4:0] hoffset        = status[13:9];
+wire [4:0] voffset        = status[18:14];
+
+video_path video_path(
+    .CLK_VIDEO,
+
+    .hoffset, .voffset,
+
+    .forced_scandoubler, .scandoubler_fx,
+    .ar, .scale,
+
+    .rotate, .rotate_ccw(1), .flip(0),
+    .video_rotated,
+
+    .core_ce_pix,
+    .core_hs, .core_vs, .core_hb, .core_vb,
+    .core_r, .core_g, .core_b,
+
+    .HDMI_WIDTH, .HDMI_HEIGHT,
+    .VIDEO_ARX, .VIDEO_ARY,
+
+    .gamma_bus,
+
+    .FB_EN, .FB_FORMAT,
+    .FB_WIDTH, .FB_HEIGHT,
+    .FB_BASE, .FB_STRIDE,
+    .FB_VBL, .FB_LL,
+
+    .ddr(ddr_rotate),
+
+    .CE_PIXEL,
+    .VGA_R, .VGA_G, .VGA_B,
+    .VGA_HS, .VGA_VS, .VGA_DE,
+    .VGA_SL
+);
+
 
 endmodule

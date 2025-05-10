@@ -25,6 +25,9 @@ module TC0200OBJ #(parameter SS_IDX=-1) (
     output reg HBLn,
     output reg VBLn,
 
+    // Make the sync more compatible with consumer CRTs
+    input sync_fix,
+
     // bank switching and extension support
     output reg code_modify_req,
     output [13:0] code_original,
@@ -519,12 +522,12 @@ wire [9:0] H_OFS = 97;
 wire [9:0] H_START = 0 + H_OFS;
 wire [9:0] H_END = 424 + H_OFS - 1;
 wire [9:0] HS_START = 340 + H_OFS;
-wire [9:0] HS_END = 404 + H_OFS - 1;
+wire [9:0] HS_END = sync_fix ? (372 + H_OFS - 1) : (404 + H_OFS - 1);
 wire [9:0] HB_START = 320 + H_OFS;
 wire [9:0] HB_END = H_END;
 
 wire [7:0] VS_START = 240;
-wire [7:0] VS_END = 246 - 1;
+wire [7:0] VS_END = sync_fix ? (244 - 1) : (246 - 1);
 wire [7:0] VB_START = 224;
 wire [7:0] VB_END = 255;
 wire [7:0] V_EXVBL_RESET = 250; // from signal trace

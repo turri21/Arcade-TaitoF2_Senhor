@@ -66,7 +66,9 @@ module F2(
 
     input      [23:0] bram_addr,
     input       [7:0] bram_data,
-    input             bram_wr
+    input             bram_wr,
+
+    input             sync_fix
 );
 
 wire cfg_260dar, cfg_110pcr, cfg_360pri, cfg_io_swap;
@@ -484,6 +486,8 @@ TC0200OBJ tc0200obj(
     .VSYNCn,
     .HBLn,
     .VBLn,
+
+    .sync_fix,
 
     .code_modify_req(obj_code_modify_req),
     .code_original(obj_code_original),

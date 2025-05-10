@@ -1129,7 +1129,6 @@ TC0140SYT tc0140syt(
 audio_mix audio_mix(
     .clk,
     .reset,
-    .en(audio_filter_en),
 
     .fm_sample(audio_sample),
     .fm_left(audio_left),

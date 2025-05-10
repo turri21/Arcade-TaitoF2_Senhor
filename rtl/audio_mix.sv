@@ -2,8 +2,6 @@ module audio_mix(
     input clk,
     input reset,
 
-    input         [1:0] en,
-
     input               fm_sample,
     input signed [15:0] fm_left,
     input signed [15:0] fm_right,
@@ -77,22 +75,12 @@ always @(posedge clk) begin
     if (ce) begin
         stage1_in_l <= fm_left;
         stage1_in_r <= fm_right;
-        if (en[0]) begin
-            stage2_in_l <= stage1_out_l;
-            stage2_in_r <= stage1_out_r;
-        end else begin
-            stage2_in_l <= stage1_in_l;
-            stage2_in_r <= stage1_in_r;
-        end
 
-        if (en[1]) begin
-            fm_left_final <= stage2_out_l;
-            fm_right_final <= stage2_out_r;
-        end else begin
-            fm_left_final <= stage2_in_l;
-            fm_right_final <= stage2_in_r;
-        end
+        stage2_in_l <= stage1_out_l;
+        stage2_in_r <= stage1_out_r;
 
+        fm_left_final <= stage2_out_l;
+        fm_right_final <= stage2_out_r;
 
         fm_combined <= fm_left_final + fm_right_final;
         mono_output <= fm_combined + {fm_combined[15], fm_combined[15:1]} + { 1'b0, psg[9:0], 5'd0 };

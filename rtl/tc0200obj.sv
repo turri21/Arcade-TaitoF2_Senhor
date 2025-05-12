@@ -138,7 +138,6 @@ typedef enum
 draw_state_t obj_state = ST_IDLE;
 
 
-
 reg [12:0] dma_cycle;
 wire [12:0] dma_addr = {dma_cycle[12:3], 3'b000};
 
@@ -175,6 +174,8 @@ reg [11:0] latch_x, latch_y;
 reg [7:0]  latch_color;
 reg prev_vbl_n, vbl_edge;
 
+reg [8:0] zoom_dx, zoom_dy;
+
 reg [31:0] draw_addr;
 reg [3:0] draw_row;
 reg [1:0] draw_col;
@@ -206,6 +207,13 @@ tc0200obj_data_shifter shifter(
     .flip_y(inst_y_flip ^ ctrl_flipscreen),
     .color(latch_color),
 
+    .row_valid,
+    .row_index,
+
+    .col_valid,
+    .col_index,
+
+
     .out_data(shifter_data),
     .out_be(shifter_be),
     .out_ready(shifter_ready),
@@ -216,6 +224,35 @@ tc0200obj_data_shifter shifter(
     .din(inst_debug ? 64'hffffffffffffffff : ddr_obj.rdata),
     .load(ddr_obj.rdata_ready && (obj_state == ST_READ_TILE_WAIT))
 );
+
+reg zoom_calc_start;
+wire row_calc_ready, col_calc_ready;
+wire [4:0] row_count, col_count;
+wire [15:0] row_valid, col_valid;
+wire [(16 * 4)-1:0] row_index, col_index;
+
+tc0200obj_zoom_calc row_calc(
+    .clk,
+    .start(zoom_calc_start),
+    .cont(inst_inc_y),
+    .ready(row_calc_ready),
+    .delta(zoom_dy),
+    .count(row_count),
+    .valid(row_valid),
+    .indices(row_index)
+);
+
+tc0200obj_zoom_calc column_calc(
+    .clk,
+    .start(zoom_calc_start),
+    .cont(inst_inc_x),
+    .ready(col_calc_ready),
+    .delta(zoom_dx),
+    .count(col_count),
+    .valid(col_valid),
+    .indices(col_index)
+);
+
 
 reg [17:0] read_pacing;
 reg [4:0] busy_count;
@@ -372,6 +409,16 @@ always @(posedge clk) begin
         // FIXME: we could overlap this with ST_EVAL and not waste these
         // cycles
         ST_POST_READ: if (ce_13m) begin
+            if (busy_count == 0) begin
+                if ((inst_next_seq & ~prev_seq) | (~inst_next_seq & ~prev_seq)) begin
+                    zoom_dx <= 9'h100 - { 1'b0, inst_x_zoom };
+                    zoom_dy <= 9'h100 - { 1'b0, inst_y_zoom };
+                end
+                zoom_calc_start <= 1;
+            end else begin
+                zoom_calc_start <= 0;
+            end
+
             if (busy_count == 15) begin
                 obj_state <= ST_EVAL;
                 EBUSY <= 0;
@@ -403,14 +450,14 @@ always @(posedge clk) begin
 
         ST_EVAL2: begin
             if (inst_use_latch_y) begin
-                latch_y <= latch_y + {7'd0, 1'b1, 4'd0};
+                latch_y <= latch_y + {7'd0, row_count};
             end else begin
                 latch_y <= base_y;
             end
             if (inst_use_latch_x | inst_inc_x) begin
-                latch_x <= latch_x + {7'd0, inst_inc_x, 4'd0};
+                latch_x <= latch_x + {7'd0, inst_inc_x ? col_count : 5'd0};
             end else begin
-                latch_x <= base_x + {7'd0, inst_inc_x, 4'd0};
+                latch_x <= base_x + {7'd0, inst_inc_x ? col_count : 5'd0};
             end
 
             if (tile_code == 0 || ctrl_disable) begin
@@ -513,6 +560,42 @@ always @(posedge clk) begin
     endcase
 end
 
+
+logic [15:0] zoom_recip[256] =
+{
+    16'h0100, 16'h0101, 16'h0102, 16'h0103, 16'h0104, 16'h0105, 16'h0106, 16'h0107,
+    16'h0108, 16'h0109, 16'h010a, 16'h010b, 16'h010c, 16'h010d, 16'h010e, 16'h010f,
+    16'h0111, 16'h0112, 16'h0113, 16'h0114, 16'h0115, 16'h0116, 16'h0118, 16'h0119,
+    16'h011a, 16'h011b, 16'h011c, 16'h011e, 16'h011f, 16'h0120, 16'h0121, 16'h0123,
+    16'h0124, 16'h0125, 16'h0127, 16'h0128, 16'h0129, 16'h012b, 16'h012c, 16'h012e,
+    16'h012f, 16'h0130, 16'h0132, 16'h0133, 16'h0135, 16'h0136, 16'h0138, 16'h0139,
+    16'h013b, 16'h013c, 16'h013e, 16'h013f, 16'h0141, 16'h0142, 16'h0144, 16'h0146,
+    16'h0147, 16'h0149, 16'h014a, 16'h014c, 16'h014e, 16'h0150, 16'h0151, 16'h0153,
+    16'h0155, 16'h0157, 16'h0158, 16'h015a, 16'h015c, 16'h015e, 16'h0160, 16'h0162,
+    16'h0164, 16'h0166, 16'h0168, 16'h016a, 16'h016c, 16'h016e, 16'h0170, 16'h0172,
+    16'h0174, 16'h0176, 16'h0178, 16'h017a, 16'h017d, 16'h017f, 16'h0181, 16'h0183,
+    16'h0186, 16'h0188, 16'h018a, 16'h018d, 16'h018f, 16'h0192, 16'h0194, 16'h0197,
+    16'h0199, 16'h019c, 16'h019e, 16'h01a1, 16'h01a4, 16'h01a6, 16'h01a9, 16'h01ac,
+    16'h01af, 16'h01b2, 16'h01b4, 16'h01b7, 16'h01ba, 16'h01bd, 16'h01c0, 16'h01c3,
+    16'h01c7, 16'h01ca, 16'h01cd, 16'h01d0, 16'h01d4, 16'h01d7, 16'h01da, 16'h01de,
+    16'h01e1, 16'h01e5, 16'h01e9, 16'h01ec, 16'h01f0, 16'h01f4, 16'h01f8, 16'h01fc,
+    16'h0200, 16'h0204, 16'h0208, 16'h020c, 16'h0210, 16'h0214, 16'h0219, 16'h021d,
+    16'h0222, 16'h0226, 16'h022b, 16'h0230, 16'h0234, 16'h0239, 16'h023e, 16'h0243,
+    16'h0249, 16'h024e, 16'h0253, 16'h0259, 16'h025e, 16'h0264, 16'h026a, 16'h0270,
+    16'h0276, 16'h027c, 16'h0282, 16'h0288, 16'h028f, 16'h0295, 16'h029c, 16'h02a3,
+    16'h02aa, 16'h02b1, 16'h02b9, 16'h02c0, 16'h02c8, 16'h02d0, 16'h02d8, 16'h02e0,
+    16'h02e8, 16'h02f1, 16'h02fa, 16'h0303, 16'h030c, 16'h0315, 16'h031f, 16'h0329,
+    16'h0333, 16'h033d, 16'h0348, 16'h0353, 16'h035e, 16'h0369, 16'h0375, 16'h0381,
+    16'h038e, 16'h039b, 16'h03a8, 16'h03b5, 16'h03c3, 16'h03d2, 16'h03e0, 16'h03f0,
+    16'h0400, 16'h0410, 16'h0421, 16'h0432, 16'h0444, 16'h0456, 16'h0469, 16'h047d,
+    16'h0492, 16'h04a7, 16'h04bd, 16'h04d4, 16'h04ec, 16'h0505, 16'h051e, 16'h0539,
+    16'h0555, 16'h0572, 16'h0590, 16'h05b0, 16'h05d1, 16'h05f4, 16'h0618, 16'h063e,
+    16'h0666, 16'h0690, 16'h06bc, 16'h06eb, 16'h071c, 16'h0750, 16'h0787, 16'h07c1,
+    16'h0800, 16'h0842, 16'h0888, 16'h08d3, 16'h0924, 16'h097b, 16'h09d8, 16'h0a3d,
+    16'h0aaa, 16'h0b21, 16'h0ba2, 16'h0c30, 16'h0ccc, 16'h0d79, 16'h0e38, 16'h0f0f,
+    16'h1000, 16'h1111, 16'h1249, 16'h13b1, 16'h1555, 16'h1745, 16'h1999, 16'h1c71,
+    16'h2000, 16'h2492, 16'h2aaa, 16'h3333, 16'h4000, 16'h5555, 16'h8000, 16'h0000
+};
 
 
 // Scan out
@@ -675,8 +758,6 @@ always_ff @(posedge clk) begin
     endcase
 end
 
-
-
 endmodule
 
 
@@ -733,6 +814,48 @@ endmodule
         000b - 000f : unused
 */
 
+module tc0200obj_zoom_calc(
+    input         clk,
+
+    input         start,
+    input         cont,
+    output reg    ready,
+    input  [8:0]  delta,
+
+    output reg [4:0]  count,
+    output reg [15:0] valid,
+    output reg [(16*4)-1:0] indices
+);
+
+reg [8:0] accum;
+reg [3:0] index;
+
+always @(posedge clk) begin
+    bit [8:0] next_accum;
+    if (start) begin
+        ready <= 0;
+        if (~cont) accum <= 0;
+        index <= 0;
+        count <= 0;
+        valid <= 0;
+    end else if (~ready) begin
+        index <= index + 1;
+        next_accum = accum + delta;
+        accum <= next_accum;
+        if (next_accum[8] != accum[8]) begin
+            valid[count[3:0]] <= 1;
+            indices[count[3:0] * 4 +: 4] <= index;
+            count <= count + 1;
+        end
+
+        if (index == 15) begin
+            ready <= 1;
+        end
+    end
+end
+
+endmodule
+
 module tc0200obj_data_shifter(
     input clk,
 
@@ -749,7 +872,13 @@ module tc0200obj_data_shifter(
     input [11:0] y,
     input        flip_x,
     input        flip_y,
-    input [7:0] color,
+    input [7:0]  color,
+
+    input [15:0] row_valid,
+    input [(16*4)-1:0] row_index,
+
+    input [15:0] col_valid,
+    input [(16*4)-1:0] col_index,
 
     input             out_read,
     output reg [63:0] out_data,
@@ -790,25 +919,30 @@ wire [1:0] x_shift = x[1:0];
 reg [3:0] row;
 reg [2:0] col;
 
-task prepare_row(int next_row);
-    int i;
-    int pa;
-
-    if (flip_y) begin
-        pa = (15 - next_row) * 16;
-    end else begin
-        pa = next_row * 16;
-    end
+task prepare_row(bit [3:0] r);
+    bit [4:0] i;
+    bit [3:0] ri, ci;
 
     for( i = 0; i < 20; i = i + 1 ) begin
         row_data[i] <= 6'd0;
     end
 
-    for( i = 0; i < 16; i = i + 1 ) begin
-        if (flip_x) begin
-            row_data[i + int'(x_shift)] <= pixel[pa + (15 - i)];
+    if (row_valid[r]) begin
+        if (flip_y) begin
+            ri = ~row_index[ r * 4 +: 4 ]; // FIXME - this is a mess
         end else begin
-            row_data[i + int'(x_shift)] <= pixel[pa + i];
+            ri = row_index[ r * 4 +: 4 ]; // FIXME - this is a mess
+        end
+
+        for( i = 0; i < 16; i = i + 1 ) begin
+            if (col_valid[i[3:0]]) begin
+                if (flip_x) begin
+                    ci = ~col_index[ i[3:0] * 4 +: 4 ]; // FIXME - this is a mess
+                end else begin
+                    ci = col_index[ i[3:0] * 4 +: 4 ]; // FIXME - this is a mess
+                end
+                row_data[i + {3'b0, x_shift}] <= pixel[{ri, ci}];
+            end
         end
     end
 endtask
@@ -843,10 +977,10 @@ task prepare_draw();
 
     col <= col + 1;
     if (col == 4) begin
-        prepare_row(int'(row) + 1);
+        prepare_row( row + 1 );
         col <= 0;
         row <= row + 1;
-        if (row == 15) begin
+        if (~row_valid[row] || row == 15) begin
             out_done <= 1;
         end
     end

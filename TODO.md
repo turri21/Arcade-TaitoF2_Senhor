@@ -11,12 +11,12 @@
 - [ ] Savestate mapping
 
 - [x] Sprite position issues
-- [ ] Screen flip
-- [ ] Screen alignment
+- [x] Screen flip
+- [x] Screen alignment
 - [ ] Sprite zoom
 - [ ] Parallax in finalb
 - [x] 260DAR support
-- [ ] 360PRI support
+- [x] 360PRI support
 - [x] Sprite buffer banking
 - [x] Sprite disable flag
 - [ ] Unk1 usage in dinorex

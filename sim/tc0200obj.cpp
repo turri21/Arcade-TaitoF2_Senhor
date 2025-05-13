@@ -229,7 +229,7 @@ void draw_obj_window()
         uint8_t latched_color[1024];
         uint16_t extcode[1024];
 
-        const int bank_base = bank * 0x4000;
+        const int bank_base = bank * 1024;
         
         uint8_t last_color = 0;
         for (int i = 0; i < 1024; i++)

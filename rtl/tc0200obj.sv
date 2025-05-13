@@ -124,9 +124,11 @@ typedef enum
     ST_READ_START,
     ST_PRE_READ,
     ST_READ,
-    ST_POST_READ,
-    ST_EVAL,
+    ST_EVAL0,
+    ST_EVAL1,
     ST_EVAL2,
+    ST_EVAL_WAIT,
+    ST_EVAL3,
     ST_CHECK_BOUNDS,
     ST_READ_TILE,
     ST_READ_TILE_WAIT,
@@ -196,7 +198,7 @@ wire [11:0] flip_y_origin /* verilator public_flat */ = 240;
 
 tc0200obj_data_shifter shifter(
     .clk,
-    .reset(obj_state == ST_EVAL),
+    .reset(obj_state == ST_EVAL2),
     .bpp6(ctrl_6bpp),
     .burstcnt(read_tile_burstcnt),
     .load_complete(read_tile_complete),
@@ -225,7 +227,7 @@ tc0200obj_data_shifter shifter(
     .load(ddr_obj.rdata_ready && (obj_state == ST_READ_TILE_WAIT))
 );
 
-reg zoom_calc_start;
+reg row_calc_start, col_calc_start;
 wire row_calc_ready, col_calc_ready;
 wire [4:0] row_count, col_count;
 wire [15:0] row_valid, col_valid;
@@ -233,7 +235,7 @@ wire [(16 * 4)-1:0] row_index, col_index;
 
 tc0200obj_zoom_calc row_calc(
     .clk,
-    .start(zoom_calc_start),
+    .start(row_calc_start),
     .cont(inst_inc_y),
     .ready(row_calc_ready),
     .delta(zoom_dy),
@@ -244,7 +246,7 @@ tc0200obj_zoom_calc row_calc(
 
 tc0200obj_zoom_calc column_calc(
     .clk,
-    .start(zoom_calc_start),
+    .start(col_calc_start),
     .cont(inst_inc_x),
     .ready(col_calc_ready),
     .delta(zoom_dx),
@@ -260,10 +262,13 @@ reg test_pause = 0;
     
 reg [11:0] base_x, base_y;
 reg prev_seq;
+reg is_seq_start;
 
 always @(posedge clk) begin
     ddr_obj.acquire <= 0;
     code_modify_req <= 0;
+    row_calc_start <= 0;
+    col_calc_start <= 0;
 
     prev_vbl_n <= VBLn;
     if (prev_vbl_n & ~VBLn) begin
@@ -395,7 +400,7 @@ always @(posedge clk) begin
                 end
 
                 3'd7: begin
-                    obj_state <= ST_POST_READ;
+                    obj_state <= ST_EVAL0;
                     busy_count <= 0;
                     ERCSn <= 1;
                 end
@@ -406,32 +411,17 @@ always @(posedge clk) begin
             endcase
         end
 
-        // FIXME: we could overlap this with ST_EVAL and not waste these
-        // cycles
-        ST_POST_READ: if (ce_13m) begin
-            if (busy_count == 0) begin
-                if ((inst_next_seq & ~prev_seq) | (~inst_next_seq & ~prev_seq)) begin
-                    zoom_dx <= 9'h100 - { 1'b0, inst_x_zoom };
-                    zoom_dy <= 9'h100 - { 1'b0, inst_y_zoom };
-                end
-                zoom_calc_start <= 1;
-            end else begin
-                zoom_calc_start <= 0;
-            end
-
-            if (busy_count == 15) begin
-                obj_state <= ST_EVAL;
-                EBUSY <= 0;
-            end
+        ST_EVAL0: begin
+            is_seq_start <= (inst_next_seq & ~prev_seq) | (~inst_next_seq & ~prev_seq);
+            prev_seq <= inst_next_seq;
+            obj_state <= ST_EVAL1;
         end
 
-        ST_EVAL: begin
-            if ((inst_next_seq & ~prev_seq) | (~inst_next_seq & ~prev_seq)) begin
+        ST_EVAL1: begin
+            if (is_seq_start) begin
                 base_x <= inst_x_coord + (inst_use_scroll ? ( master_x + (inst_use_extra ? extra_x : 12'd0) ) : 12'd0);
                 base_y <= inst_y_coord + (inst_use_scroll ? ( master_y + (inst_use_extra ? extra_y : 12'd0) ) : 12'd0);
             end
-
-            prev_seq <= inst_next_seq;
 
             // FIXME confirm hardware behavior when only latch bit is set
             // liquidk sometimes does this and mame ignores it
@@ -449,6 +439,17 @@ always @(posedge clk) begin
         end
 
         ST_EVAL2: begin
+            if (is_seq_start) begin
+                zoom_dx <= 9'h100 - { 1'b0, inst_x_zoom };
+                zoom_dy <= 9'h100 - { 1'b0, inst_y_zoom };
+                row_calc_start <= 1;
+                col_calc_start <= 1;
+            end else begin
+                row_calc_start <= 1;
+                col_calc_start <= inst_inc_x;
+            end
+
+            // We are intentionally using the previous col_count and row_count
             if (inst_use_latch_y) begin
                 latch_y <= latch_y + {7'd0, row_count};
             end else begin
@@ -460,14 +461,25 @@ always @(posedge clk) begin
                 latch_x <= base_x + {7'd0, inst_inc_x ? col_count : 5'd0};
             end
 
+            if (~inst_reuse_color) begin
+                latch_color <= inst_color;
+            end
+
+            obj_state <= ST_EVAL_WAIT;
+        end
+
+        ST_EVAL_WAIT: if (ce_13m) begin
+            if (busy_count == 15) begin
+                obj_state <= ST_EVAL3;
+                EBUSY <= 0;
+            end
+        end
+
+        ST_EVAL3: begin
             if (tile_code == 0 || ctrl_disable) begin
                 obj_state <= ST_READ_START;
             end else begin
                 obj_state <= ST_CHECK_BOUNDS;
-            end
-
-            if (~inst_reuse_color) begin
-                latch_color <= inst_color;
             end
         end
 

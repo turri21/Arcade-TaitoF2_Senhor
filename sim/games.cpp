@@ -62,12 +62,24 @@ const char *game_name(game_t game)
     return game_names[game];
 }
 
+static bool load_audio(const char *name)
+{
+    FILE *fp = fopen("name", "rb");
+    if (fp == NULL)
+    {
+        printf("Could not open audio rom %s\n", name);
+        return false;
+    }
+
+    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 64 * 1024, fp);
+    fclose(fp);
+
+    return true;
+}
 
 static void load_finalb_test()
 {
-    FILE *fp = fopen("../testroms/build/finalb_test/finalb/b82_10.ic5", "rb");
-    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 16 * 1024, fp);
-    fclose(fp);
+    load_audio("../testroms/build/finalb_test/finalb/b82_10.ic5");
 
     sdram.load_data("../testroms/build/finalb_test/finalb/b82-09.ic23", CPU_ROM_SDR_BASE + 1, 2);
     sdram.load_data("../testroms/build/finalb_test/finalb/b82-17.ic11", CPU_ROM_SDR_BASE + 0, 2);
@@ -87,9 +99,7 @@ static void load_finalb_test()
 
 static void load_finalb()
 {
-    FILE *fp = fopen("../roms/b82_10.ic5", "rb");
-    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 64 * 1024, fp);
-    fclose(fp);
+    load_audio("../roms/b82_10.ic5");
 
     sdram.load_data("../roms/b82-09.ic23", CPU_ROM_SDR_BASE + 1, 2);
     sdram.load_data("../roms/b82-17.ic11", CPU_ROM_SDR_BASE + 0, 2);
@@ -109,9 +119,7 @@ static void load_finalb()
 
 static void load_qjinsei()
 {
-    FILE *fp = fopen("../roms/d48-11", "rb");
-    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 64 * 1024, fp);
-    fclose(fp);
+    load_audio("../roms/d48-11");
 
     sdram.load_data("../roms/d48-09", CPU_ROM_SDR_BASE + 1, 2);
     sdram.load_data("../roms/d48-10", CPU_ROM_SDR_BASE + 0, 2);
@@ -129,9 +137,7 @@ static void load_qjinsei()
 
 static void load_dinorex()
 {
-    FILE *fp = fopen("../roms/d39-12.5", "rb");
-    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 64 * 1024, fp);
-    fclose(fp);
+    load_audio("../roms/d39-12.5");
 
     sdram.load_data("../roms/d39-14.9", CPU_ROM_SDR_BASE + 1, 2);
     sdram.load_data("../roms/d39-16.8", CPU_ROM_SDR_BASE + 0, 2);
@@ -152,9 +158,7 @@ static void load_dinorex()
 
 static void load_liquidk()
 {
-    FILE *fp = fopen("../roms/c49-08.ic32", "rb");
-    fread((unsigned char *)top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 1, 64 * 1024, fp);
-    fclose(fp);
+    load_audio("../roms/c49-08.ic32");
 
     sdram.load_data("../roms/c49-09.ic47", CPU_ROM_SDR_BASE + 1, 2);
     sdram.load_data("../roms/c49-11.ic48", CPU_ROM_SDR_BASE + 0, 2);
@@ -171,6 +175,27 @@ static void load_liquidk()
     top->game = GAME_LIQUIDK;
 }
 
+static void load_growl()
+{
+    load_audio("../roms/c74-12.ic62");
+
+    sdram.load_data("../roms/c74-10-1.ic59", CPU_ROM_SDR_BASE + 1, 2);
+    sdram.load_data("../roms/c74-08-1.ic61", CPU_ROM_SDR_BASE + 0, 2);
+    sdram.load_data("../roms/c74-11.ic58", CPU_ROM_SDR_BASE + 0x80001, 2);
+    sdram.load_data("../roms/c74-14.ic60", CPU_ROM_SDR_BASE + 0x80000, 2);
+	
+    sdram.load_data("../roms/c74-01.ic34", SCN0_ROM_SDR_BASE, 1);
+    
+    sdram.load_data("../roms/c74-04.ic28",  ADPCMA_ROM_SDR_BASE, 1);
+    sdram.load_data("../roms/c74-05.ic29",  ADPCMB_ROM_SDR_BASE, 1);
+
+    ddr_memory.load_data("../roms/c74-03.ic12", OBJ_DATA_DDR_BASE, 1);
+    ddr_memory.load_data("../roms/c74-02.ic11", OBJ_DATA_DDR_BASE + 0x100000, 1);
+
+    top->game = GAME_GROWL;
+}
+
+
 bool game_init(game_t game)
 {
     switch(game)
@@ -180,6 +205,7 @@ bool game_init(game_t game)
         case GAME_LIQUIDK: load_liquidk(); break;
         case GAME_DINOREX: load_dinorex(); break;
         case GAME_FINALB_TEST: load_finalb_test(); break;
+        case GAME_GROWL: load_growl(); break;
         default: return false;
     }
 

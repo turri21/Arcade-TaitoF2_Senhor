@@ -53,7 +53,7 @@ sim:
 	$(MAKE) -j8 -C sim sim
 
 sim/run:
-	$(MAKE) -j8 -C sim run GAME=finalb
+	$(MAKE) -j8 -C sim run GAME=growl
 
 sim/test:
 	$(MAKE) -j8 -C testroms

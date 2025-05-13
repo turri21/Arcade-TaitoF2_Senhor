@@ -48,6 +48,9 @@ int simulation_step_size = 100000;
 bool simulation_step_vblank = false;
 uint64_t simulation_reset_until = 100;
 
+bool simulation_wp_set = false;
+int simulation_wp_addr = 0;
+
 uint32_t dipswitch_a = 0;
 uint32_t dipswitch_b = 0;
 
@@ -96,6 +99,13 @@ void sim_tick(int count = 1)
 
         top->eval();
         if (tfp) tfp->dump(contextp->time());
+
+        if (simulation_wp_set && top->rootp->F2__DOT__cpu_word_addr == simulation_wp_addr)
+        {
+            simulation_run = false;
+            simulation_step = false;
+            return;
+        }
     }
 }
 
@@ -250,7 +260,11 @@ int main(int argc, char **argv)
             }
             ImGui::InputInt("Step Size", &simulation_step_size);
             ImGui::Checkbox("Step Frame", &simulation_step_vblank);
-           
+            
+            ImGui::Checkbox("WP Set", &simulation_wp_set);
+            ImGui::SameLine();
+            ImGui::InputInt("##wpaddr", &simulation_wp_addr, 0, 0,ImGuiInputTextFlags_CharsHexadecimal);
+
             if (ImGui::Button("Reset"))
             {
                 simulation_reset_until = total_ticks + 100;
@@ -347,6 +361,17 @@ int main(int argc, char **argv)
             }
         }
 
+        ImGui::End();
+
+        if (ImGui::Begin("Debug"))
+        {
+            int x = top->rootp->F2__DOT__tc0200obj__DOT__flip_x_origin;
+            int y = top->rootp->F2__DOT__tc0200obj__DOT__flip_y_origin;
+            ImGui::InputInt("X", &x);
+            ImGui::InputInt("Y", &y);
+            top->rootp->F2__DOT__tc0200obj__DOT__flip_x_origin = x;
+            top->rootp->F2__DOT__tc0200obj__DOT__flip_y_origin = y;
+        }
         ImGui::End();
 
         if (ImGui::Begin("Audio"))

@@ -7,8 +7,10 @@ module game_board_config(
     output reg       cfg_360pri,
     output reg       cfg_110pcr,
     output reg       cfg_260dar,
+    output reg       cfg_190fmc,
     output reg [1:0] cfg_obj_extender,
     output reg       cfg_io_swap,
+    output reg       cfg_io_tmp,
 
     output reg [15:0] cfg_addr_rom,
     output reg [15:0] cfg_addr_rom1,
@@ -27,6 +29,8 @@ module game_board_config(
 //
 always_ff @(posedge clk) begin
     cfg_io_swap <= 0;
+    cfg_io_tmp <= 0;
+    cfg_190fmc <= 0;
     cfg_obj_extender <= 2'b00;
 
     case(game)
@@ -36,6 +40,8 @@ always_ff @(posedge clk) begin
 
         GAME_SSI:  begin cfg_360pri <= 0; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_obj_extender <= 2'b00; end
         GAME_GUNFRONT: begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_io_swap <= 1; cfg_obj_extender <= 2'b00; end
+
+        GAME_GROWL:  begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_io_tmp <= 1; cfg_190fmc <= 1; end
 
         GAME_QTORIMON:  begin cfg_360pri <= 0; cfg_260dar <= 0; cfg_110pcr <= 1; cfg_obj_extender <= 2'b00; end
         GAME_QUIZHQ:  begin cfg_360pri <= 0; cfg_260dar <= 0; cfg_110pcr <= 1; cfg_obj_extender <= 2'b00; end
@@ -190,7 +196,7 @@ always_ff @(posedge clk) begin
         cfg_addr_color       <= {8'h20, 8'hFF}; // 0x200000 - 0x201FFF (Palette RAM)
         cfg_addr_io       <= {8'h30, 8'hF0}; // 0x30xxxx DSW/Coin, 0x32xxxx Input, 0x34xxxx Watchdog
         cfg_addr_sound    <= {8'h40, 8'hFF}; // 0x400000, 0x400002 (TC0140SYT)
-        //cfg_addr_spritebank_sel<= {8'h50, 8'hF3}; // 0x500xxx Spritebank, 0x504xxx NOP, 0x508xxx Input3, 0x50Cxxx Input4
+        cfg_addr_extension <= {8'h50, 8'hFF}; // 0x500xxx Spritebank, 0x504xxx NOP, 0x508xxx Input3, 0x50Cxxx Input4
         // Note: This single assignment for 0x50xxxx might be too broad if Input3/4 need separate decoding logic.
         //       Alternatively, treat 50, 58, 5C as separate blocks if HW decodes that way.
         // cfg_addr_spritebank_sel <= {8'h50, 8'hFF}; // 0x500000 - 0x50000F

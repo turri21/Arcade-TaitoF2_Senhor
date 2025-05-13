@@ -71,7 +71,7 @@ module F2(
     input             sync_fix
 );
 
-wire cfg_260dar, cfg_110pcr, cfg_360pri, cfg_io_swap;
+wire cfg_260dar, cfg_110pcr, cfg_360pri, cfg_io_swap, cfg_io_tmp, cfg_190fmc;
 wire [1:0] cfg_obj_extender /* verilator public_flat */;
 
 wire [15:0] cfg_addr_rom;
@@ -94,7 +94,9 @@ game_board_config game_board_config(
     .cfg_260dar,
     .cfg_360pri,
     .cfg_obj_extender,
+    .cfg_190fmc,
     .cfg_io_swap,
+    .cfg_io_tmp,
 
     .cfg_addr_rom,
     .cfg_addr_rom1,
@@ -137,9 +139,9 @@ reg ss_read = 0;
 wire ss_busy;
 
 ssbus_if ssbus();
-ssbus_if ssb[12]();
+ssbus_if ssb[13]();
 
-ssbus_mux #(.COUNT(12)) ssmux(
+ssbus_mux #(.COUNT(13)) ssmux(
     .clk,
     .slave(ssbus),
     .masters(ssb)
@@ -458,7 +460,8 @@ m68k_ram_ss_adaptor #(.WIDTHAD(15), .SS_IDX(SSIDX_OBJ_RAM)) objram_ss(
 
 wire obj_code_modify_req;
 wire [13:0] obj_code_original;
-wire [19:0] obj_code_modified;
+wire [19:0] obj_code_modified_ext;
+wire [19:0] obj_code_modified_190fmc;
 
 TC0200OBJ tc0200obj(
     .clk,
@@ -491,7 +494,7 @@ TC0200OBJ tc0200obj(
 
     .code_modify_req(obj_code_modify_req),
     .code_original(obj_code_original),
-    .code_modified(obj_code_modified),
+    .code_modified(cfg_190fmc ? obj_code_modified_190fmc : obj_code_modified_ext),
 
     .ddr(ddr_obj),
 
@@ -516,12 +519,27 @@ TC0200OBJ_Extender tc0200obj_extender(
 
     .code_req(obj_code_modify_req),
     .code_original(obj_code_original),
-    .code_modified(obj_code_modified),
+    .code_modified(obj_code_modified_ext),
     .obj_addr(obj_ram_addr),
 
     .ssb(ssb[10])
 );
 
+TC0190FMC #(.SS_IDX(SSIDX_190FMC)) tc0190fmc(
+    .clk,
+    .reset,
+    .cs(~EXTENSIONn),
+    .cpu_rw,
+    .cpu_ds_n(cpu_ds_n[0]),
+    .cpu_addr(cpu_addr[2:0]),
+    .cpu_din(cpu_data_out[7:0]),
+
+    .code_req(obj_code_modify_req),
+    .code_original(obj_code_original),
+    .code_modified(obj_code_modified_190fmc),
+
+    .ssbus(ssb[12])
+);
 
 
 //////////////////////////////////

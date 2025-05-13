@@ -12,8 +12,8 @@ module TC0200OBJ_Extender(
     output [15:0] dout,
 
     input code_req,
-    input [13:0] code_original,
-    output reg [19:0] code_modified,
+    input [12:0] code_original,
+    output reg [18:0] code_modified,
     input [14:0] obj_addr,
 
     ssbus_if.slave ssb
@@ -64,7 +64,7 @@ always_ff @(posedge clk) begin
         code_modified <= { 6'd0, code_original };
     end else if (mode == 2'b01) begin
         if (code_req) begin
-            code_modified <= { 4'd0, ram_a_q, code_original[7:0] };
+            code_modified <= { 3'd0, ram_a_q, code_original[7:0] };
         end
     end
 end

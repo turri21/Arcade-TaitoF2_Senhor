@@ -11,8 +11,8 @@ module TC0190FMC #(parameter SS_IDX=-1) (
     input        cpu_ds_n,
 
     input code_req,
-    input [13:0] code_original,
-    output reg [19:0] code_modified,
+    input [12:0] code_original,
+    output reg [18:0] code_modified,
 
     ssbus_if.slave ssbus
 );
@@ -44,15 +44,15 @@ always_ff @(posedge clk) begin
     end
 
     if (code_req) begin
-        unique case(code_original[13:11])
+        unique case(code_original[12:10])
             3'b000,
-            3'b001: code_modified <= { ctrl[2], code_original[11:0] };
+            3'b001: code_modified <= { ctrl[2], code_original[10:0] };
             3'b010,
-            3'b011: code_modified <= { ctrl[3], code_original[11:0] };
-            3'b100: code_modified <= { 1'b0, ctrl[4], code_original[10:0] };
-            3'b101: code_modified <= { 1'b0, ctrl[5], code_original[10:0] };
-            3'b110: code_modified <= { 1'b0, ctrl[6], code_original[10:0] };
-            3'b111: code_modified <= { 1'b0, ctrl[7], code_original[10:0] };
+            3'b011: code_modified <= { ctrl[3], code_original[10:0] };
+            3'b100: code_modified <= { 1'b0, ctrl[4], code_original[9:0] };
+            3'b101: code_modified <= { 1'b0, ctrl[5], code_original[9:0] };
+            3'b110: code_modified <= { 1'b0, ctrl[6], code_original[9:0] };
+            3'b111: code_modified <= { 1'b0, ctrl[7], code_original[9:0] };
         endcase
     end
 end

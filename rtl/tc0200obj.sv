@@ -30,8 +30,8 @@ module TC0200OBJ #(parameter SS_IDX=-1) (
 
     // bank switching and extension support
     output reg code_modify_req,
-    output [13:0] code_original,
-    input [19:0] code_modified,
+    output [12:0] code_original,
+    input [18:0] code_modified,
 
     input [12:0] debug_idx,
 
@@ -72,7 +72,7 @@ ddr_mux ddr_mux(
 // vertical video:   vtotal=262, vfp=16, vs=6,  vbp=16
 
 reg [15:0] work_buffer[8];
-wire [13:0] inst_tile_code       =  work_buffer[0][13:0];
+wire [12:0] inst_tile_code       =  work_buffer[0][12:0];
 wire [7:0]  inst_x_zoom          =  work_buffer[1][7:0];
 wire [7:0]  inst_y_zoom          =  work_buffer[1][15:8];
 wire [11:0] inst_x_coord         =  work_buffer[6][11:0];
@@ -96,7 +96,7 @@ wire [15:0] inst_cmd             =  work_buffer[5];
 reg         inst_debug;
 
 assign code_original = inst_tile_code;
-wire [19:0] tile_code = code_modified;
+wire [18:0] tile_code = code_modified;
 
 reg [15:0] cmd_ctrl;
 wire ctrl_disable = cmd_ctrl[12];
@@ -500,9 +500,9 @@ always @(posedge clk) begin
                 ddr_obj.read <= 1;
                 ddr_obj.burstcnt <= read_tile_burstcnt;
                 if (ctrl_6bpp)
-                    ddr_obj.addr <= OBJ_DATA_DDR_BASE + {4'd0, tile_code, 8'd0};
+                    ddr_obj.addr <= OBJ_DATA_DDR_BASE + {5'd0, tile_code, 8'd0};
                 else
-                    ddr_obj.addr <= OBJ_DATA_DDR_BASE + {5'd0, tile_code, 7'd0};
+                    ddr_obj.addr <= OBJ_DATA_DDR_BASE + {6'd0, tile_code, 7'd0};
                 tile_burst <= 0;
                 obj_state <= ST_READ_TILE_WAIT;
             end

@@ -459,9 +459,9 @@ m68k_ram_ss_adaptor #(.WIDTHAD(15), .SS_IDX(SSIDX_OBJ_RAM)) objram_ss(
 );
 
 wire obj_code_modify_req;
-wire [13:0] obj_code_original;
-wire [19:0] obj_code_modified_ext;
-wire [19:0] obj_code_modified_190fmc;
+wire [12:0] obj_code_original;
+wire [18:0] obj_code_modified_ext;
+wire [18:0] obj_code_modified_190fmc;
 
 TC0200OBJ tc0200obj(
     .clk,

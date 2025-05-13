@@ -71,7 +71,7 @@ module F2(
     input             sync_fix
 );
 
-wire cfg_260dar, cfg_110pcr, cfg_360pri, cfg_io_swap, cfg_io_tmp, cfg_190fmc;
+wire cfg_260dar, cfg_110pcr, cfg_360pri, cfg_io_swap, cfg_tmp82c265, cfg_190fmc;
 wire [1:0] cfg_obj_extender /* verilator public_flat */;
 
 wire [15:0] cfg_addr_rom;
@@ -80,7 +80,8 @@ wire [15:0] cfg_addr_work_ram;
 wire [15:0] cfg_addr_screen;
 wire [15:0] cfg_addr_obj;
 wire [15:0] cfg_addr_color;
-wire [15:0] cfg_addr_io;
+wire [15:0] cfg_addr_io0;
+wire [15:0] cfg_addr_io1;
 wire [15:0] cfg_addr_sound;
 wire [15:0] cfg_addr_extension;
 wire [15:0] cfg_addr_priority;
@@ -96,7 +97,7 @@ game_board_config game_board_config(
     .cfg_obj_extender,
     .cfg_190fmc,
     .cfg_io_swap,
-    .cfg_io_tmp,
+    .cfg_tmp82c265,
 
     .cfg_addr_rom,
     .cfg_addr_rom1,
@@ -104,7 +105,8 @@ game_board_config game_board_config(
     .cfg_addr_screen,
     .cfg_addr_obj,
     .cfg_addr_color,
-    .cfg_addr_io,
+    .cfg_addr_io0,
+    .cfg_addr_io1,
     .cfg_addr_sound,
     .cfg_addr_extension,
     .cfg_addr_priority,
@@ -301,7 +303,7 @@ logic ROMn; // CPU ROM
 logic WORKn; // CPU RAM
 logic SCREENn;
 logic COLORn;
-logic IOn;
+logic IO0n, IO1n;
 logic OBJECTn;
 logic PRIORITYn;
 logic SOUNDn /* verilator public_flat */;
@@ -382,7 +384,8 @@ fx68k m68000(
     .eab(cpu_addr)
 );
 
-wire [7:0] io_data_out;
+wire [7:0] io_tc0220ioc_data_out, io_tmp82c265_data_out;
+wire [7:0] io_data_out = cfg_tmp82c265 ? io_tmp82c265_data_out : io_tc0220ioc_data_out;
 
 TC0220IOC tc0220ioc(
     .clk,
@@ -393,11 +396,11 @@ TC0220IOC tc0220ioc(
 
     .A(cfg_io_swap ? { cpu_addr[3:1], ~cpu_addr[0] } : cpu_addr[3:0]),
     .WEn(cpu_rw),
-    .CSn(IOn),
+    .CSn(IO0n),
     .OEn(0),
 
     .Din(cpu_data_out[7:0]),
-    .Dout(io_data_out),
+    .Dout(io_tc0220ioc_data_out),
 
     .COIN_LOCK_A(),
     .COIN_LOCK_B(),
@@ -409,6 +412,29 @@ TC0220IOC tc0220ioc(
             start[0], joystick_p1[6:4], joystick_p1[0], joystick_p1[1], joystick_p1[2], joystick_p1[3],
             dswb, dswa})
 );
+
+TMP82C265 tmp82c265(
+    .clk,
+    .RESET(reset),
+
+    .A(cpu_addr[1:0]),
+    .RDn(~cpu_rw | cpu_ds_n[0]),
+    .WRn(cpu_rw | cpu_ds_n[0]),
+    .CS0n(IO0n),
+    .CS1n(IO1n),
+
+    .DBin(cpu_data_out[7:0]),
+    .DBout(io_tmp82c265_data_out),
+
+    .PAout(),
+    .PBout(),
+    .PCout(),
+
+    .PAin(~{ start[0], joystick_p1[6:4], joystick_p1[0], joystick_p1[1], joystick_p1[2], joystick_p1[3], dswa }),
+    .PBin(~{ start[1], joystick_p2[6:4], joystick_p2[0], joystick_p2[1], joystick_p2[2], joystick_p2[3], dswb }),
+    .PCin(~{ 4'd0, ~coin, 2'd0, 8'h00})
+);
+
 
 wire [14:0] obj_ram_addr;
 wire [15:0] obj_dout;
@@ -849,7 +875,8 @@ address_translator address_translator(
     .cfg_addr_screen,
     .cfg_addr_obj,
     .cfg_addr_color,
-    .cfg_addr_io,
+    .cfg_addr_io0,
+    .cfg_addr_io1,
     .cfg_addr_sound,
     .cfg_addr_extension,
     .cfg_addr_priority,
@@ -859,7 +886,8 @@ address_translator address_translator(
     .ROMn,
     .SCREENn,
     .COLORn,
-    .IOn,
+    .IO0n,
+    .IO1n,
     .OBJECTn,
     .PRIORITYn,
     .SOUNDn,
@@ -880,7 +908,7 @@ assign cpu_data_in = ~SS_SAVEn ? save_handler[cpu_addr[3:0]] :
                      ~OBJECTn ? objram_data_out :
                      ~PRIORITYn ? pri360_data_out :
                      ~COLORn ? (cfg_260dar ? dar_data_out : pri_data_out) :
-                     ~IOn ? { 8'b0, io_data_out } :
+                     (~IO0n | ~IO1n) ? { 8'b0, io_data_out } :
                      ~SOUNDn ? { 4'd0, syt_cpu_dout, 8'd0 } :
                      ~EXTENSIONn ? extension_data :
                      16'd0;

@@ -13,7 +13,8 @@ module address_translator(
     input [15:0] cfg_addr_screen,
     input [15:0] cfg_addr_obj,
     input [15:0] cfg_addr_color,
-    input [15:0] cfg_addr_io,
+    input [15:0] cfg_addr_io0,
+    input [15:0] cfg_addr_io1,
     input [15:0] cfg_addr_sound,
     input [15:0] cfg_addr_extension,
     input [15:0] cfg_addr_priority,
@@ -23,7 +24,8 @@ module address_translator(
     output logic ROMn,
     output logic SCREENn,
     output logic COLORn,
-    output logic IOn,
+    output logic IO0n,
+    output logic IO1n,
     output logic OBJECTn,
     output logic SOUNDn,
     output logic PRIORITYn,
@@ -48,7 +50,8 @@ always_comb begin
     SCREENn = 1;
     COLORn = 1;
     PRIORITYn = 1;
-    IOn = 1;
+    IO0n = 1;
+    IO1n = 1;
     OBJECTn = 1;
     SOUNDn = 1;
     SS_SAVEn = 1;
@@ -82,7 +85,8 @@ always_comb begin
         SCREENn = match_addr_n(cpu_word_addr, cfg_addr_screen);
         OBJECTn = match_addr_n(cpu_word_addr, cfg_addr_obj);
         COLORn = match_addr_n(cpu_word_addr, cfg_addr_color);
-        IOn = match_addr_n(cpu_word_addr, cfg_addr_io);
+        IO0n = match_addr_n(cpu_word_addr, cfg_addr_io0);
+        IO1n = match_addr_n(cpu_word_addr, cfg_addr_io1);
         SOUNDn = match_addr_n(cpu_word_addr, cfg_addr_sound);
         EXTENSIONn = match_addr_n(cpu_word_addr, cfg_addr_extension);
         PRIORITYn = match_addr_n(cpu_word_addr, cfg_addr_priority);

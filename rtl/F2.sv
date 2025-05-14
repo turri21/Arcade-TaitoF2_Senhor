@@ -17,8 +17,10 @@ module F2(
 
     input       [7:0] joystick_p1,
     input       [7:0] joystick_p2,
-    input       [1:0] start,
-    input       [1:0] coin,
+    input       [7:0] joystick_p3,
+    input       [7:0] joystick_p4,
+    input       [3:0] start,
+    input       [3:0] coin,
 
     input       [7:0] dswa,
     input       [7:0] dswb,
@@ -308,6 +310,7 @@ logic OBJECTn;
 logic PRIORITYn;
 logic SOUNDn /* verilator public_flat */;
 logic EXTENSIONn;
+logic GROWL_HACKn;
 
 wire SDTACKn, CDTACKn, CPUENn, dar_dtack_n;
 
@@ -407,7 +410,7 @@ TC0220IOC tc0220ioc(
     .COINMETER_A(),
     .COINMETER_B(),
 
-    .INB({4'b1111, ~coin, 2'b11}),
+    .INB(~{4'b0000, coin[1:0], 2'b00}),
     .IN(~{  start[1], joystick_p2[6:4], joystick_p2[0], joystick_p2[1], joystick_p2[2], joystick_p2[3],
             start[0], joystick_p1[6:4], joystick_p1[0], joystick_p1[1], joystick_p1[2], joystick_p1[3],
             dswb, dswa})
@@ -432,9 +435,18 @@ TMP82C265 tmp82c265(
 
     .PAin(~{ start[0], joystick_p1[6:4], joystick_p1[0], joystick_p1[1], joystick_p1[2], joystick_p1[3], dswa }),
     .PBin(~{ start[1], joystick_p2[6:4], joystick_p2[0], joystick_p2[1], joystick_p2[2], joystick_p2[3], dswb }),
-    .PCin(~{ 4'd0, ~coin, 2'd0, 8'h00})
+    .PCin(~{ 4'd0, coin[1:0], 2'd0, 8'h00})
 );
 
+reg [15:0] growl_hack_data;
+always_ff @(posedge clk) begin
+    if (cpu_word_addr[14]) begin // 0x50c000
+        growl_hack_data <= ~{ 14'b0, coin[3:2] };
+    end else begin // 0x508000
+        growl_hack_data[7:0]  <= ~{ start[2], joystick_p3[6:4], joystick_p3[0], joystick_p3[1], joystick_p3[2], joystick_p3[3] };
+        growl_hack_data[15:8] <= ~{ start[3], joystick_p4[6:4], joystick_p4[0], joystick_p4[1], joystick_p4[2], joystick_p4[3] };
+    end
+end
 
 wire [14:0] obj_ram_addr;
 wire [15:0] obj_dout;
@@ -891,7 +903,7 @@ address_translator address_translator(
     .OBJECTn,
     .PRIORITYn,
     .SOUNDn,
-
+    .GROWL_HACKn,
     .EXTENSIONn,
 
     .SS_SAVEn,
@@ -911,6 +923,7 @@ assign cpu_data_in = ~SS_SAVEn ? save_handler[cpu_addr[3:0]] :
                      (~IO0n | ~IO1n) ? { 8'b0, io_data_out } :
                      ~SOUNDn ? { 4'd0, syt_cpu_dout, 8'd0 } :
                      ~EXTENSIONn ? extension_data :
+                     ~GROWL_HACKn ? growl_hack_data :
                      16'd0;
 
 reg prev_ds_n;

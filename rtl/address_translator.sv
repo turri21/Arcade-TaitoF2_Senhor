@@ -30,6 +30,7 @@ module address_translator(
     output logic SOUNDn,
     output logic PRIORITYn,
     output logic EXTENSIONn,
+    output logic GROWL_HACKn,
     output logic SS_SAVEn,
     output logic SS_RESETn,
     output logic SS_VECn
@@ -58,6 +59,7 @@ always_comb begin
     SS_RESETn = 1;
     SS_VECn = 1;
     EXTENSIONn = 1;
+    GROWL_HACKn = 1;
 
     if (ss_override) begin
         if (~&cpu_ds_n) begin
@@ -90,6 +92,10 @@ always_comb begin
         SOUNDn = match_addr_n(cpu_word_addr, cfg_addr_sound);
         EXTENSIONn = match_addr_n(cpu_word_addr, cfg_addr_extension);
         PRIORITYn = match_addr_n(cpu_word_addr, cfg_addr_priority);
+
+        if (game == GAME_GROWL) begin
+            GROWL_HACKn = ~(cpu_word_addr[23:16] == 8'h50 && cpu_word_addr[15]);
+        end
     end
 end
 /* verilator lint_on CASEX */

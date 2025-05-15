@@ -3,6 +3,8 @@
 - [ ] Cheats
 - [x] MRA generation
 
+- [ ] Expand address mapping to 12-bits
+
 - [ ] CPU SDR cache
 - [ ] Clock enable catchup for CPU
 - [ ] Clean up 68k savestate code

@@ -281,7 +281,7 @@ always_ff @(posedge clk) begin
         cfg_addr_io1       <= {8'h32, 8'hFF}; // 0x30xxxx DSW/Coin, 0x32xxxx Input, 0x34xxxx Watchdog
         //cfg_addr_watchdog      <= {8'h34, 8'hFF}; // 0x340000 - 0x340001 (Watchdog) - Note: Overlaps IO chip general range
         cfg_addr_sound    <= {8'h40, 8'hFF}; // 0x400000, 0x400002 (TC0140SYT)
-        //cfg_addr_spritebank_sel<= {8'h50, 8'hFB}; // 0x500xxx Spritebank, 0x504xxx NOP
+        cfg_addr_extension<= {8'h50, 8'hFF}; // 0x500xxx Spritebank, 0x504xxx NOP
         cfg_addr_screen  <= {8'h80, 8'hF0}; // 0x800000 - 0x80FFFF (TC0100SCN RAM)
         cfg_addr_obj    <= {8'h90, 8'hFF}; // 0x900000 - 0x90FFFF
         cfg_addr_priority <= {8'hB0, 8'hFF}; // 0xB00000 - 0xB0001F (TC0360PRI)

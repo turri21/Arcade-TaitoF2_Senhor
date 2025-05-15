@@ -43,6 +43,7 @@ always_ff @(posedge clk) begin
         GAME_GUNFRONT: begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_io_swap <= 1; cfg_obj_extender <= 2'b00; end
 
         GAME_GROWL:  begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_tmp82c265 <= 1; cfg_190fmc <= 1; end
+        GAME_SOLFIGTR:  begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_tmp82c265 <= 1; cfg_190fmc <= 1; end
 
         GAME_QTORIMON:  begin cfg_360pri <= 0; cfg_260dar <= 0; cfg_110pcr <= 1; cfg_obj_extender <= 2'b00; end
         GAME_QUIZHQ:  begin cfg_360pri <= 0; cfg_260dar <= 0; cfg_110pcr <= 1; cfg_obj_extender <= 2'b00; end
@@ -276,7 +277,8 @@ always_ff @(posedge clk) begin
         cfg_addr_rom      <= {8'h00, 8'hF8}; // 0x000000 - 0x07FFFF
         cfg_addr_work_ram      <= {8'h10, 8'hFF}; // 0x100000 - 0x10FFFF
         cfg_addr_color       <= {8'h20, 8'hFF}; // 0x200000 - 0x201FFF (Palette RAM)
-        cfg_addr_io0       <= {8'h30, 8'hFD}; // 0x30xxxx DSW/Coin, 0x32xxxx Input, 0x34xxxx Watchdog
+        cfg_addr_io0       <= {8'h30, 8'hFF}; // 0x30xxxx DSW/Coin, 0x32xxxx Input, 0x34xxxx Watchdog
+        cfg_addr_io1       <= {8'h32, 8'hFF}; // 0x30xxxx DSW/Coin, 0x32xxxx Input, 0x34xxxx Watchdog
         //cfg_addr_watchdog      <= {8'h34, 8'hFF}; // 0x340000 - 0x340001 (Watchdog) - Note: Overlaps IO chip general range
         cfg_addr_sound    <= {8'h40, 8'hFF}; // 0x400000, 0x400002 (TC0140SYT)
         //cfg_addr_spritebank_sel<= {8'h50, 8'hFB}; // 0x500xxx Spritebank, 0x504xxx NOP

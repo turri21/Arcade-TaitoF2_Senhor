@@ -316,8 +316,9 @@ wire SDTACKn, CDTACKn, CPUENn, dar_dtack_n;
 
 wire sdr_dtack_n = sdr_cpu_req != sdr_cpu_ack;
 
-wire DTACKn = sdr_dtack_n | SDTACKn | (cfg_260dar ? dar_dtack_n : CDTACKn) | CPUENn;
+wire dtack_n = sdr_dtack_n | pre_sdr_dtack_n | SDTACKn | (cfg_260dar ? dar_dtack_n : CDTACKn) | CPUENn;
 wire [2:0] IPLn;
+wire DTACKn = dtack_n;
 
 //////////////////////////////////
 //// CLOCK ENABLES
@@ -333,15 +334,38 @@ jtframe_frac_cen #(2) video_cen
 );
 
 wire ce_12m, ce_12m_180, ce_dummy_6m, ce_dummy_6m_180;
-jtframe_frac_cen #(2) cpu_cen
+reg [9:0] cpu_missed_cycles = 0;
+jtframe_frac_cen_catchup #(2) cpu_cen
 (
     .clk(clk),
     .cen_in(~ss_pause),
     .n(10'd172),
+    .n2(10'd344),
     .m(10'd765),
+    .cen_target(cpu_missed_cycles),
     .cen({ce_dummy_6m, ce_12m}),
     .cenb({ce_dummy_6m_180, ce_12m_180})
 );
+
+/*jtframe_68kdtack_cen #(.W(10), .MFREQ(53375), .WAIT1(0)) cpu_cen
+(
+    .rst(reset),
+    .clk(clk),
+    .cpu_cen(ce_12m),
+    .cpu_cenb(ce_12m_180),
+    .bus_cs(1),
+    .bus_busy(dtack_n),
+    .bus_legit(ROMn & WORKn),
+    .ASn(cpu_as_n),
+    .DSn(cpu_ds_n),
+    .num(9'd172),
+    .den(10'd765),
+    .wait2(0),
+    .wait3(0),
+    .DTACKn(DTACKn),
+    .fave(),
+    .fworst()
+);*/
 
 wire ce_8m, ce_4m;
 jtframe_frac_cen #(2) audio_cen
@@ -790,6 +814,7 @@ TC0360PRI #(.SS_IDX(SSIDX_PRIORITY)) tc0360pri(
 TC0260DAR tc0260dar(
     .clk,
     .ce_pixel,
+    .ce_double(ce_13m),
 
     // CPU Interface
     .MDin(cpu_data_out),
@@ -802,6 +827,9 @@ TC0260DAR tc0260dar(
 
     .CS(~COLORn),
     .DTACKn(dar_dtack_n),
+
+    // FIXME
+    .ACCMODE(1),
 
     // Video Input
     .HBLANKn(HBLn),
@@ -928,6 +956,22 @@ assign cpu_data_in = ~SS_SAVEn ? save_handler[cpu_addr[3:0]] :
 
 reg prev_ds_n;
 reg ss_sdr_active;
+
+reg [7:0] sdr_ce_cycles;
+always_ff @(posedge clk) begin
+    if (ce_12m) begin
+        if (sdr_cpu_req != sdr_cpu_ack) begin
+            sdr_ce_cycles <= sdr_ce_cycles + 8'd1;
+        end else begin
+            if (|sdr_ce_cycles) begin
+                cpu_missed_cycles <= cpu_missed_cycles + { 2'd0, sdr_ce_cycles } - 10'd1;
+                sdr_ce_cycles <= 0;
+            end
+        end
+    end
+end
+
+wire pre_sdr_dtack_n = (~ROMn | ~WORKn) & prev_ds_n;
 
 always_ff @(posedge clk) begin
     prev_ds_n <= &cpu_ds_n;

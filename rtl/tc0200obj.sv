@@ -469,7 +469,7 @@ always @(posedge clk) begin
         end
 
         ST_EVAL_WAIT: if (ce_13m) begin
-            if (busy_count == 15) begin
+            if (busy_count == 12) begin
                 obj_state <= ST_EVAL3;
                 EBUSY <= 0;
             end

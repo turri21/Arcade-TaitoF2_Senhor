@@ -1,6 +1,7 @@
 module TC0260DAR(
     input clk,
     input ce_pixel,
+    input ce_double,
 
     // CPU Interface
     input [15:0] MDin,
@@ -13,6 +14,8 @@ module TC0260DAR(
     input LDSn,
 
     output DTACKn,
+
+    input ACCMODE,
 
     // Video Input
     input HBLANKn,
@@ -34,20 +37,24 @@ module TC0260DAR(
     output reg RWEHn
 );
 
+wire busy = ~ACCMODE ? (HBLANKn & VBLANKn) : 0;
+reg cpu_access;
+
 assign MDout = RDin;
 assign RDout = MDin;
-assign RA = CS ? MA : IM;
-assign RWELn = CS ? (RWn | LDSn) : 1;
-assign RWEHn = CS ? (RWn | UDSn) : 1;
-assign DTACKn = 0;
+assign RA = cpu_access ? MA : IM;
+assign RWELn = cpu_access ? (RWn | LDSn) : 1;
+assign RWEHn = cpu_access ? (RWn | UDSn) : 1;
+assign DTACKn = CS ? ~cpu_access : 0;
 
 
 always_ff @(posedge clk) begin
+    if (ce_double) begin
+        cpu_access <= CS & (~busy | cpu_access);
+    end
+
     if (ce_pixel) begin
-        if (HBLANKn & VBLANKn) begin
-//            VIDEOR <= { RDin[12], RDin[3:0], RDin[12], RDin[3:2] };
-//            VIDEOG <= { RDin[13], RDin[7:4], RDin[13], RDin[7:6] };
-//            VIDEOB <= { RDin[14], RDin[11:8], RDin[14], RDin[11:10] };
+        if (HBLANKn & VBLANKn & ~cpu_access) begin
             VIDEOR <= { RDin[15:12], RDin[3], RDin[15:13] };
             VIDEOG <= { RDin[11:8], RDin[2], RDin[11:9] };
             VIDEOB <= { RDin[7:4], RDin[1], RDin[7:5] };

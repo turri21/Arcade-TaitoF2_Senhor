@@ -70,7 +70,7 @@ void sim_tick(int count = 1)
             top->reset = 0;
         }
         
-        sdram.update_channel_16(top->sdr_cpu_addr, top->sdr_cpu_req, top->sdr_cpu_rw, top->sdr_cpu_be, top->sdr_cpu_data, &top->sdr_cpu_q, &top->sdr_cpu_ack);
+        sdram.update_channel_64(top->sdr_cpu_addr, top->sdr_cpu_req, 1, 0, 0, &top->sdr_cpu_q, &top->sdr_cpu_ack);
         sdram.update_channel_32(top->sdr_scn_main_addr, top->sdr_scn_main_req, 1, 0, 0, &top->sdr_scn_main_q, &top->sdr_scn_main_ack);
         sdram.update_channel_16(top->sdr_audio_addr, top->sdr_audio_req, 1, 0, 0, &top->sdr_audio_q, &top->sdr_audio_ack);
         video.clock(top->ce_pixel != 0, top->hblank != 0, top->vblank != 0, top->red, top->green, top->blue);

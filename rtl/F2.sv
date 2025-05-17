@@ -26,10 +26,7 @@ module F2(
     input       [7:0] dswb,
 
     output reg [26:0] sdr_cpu_addr,
-    input      [15:0] sdr_cpu_q,
-    output reg [15:0] sdr_cpu_data,
-    output reg [ 1:0] sdr_cpu_be,
-    output reg        sdr_cpu_rw,     // 1 - read, 0 - write
+    input      [63:0] sdr_cpu_q,
     output reg        sdr_cpu_req,
     input             sdr_cpu_ack,
 
@@ -314,7 +311,8 @@ logic GROWL_HACKn;
 
 wire SDTACKn, CDTACKn, CPUENn, dar_dtack_n;
 
-wire sdr_dtack_n = sdr_cpu_req != sdr_cpu_ack;
+//wire sdr_dtack_n = sdr_cpu_req != sdr_cpu_ack;
+wire sdr_dtack_n;
 
 wire dtack_n = sdr_dtack_n | pre_sdr_dtack_n | SDTACKn | (cfg_260dar ? dar_dtack_n : CDTACKn) | CPUENn;
 wire [2:0] IPLn;
@@ -942,7 +940,7 @@ address_translator address_translator(
 assign cpu_data_in = ~SS_SAVEn ? save_handler[cpu_addr[3:0]] :
                      ~SS_RESETn ? reset_vector[cpu_addr[1:0]] :
                      ~SS_VECn ? ( cpu_addr[0] ? 16'h0000 : 16'h00ff ) :
-                     ~ROMn ? sdr_cpu_q :
+                     ~ROMn ? rom_q :
                      ~WORKn ? workram_q :
                      ~SCREENn ? scn_main_data_out :
                      ~OBJECTn ? objram_data_out :
@@ -986,18 +984,26 @@ m68k_ram_ss_adaptor #(.WIDTHAD(15), .SS_IDX(SSIDX_CPU_RAM)) workram_ss(
 
 reg prev_ds_n;
 
+
 wire pre_sdr_dtack_n = ~ROMn & prev_ds_n;
+wire [15:0] rom_q;
+
+rom_cache rom_cache(
+    .clk,
+    .reset,
+    .sdr_addr(sdr_cpu_addr),
+    .sdr_data(sdr_cpu_q),
+    .sdr_req(sdr_cpu_req),
+    .sdr_ack(sdr_cpu_ack),
+
+    .as_n(ROMn | cpu_as_n),
+    .dtack_n(sdr_dtack_n),
+    .cpu_addr(cpu_addr),
+    .data(rom_q)
+);
 
 always_ff @(posedge clk) begin
-    prev_ds_n <= &cpu_ds_n;
-
-    if (~ROMn & prev_ds_n) begin
-        sdr_cpu_addr <= CPU_ROM_SDR_BASE[26:0] + { 3'b0, cpu_word_addr };
-        sdr_cpu_be <= ~cpu_ds_n;
-        sdr_cpu_rw <= 1;
-        sdr_cpu_req <= ~sdr_cpu_req;
-    end else begin
-    end
+    prev_ds_n <= cpu_as_n;
 end
 
 

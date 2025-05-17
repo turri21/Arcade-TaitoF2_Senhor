@@ -69,6 +69,45 @@ public:
         }
     }
 
+    void update_channel_64(uint32_t addr, uint8_t req, uint8_t rw, uint8_t be, uint64_t din, uint64_t *dout, uint8_t *ack)
+    {
+        if (req == *ack) return;
+
+        delay--;
+        if (delay > 0) return;
+        delay = rand() % 9;
+
+
+        addr &= mask;
+        addr &= 0xfffffffe;
+
+        if (rw)
+        {
+            *dout = ((uint64_t)data[addr + 7] << 56) |
+                    ((uint64_t)data[addr + 6] << 48) |
+                    ((uint64_t)data[addr + 5] << 40) |
+                    ((uint64_t)data[addr + 4] << 32) |
+                    ((uint64_t)data[addr + 3] << 24) |
+                    ((uint64_t)data[addr + 2] << 16) |
+                    ((uint64_t)data[addr + 1] << 8) |
+                    ((uint64_t)data[addr + 0]);
+            *ack = req;
+        }
+        else
+        {
+            if (be & 0x01) data[addr + 0] = din & 0xff;
+            if (be & 0x02) data[addr + 1] = (din >> 8) & 0xff;
+            if (be & 0x04) data[addr + 2] = (din >> 16) & 0xff;
+            if (be & 0x08) data[addr + 3] = (din >> 24) & 0xff;
+            if (be & 0x10) data[addr + 4] = (din >> 32) & 0xff;
+            if (be & 0x20) data[addr + 5] = (din >> 40) & 0xff;
+            if (be & 0x40) data[addr + 6] = (din >> 48) & 0xff;
+            if (be & 0x80) data[addr + 7] = (din >> 56) & 0xff;
+            *ack = req;
+        }
+    }
+
+
     bool load_data(const char *name, int offset, int stride)
     {
         FILE *fp = fopen(name, "rb");

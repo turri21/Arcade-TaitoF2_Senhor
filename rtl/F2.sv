@@ -143,9 +143,9 @@ reg ss_read = 0;
 wire ss_busy;
 
 ssbus_if ssbus();
-ssbus_if ssb[13]();
+ssbus_if ssb[14]();
 
-ssbus_mux #(.COUNT(13)) ssmux(
+ssbus_mux #(.COUNT(14)) ssmux(
     .clk,
     .slave(ssbus),
     .masters(ssb)
@@ -956,6 +956,7 @@ assign cpu_data_in = ~SS_SAVEn ? save_handler[cpu_addr[3:0]] :
                      ~SOUNDn ? { 4'd0, syt_cpu_dout, 8'd0 } :
                      ~EXTENSIONn ? extension_data :
                      ~GROWL_HACKn ? growl_hack_data :
+                     ~CCHIPn ? { 8'h00, cchip_data } :
                      16'd0;
 
 wire [14:0] workram_addr;
@@ -1010,6 +1011,38 @@ rom_cache rom_cache(
 always_ff @(posedge clk) begin
     prev_ds_n <= cpu_as_n;
 end
+
+wire [7:0] cchip_data;
+
+TC0030CMD tc0030cmd(
+    .clk,
+    .ce(ce_12m),
+
+    .RESETn(~reset),
+    .NMIn(1),
+    .INT1n(1),
+    .ASIC_MODESEL(0),
+    .MODE1(0),
+    .AN(0),
+
+    // CPU interface
+    .CSn(CCHIPn),
+    .RW(cpu_rw),
+    .Din(cpu_data_out[7:0]),
+    .Dout(cchip_data),
+    .A(cpu_addr[10:0]),
+    .DTACKn(),
+
+    // Ports
+    .PAin(0),
+    .PBin(0),
+    .PCin(0),
+    .PAout(),
+    .PBout(),
+    .PCout(),
+
+    .ssb(ssb[13])
+);
 
 
 //////////////////////////////////

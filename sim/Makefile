@@ -33,7 +33,9 @@ SRCS = imgui/imgui.cpp \
 		games.cpp \
 		imgui_wrap.cpp \
 		tc0200obj.cpp \
-		tc0360pri.cpp
+		tc0360pri.cpp \
+		miniz.cpp \
+		file_search.cpp
 
 OBJS = $(patsubst %.cpp, $(OBJ_DIR)/%.o, $(SRCS))
 
@@ -57,7 +59,7 @@ LDLIBS=$(shell pkg-config --libs sdl2)
 HDL_SRC  = ../rtl/fx68k/hdl/verilator/fx68k.sv ../rtl/fx68k/hdl/verilator/fx68kAlu.sv ../rtl/fx68k/hdl/verilator/uaddrPla.sv
 HDL_SRC += ../rtl/system_consts.sv ../rtl/address_translator.sv ../rtl/game_board_config.sv
 HDL_SRC += ../rtl/rom_cache.sv
-HDL_SRC += ../rtl/tmp82c265.sv
+HDL_SRC += ../rtl/tmp82c265.sv ../rtl/tc0030cmd.sv
 HDL_SRC += ../rtl/F2.sv
 HDL_SRC += ../rtl/tc0100scn.sv ../rtl/tc0110pr.sv ../rtl/tc0220ioc.sv ../rtl/tc0200obj.sv ../rtl/tc0140syt.sv
 HDL_SRC += ../rtl/tc0260dar.sv ../rtl/tc0200obj_extender.sv ../rtl/tc0360pri.sv ../rtl/tc0190fmc.sv

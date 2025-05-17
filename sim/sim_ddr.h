@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <vector>
 #include <string>
+#include "file_search.h"
 
 // Class to simulate a 64-bit wide memory device
 class SimDDR
@@ -27,61 +28,36 @@ public:
     // Load data from a file into memory at specified offset with optional stride
     bool load_data(const std::string& filename, uint32_t offset = 0, uint32_t stride = 1)
     {
-        FILE* fp = fopen(filename.c_str(), "rb");
-        if (!fp)
+        std::vector<uint8_t> buffer;
+        if (!g_fs.loadFile(filename, buffer))
         {
-            printf("Failed to open file for loading memory: %s\n", filename.c_str());
+            printf("Failed to find file: %s\n", filename.c_str());
             return false;
         }
         
-        // Get file size
-        fseek(fp, 0, SEEK_END);
-        size_t file_size = ftell(fp);
-        fseek(fp, 0, SEEK_SET);
-        
         // Check if the file will fit in memory with the stride
-        if (offset + (file_size - 1) * stride + 1 > size)
+        if (offset + (buffer.size() - 1) * stride + 1 > size)
         {
             printf("File too large to fit in memory at specified offset with stride %u\n", stride);
-            fclose(fp);
             return false;
         }
         
         if (stride == 1)
         {
             // Fast path for stride=1 (contiguous data)
-            size_t bytes_read = fread(&memory[offset], 1, file_size, fp);
-            
-            if (bytes_read != file_size)
-            {
-                printf("Failed to read entire file: %s\n", filename.c_str());
-                fclose(fp);
-                return false;
-            }
+            std::copy(buffer.begin(), buffer.end(), memory.begin() + offset);
         }
         else
         {
-            // Read byte by byte with stride
-            std::vector<uint8_t> buffer(file_size);
-            size_t bytes_read = fread(buffer.data(), 1, file_size, fp);
-            
-            if (bytes_read != file_size)
-            {
-                printf("Failed to read entire file: %s\n", filename.c_str());
-                fclose(fp);
-                return false;
-            }
-            
             // Copy to memory with stride
-            for (size_t i = 0; i < bytes_read; i++)
+            for (size_t i = 0; i < buffer.size(); i++)
             {
                 memory[offset + i * stride] = buffer[i];
             }
         }
         
-        fclose(fp);
         printf("Loaded %zu bytes from %s at offset 0x%08X with stride %u\n", 
-               file_size, filename.c_str(), offset, stride);
+               buffer.size(), filename.c_str(), offset, stride);
         return true;
     }
     

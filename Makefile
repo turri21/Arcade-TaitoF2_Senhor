@@ -52,18 +52,24 @@ rbf: $(OUTDIR)/$(CONFIG).rbf
 sim:
 	$(MAKE) -j8 -C sim sim
 
-sim/run:
-	$(MAKE) -j8 -C sim run GAME=growl
+sim/run: sim/dinorex
+sim/test: sim/qjinsei_test
 
-sim/test:
-	$(MAKE) -j8 -C testroms
-	$(MAKE) -j8 -C sim run GAME=finalb_test
+sim/dinorex:
+	$(MAKE) -j8 -C sim run GAME=dinorex
+
+sim/megab:
+	$(MAKE) -j8 -C sim run GAME=megab
+
+sim/qjinsei_test:
+	$(MAKE) -j8 -C testroms TARGET=qjinsei_test
+	$(MAKE) -j8 -C sim run GAME=qjinsei_test
 
 debug:
 	$(MAKE) -j8 -C testroms debug
 
 picorom:
-	$(MAKE) -j8 -C testroms picorom
+	$(MAKE) -j8 -C testroms TARGET=qjinsei_test picorom
 
 
 rtl/jt10_auto_ss.v:

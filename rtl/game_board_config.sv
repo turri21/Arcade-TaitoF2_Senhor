@@ -115,7 +115,7 @@ always_ff @(posedge clk) begin
         cfg_addr_work_ram      <= {8'h20, 8'hFF}; // 0x200000 - 0x20FFFF
         cfg_addr_color       <= {8'h30, 8'hFF}; // 0x300000 - 0x301FFF (Palette RAM)
         cfg_addr_priority <= {8'h40, 8'hFF}; // 0x400000 - 0x40001F (TC0360PRI)
-        cfg_addr_screen  <= {8'h60, 8'hF0}; // 0x600000 - 0x60FFFF (TC0100SCN RAM), 0x61xxxx RAM (unused?)
+        cfg_addr_screen  <= {8'h60, 8'hF1}; // 0x600000 - 0x60FFFF (TC0100SCN RAM), 0x61xxxx RAM (unused?)
         cfg_addr_obj    <= {8'h80, 8'hFF}; // 0x800000 - 0x80FFFF
       end
 

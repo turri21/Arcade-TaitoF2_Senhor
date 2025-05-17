@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "file_search.h"
 
 class SimSDRAM
 {
@@ -110,44 +111,51 @@ public:
 
     bool load_data(const char *name, int offset, int stride)
     {
-        FILE *fp = fopen(name, "rb");
-        if (fp == nullptr)
+        std::vector<uint8_t> buffer;
+        if (!g_fs.loadFile(name, buffer))
         {
+            printf("Failed to find file: %s\n", name);
             return false;
         }
 
         uint32_t addr = offset;
-        uint8_t byte;
-
-        while( fread(&byte, 1, 1, fp) == 1 )
+        for (uint8_t byte : buffer)
         {
             data[addr & mask] = byte;
             addr += stride;
         }
-
-        fclose(fp);
+        
+        printf("Loaded %zu bytes from %s at offset 0x%08X with stride %d\n", 
+               buffer.size(), name, offset, stride);
         return true;
     }
 
     bool load_data16be(const char *name, int offset)
     {
-        FILE *fp = fopen(name, "rb");
-        if (fp == nullptr)
+        std::vector<uint8_t> buffer;
+        if (!g_fs.loadFile(name, buffer))
         {
+            printf("Failed to find file: %s\n", name);
             return false;
         }
 
-        uint32_t addr = offset;
-        uint8_t bytes[2];
-
-        while( fread(bytes, 1, 2, fp) == 1 )
+        // Ensure the buffer size is even
+        if (buffer.size() % 2 != 0)
         {
-            data[addr & mask] = bytes[1];
-            data[(addr + 1) & mask] = bytes[0];
-            addr += 2;
+            buffer.push_back(0); // Pad with zero if odd
         }
 
-        fclose(fp);
+        uint32_t addr = offset;
+        for (size_t i = 0; i < buffer.size(); i += 2)
+        {
+            // Store in big-endian format (swapping bytes)
+            data[addr & mask] = buffer[i + 1];
+            data[(addr + 1) & mask] = buffer[i];
+            addr += 2;
+        }
+        
+        printf("Loaded %zu bytes (16-bit BE) from %s at offset 0x%08X\n", 
+               buffer.size(), name, offset);
         return true;
     }
 

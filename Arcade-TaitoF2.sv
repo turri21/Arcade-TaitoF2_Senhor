@@ -328,13 +328,13 @@ wire sdr_cpu_req, sdr_rom_req;
 wire sdr_cpu_rw, sdr_rom_rw;
 
 wire [26:0] sdr_ch3_addr = rom_load_busy ? sdr_rom_addr : sdr_cpu_addr;
-wire [15:0] sdr_ch3_din = rom_load_busy ? sdr_rom_din : sdr_cpu_din;
+wire [15:0] sdr_ch3_din = sdr_rom_din;
 wire [63:0] sdr_cpu_dout = sdr_ch3_dout;
-wire [1:0] sdr_ch3_be = rom_load_busy ? sdr_rom_be : sdr_cpu_be;
+wire [1:0] sdr_ch3_be = rom_load_busy ? sdr_rom_be : 2'b00;
 wire sdr_ch3_req = rom_load_busy ? sdr_rom_req : sdr_cpu_req;
 wire sdr_cpu_ack = rom_load_busy ? sdr_cpu_req : sdr_ch3_ack; // FIXME, wtf to do with this in unknown state?
 wire sdr_rom_ack = rom_load_busy ? sdr_ch3_ack : sdr_rom_req;
-wire sdr_ch3_rnw = rom_load_busy ? sdr_rom_rw  : sdr_cpu_rw;
+wire sdr_ch3_rnw = rom_load_busy ? sdr_rom_rw  : 1;
 
 sdram sdram
 (
@@ -528,16 +528,15 @@ F2 F2(
 
     .joystick_p1(joystick_p1[7:0]),
     .joystick_p2(joystick_p2[7:0]),
-    .start({joystick_p2[8], joystick_p1[8]}),
-    .coin({joystick_p2[9], joystick_p1[9]}),
+    .joystick_p3(joystick_p3[7:0]),
+    .joystick_p4(joystick_p4[7:0]),
+    .start({joystick_p4[8], joystick_p3[8], joystick_p2[8], joystick_p1[8]}),
+    .coin({joystick_p4[9], joystick_p3[9], joystick_p2[9], joystick_p1[9]}),
 
     .audio_out(AUDIO_L),
 
     .sdr_cpu_addr(sdr_cpu_addr),
-    .sdr_cpu_q(sdr_cpu_dout[15:0]),
-    .sdr_cpu_data(sdr_cpu_din),
-    .sdr_cpu_be(sdr_cpu_be),
-    .sdr_cpu_rw(sdr_cpu_rw),     // 1 - read, 0 - write
+    .sdr_cpu_q(sdr_cpu_dout),
     .sdr_cpu_req(sdr_cpu_req),
     .sdr_cpu_ack(sdr_cpu_ack),
 

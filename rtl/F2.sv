@@ -356,7 +356,7 @@ always_ff @(posedge clk) begin
     ce_cpu <= 0;
     ce_cpu_180 <= 0;
 
-    if (sdr_cpu_req == sdr_cpu_ack) begin
+    if (sdr_cpu_req == sdr_cpu_ack && ~ss_pause) begin
         if (ce_cpu_count[10:1] != ce_steady_count) begin
             ce_cpu <= ~ce_cpu_count[0];
             ce_cpu_180 <= ce_cpu_count[0];

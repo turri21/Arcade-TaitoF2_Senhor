@@ -19,6 +19,7 @@ module address_translator(
     input [15:0] cfg_addr_extension,
     input [15:0] cfg_addr_priority,
     input [15:0] cfg_addr_roz,
+    input [15:0] cfg_addr_cchip,
 
     output logic WORKn,
     output logic ROMn,
@@ -30,6 +31,7 @@ module address_translator(
     output logic SOUNDn,
     output logic PRIORITYn,
     output logic EXTENSIONn,
+    output logic CCHIPn,
     output logic GROWL_HACKn,
     output logic SS_SAVEn,
     output logic SS_RESETn,
@@ -60,6 +62,7 @@ always_comb begin
     SS_VECn = 1;
     EXTENSIONn = 1;
     GROWL_HACKn = 1;
+    CCHIPn = 1;
 
     if (ss_override) begin
         if (~&cpu_ds_n) begin
@@ -92,6 +95,7 @@ always_comb begin
         SOUNDn = match_addr_n(cpu_word_addr, cfg_addr_sound);
         EXTENSIONn = match_addr_n(cpu_word_addr, cfg_addr_extension);
         PRIORITYn = match_addr_n(cpu_word_addr, cfg_addr_priority);
+        CCHIPn = match_addr_n(cpu_word_addr, cfg_addr_cchip);
 
         if (game == GAME_GROWL) begin
             GROWL_HACKn = ~(cpu_word_addr[23:16] == 8'h50 && cpu_word_addr[15]);

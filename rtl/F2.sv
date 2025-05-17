@@ -70,7 +70,7 @@ module F2(
     input             sync_fix
 );
 
-wire cfg_260dar, cfg_110pcr, cfg_360pri, cfg_io_swap, cfg_tmp82c265, cfg_190fmc;
+wire cfg_260dar, cfg_110pcr, cfg_360pri, cfg_io_swap, cfg_tmp82c265, cfg_190fmc, cfg_te7750;
 wire [1:0] cfg_obj_extender /* verilator public_flat */;
 
 wire [15:0] cfg_addr_rom;
@@ -85,6 +85,7 @@ wire [15:0] cfg_addr_sound;
 wire [15:0] cfg_addr_extension;
 wire [15:0] cfg_addr_priority;
 wire [15:0] cfg_addr_roz;
+wire [15:0] cfg_addr_cchip;
 
 game_board_config game_board_config(
     .clk,
@@ -97,6 +98,7 @@ game_board_config game_board_config(
     .cfg_190fmc,
     .cfg_io_swap,
     .cfg_tmp82c265,
+    .cfg_te7750,
 
     .cfg_addr_rom,
     .cfg_addr_rom1,
@@ -109,7 +111,8 @@ game_board_config game_board_config(
     .cfg_addr_sound,
     .cfg_addr_extension,
     .cfg_addr_priority,
-    .cfg_addr_roz
+    .cfg_addr_roz,
+    .cfg_addr_cchip
 );
 
 ddr_if ddr();
@@ -307,6 +310,7 @@ logic OBJECTn;
 logic PRIORITYn;
 logic SOUNDn /* verilator public_flat */;
 logic EXTENSIONn;
+logic CCHIPn;
 logic GROWL_HACKn;
 
 wire SDTACKn, CDTACKn, CPUENn, dar_dtack_n;
@@ -919,6 +923,7 @@ address_translator address_translator(
     .cfg_addr_extension,
     .cfg_addr_priority,
     .cfg_addr_roz,
+    .cfg_addr_cchip,
 
     .WORKn,
     .ROMn,
@@ -931,6 +936,7 @@ address_translator address_translator(
     .SOUNDn,
     .GROWL_HACKn,
     .EXTENSIONn,
+    .CCHIPn,
 
     .SS_SAVEn,
     .SS_RESETn,
@@ -983,7 +989,6 @@ m68k_ram_ss_adaptor #(.WIDTHAD(15), .SS_IDX(SSIDX_CPU_RAM)) workram_ss(
 );
 
 reg prev_ds_n;
-
 
 wire pre_sdr_dtack_n = ~ROMn & prev_ds_n;
 wire [15:0] rom_q;

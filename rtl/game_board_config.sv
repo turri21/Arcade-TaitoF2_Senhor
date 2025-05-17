@@ -11,6 +11,7 @@ module game_board_config(
     output reg [1:0] cfg_obj_extender,
     output reg       cfg_io_swap,
     output reg       cfg_tmp82c265,
+    output reg       cfg_te7750,
 
     output reg [15:0] cfg_addr_rom,
     output reg [15:0] cfg_addr_rom1,
@@ -23,33 +24,37 @@ module game_board_config(
     output reg [15:0] cfg_addr_sound,
     output reg [15:0] cfg_addr_extension,
     output reg [15:0] cfg_addr_priority,
-    output reg [15:0] cfg_addr_roz
+    output reg [15:0] cfg_addr_roz,
+    output reg [15:0] cfg_addr_cchip
 );
 
 // register these values to help with timing
 //
-always_ff @(posedge clk) begin
-    cfg_io_swap <= 0;
-    cfg_tmp82c265 <= 0;
-    cfg_190fmc <= 0;
-    cfg_obj_extender <= 2'b00;
+always @(posedge clk) begin
+    bit [8:0] c;
 
     case(game)
-        GAME_FINALB:  begin cfg_360pri <= 0; cfg_260dar <= 0; cfg_110pcr <= 1; cfg_obj_extender <= 2'b00; end
-        GAME_DINOREX: begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_obj_extender <= 2'b01; end
-        GAME_LIQUIDK: begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_obj_extender <= 2'b00; end
-
-        GAME_SSI:  begin cfg_360pri <= 0; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_obj_extender <= 2'b00; end
-        GAME_GUNFRONT: begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_io_swap <= 1; cfg_obj_extender <= 2'b00; end
-
-        GAME_GROWL:  begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_tmp82c265 <= 1; cfg_190fmc <= 1; end
-        GAME_SOLFIGTR:  begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_tmp82c265 <= 1; cfg_190fmc <= 1; end
-
-        GAME_QTORIMON:  begin cfg_360pri <= 0; cfg_260dar <= 0; cfg_110pcr <= 1; cfg_obj_extender <= 2'b00; end
-        GAME_QUIZHQ:  begin cfg_360pri <= 0; cfg_260dar <= 0; cfg_110pcr <= 1; cfg_obj_extender <= 2'b00; end
-        GAME_QJINSEI: begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_obj_extender <= 2'b01; end
-        default:      begin cfg_360pri <= 1; cfg_260dar <= 1; cfg_110pcr <= 0; cfg_obj_extender <= 2'b00; end
+        //                    3 2 1 1  O 8 T I
+        //                    6 6 1 9  B 2 E O
+        //                    0 0 1 0  J C 7 S
+        //                    P D P F  E 2 7 W
+        //                    R A C M  X 6 5 A
+        //                    I R R C  T 5 0 P
+        GAME_FINALB:   c = 9'b0_0_1_0_00_0_0_0;
+        GAME_DINOREX:  c = 9'b1_1_0_0_01_0_0_0;
+        GAME_LIQUIDK:  c = 9'b1_1_0_0_00_0_0_0;
+        GAME_SSI:      c = 9'b0_1_0_0_00_0_0_0;
+        GAME_GUNFRONT: c = 9'b1_1_0_0_00_0_0_1;
+        GAME_GROWL:    c = 9'b1_1_0_1_00_1_0_0;
+        GAME_SOLFIGTR: c = 9'b1_1_0_1_00_1_0_0;
+        GAME_MEGAB:    c = 9'b1_1_0_0_00_0_0_0;
+        GAME_QTORIMON: c = 9'b0_0_1_0_00_0_0_0;
+        GAME_QUIZHQ:   c = 9'b0_0_1_0_00_0_0_0;
+        GAME_QJINSEI:  c = 9'b1_1_0_0_01_0_0_0;
+        default:       c = 9'b0_0_1_0_00_0_0_0;
     endcase
+
+    { cfg_360pri, cfg_260dar, cfg_110pcr, cfg_190fmc, cfg_obj_extender, cfg_tmp82c265, cfg_te7750, cfg_io_swap } <= c;    
 end
 
 always_ff @(posedge clk) begin
@@ -66,6 +71,7 @@ always_ff @(posedge clk) begin
     cfg_addr_priority  <= 16'hff00;
     cfg_addr_extension <= 16'hff00;
     cfg_addr_roz       <= 16'hff00;
+    cfg_addr_cchip     <= 16'hff00;
 
     //cfg_addr_cchip     <= 16'b0;
     //cfg_addr_screen2  <= 16'b0;
@@ -105,7 +111,7 @@ always_ff @(posedge clk) begin
         cfg_addr_rom      <= {8'h00, 8'hF8}; // 0x000000 - 0x07FFFF
         cfg_addr_sound    <= {8'h10, 8'hFF}; // 0x100000, 0x100002 (TC0140SYT)
         cfg_addr_io0       <= {8'h12, 8'hFF}; // 0x120000 - 0x12000F (TC0220IOC)
-        //cfg_addr_cchip     <= {8'h18, 8'hFF}; // 0x180000 - 0x1807FF (C-Chip RAM)
+        cfg_addr_cchip     <= {8'h18, 8'hFF}; // 0x180000 - 0x1807FF (C-Chip RAM)
         cfg_addr_work_ram      <= {8'h20, 8'hFF}; // 0x200000 - 0x20FFFF
         cfg_addr_color       <= {8'h30, 8'hFF}; // 0x300000 - 0x301FFF (Palette RAM)
         cfg_addr_priority <= {8'h40, 8'hFF}; // 0x400000 - 0x40001F (TC0360PRI)

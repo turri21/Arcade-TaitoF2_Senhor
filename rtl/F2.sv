@@ -333,39 +333,39 @@ jtframe_frac_cen #(2) video_cen
     .cenb()
 );
 
-wire ce_12m, ce_12m_180, ce_dummy_6m, ce_dummy_6m_180;
 reg [9:0] cpu_missed_cycles = 0;
-jtframe_frac_cen_catchup #(2) cpu_cen
+
+wire ce_12m, ce_dummy_6m;
+jtframe_frac_cen #(2) cen_steady
 (
     .clk(clk),
     .cen_in(~ss_pause),
     .n(10'd172),
-    .n2(10'd344),
     .m(10'd765),
-    .cen_target(cpu_missed_cycles),
     .cen({ce_dummy_6m, ce_12m}),
-    .cenb({ce_dummy_6m_180, ce_12m_180})
+    .cenb()
 );
 
-/*jtframe_68kdtack_cen #(.W(10), .MFREQ(53375), .WAIT1(0)) cpu_cen
-(
-    .rst(reset),
-    .clk(clk),
-    .cpu_cen(ce_12m),
-    .cpu_cenb(ce_12m_180),
-    .bus_cs(1),
-    .bus_busy(dtack_n),
-    .bus_legit(ROMn & WORKn),
-    .ASn(cpu_as_n),
-    .DSn(cpu_ds_n),
-    .num(9'd172),
-    .den(10'd765),
-    .wait2(0),
-    .wait3(0),
-    .DTACKn(DTACKn),
-    .fave(),
-    .fworst()
-);*/
+reg [9:0] ce_steady_count;
+reg [10:0] ce_cpu_count;
+reg ce_cpu, ce_cpu_180;
+
+always_ff @(posedge clk) begin
+    if (ce_12m) begin
+        ce_steady_count <= ce_steady_count + 10'd1;
+    end
+
+    ce_cpu <= 0;
+    ce_cpu_180 <= 0;
+
+    if (sdr_cpu_req == sdr_cpu_ack) begin
+        if (ce_cpu_count[10:1] != ce_steady_count) begin
+            ce_cpu <= ~ce_cpu_count[0];
+            ce_cpu_180 <= ce_cpu_count[0];
+            ce_cpu_count <= ce_cpu_count + 11'd1;
+        end
+    end
+end
 
 wire ce_8m, ce_4m;
 jtframe_frac_cen #(2) audio_cen
@@ -394,8 +394,8 @@ fx68k m68000(
     .HALTn(1),
     .extReset(reset | ss_reset),
     .pwrUp(reset | ss_reset),
-    .enPhi1(ce_12m),
-    .enPhi2(ce_12m_180),
+    .enPhi1(ce_cpu),
+    .enPhi2(ce_cpu_180),
 
     .eRWn(cpu_rw), .ASn(cpu_as_n), .LDSn(cpu_ds_n[0]), .UDSn(cpu_ds_n[1]),
     .E(), .VMAn(),
@@ -943,7 +943,7 @@ assign cpu_data_in = ~SS_SAVEn ? save_handler[cpu_addr[3:0]] :
                      ~SS_RESETn ? reset_vector[cpu_addr[1:0]] :
                      ~SS_VECn ? ( cpu_addr[0] ? 16'h0000 : 16'h00ff ) :
                      ~ROMn ? sdr_cpu_q :
-                     ~WORKn ? sdr_cpu_q :
+                     ~WORKn ? workram_q :
                      ~SCREENn ? scn_main_data_out :
                      ~OBJECTn ? objram_data_out :
                      ~PRIORITYn ? pri360_data_out :
@@ -954,68 +954,49 @@ assign cpu_data_in = ~SS_SAVEn ? save_handler[cpu_addr[3:0]] :
                      ~GROWL_HACKn ? growl_hack_data :
                      16'd0;
 
+wire [14:0] workram_addr;
+wire workram_lds_n, workram_uds_n;
+wire [15:0] workram_data, workram_q;
+
+m68k_ram #(.WIDTHAD(15)) workram(
+    .clock(clk),
+    .address(workram_addr),
+    .we_lds_n(workram_lds_n),
+    .we_uds_n(workram_uds_n),
+    .data(workram_data),
+    .q(workram_q)
+);
+
+m68k_ram_ss_adaptor #(.WIDTHAD(15), .SS_IDX(SSIDX_CPU_RAM)) workram_ss(
+    .clk,
+    .addr_in(cpu_addr[14:0]),
+    .lds_n_in(WORKn | cpu_ds_n[0] | cpu_rw),
+    .uds_n_in(WORKn | cpu_ds_n[1] | cpu_rw),
+    .data_in(cpu_data_out),
+
+    .q(workram_q),
+
+    .addr_out(workram_addr),
+    .lds_n_out(workram_lds_n),
+    .uds_n_out(workram_uds_n),
+    .data_out(workram_data),
+
+    .ssbus(ssb[1])
+);
+
 reg prev_ds_n;
-reg ss_sdr_active;
 
-reg [7:0] sdr_ce_cycles;
-always_ff @(posedge clk) begin
-    if (ce_12m) begin
-        if (sdr_cpu_req != sdr_cpu_ack) begin
-            sdr_ce_cycles <= sdr_ce_cycles + 8'd1;
-        end else begin
-            if (|sdr_ce_cycles) begin
-                cpu_missed_cycles <= cpu_missed_cycles + { 2'd0, sdr_ce_cycles } - 10'd1;
-                sdr_ce_cycles <= 0;
-            end
-        end
-    end
-end
-
-wire pre_sdr_dtack_n = (~ROMn | ~WORKn) & prev_ds_n;
+wire pre_sdr_dtack_n = ~ROMn & prev_ds_n;
 
 always_ff @(posedge clk) begin
     prev_ds_n <= &cpu_ds_n;
 
-    ssb[1].setup(SSIDX_CPU_RAM, 32'h8000, 1);
-
-    if (ssb[1].access(SSIDX_CPU_RAM)) begin
-        if (ssb[1].read) begin
-            if (~ss_sdr_active) begin
-                sdr_cpu_addr <= WORK_RAM_SDR_BASE[26:0] + { 4'b0, ssb[1].addr[21:0], 1'b0 };
-                sdr_cpu_be <= 2'b11;
-                sdr_cpu_rw <= 1;
-                sdr_cpu_req <= ~sdr_cpu_req;
-                ss_sdr_active <= 1;
-            end else if (sdr_cpu_req == sdr_cpu_ack) begin
-                ssb[1].read_response(SSIDX_CPU_RAM, {48'b0, sdr_cpu_q});
-            end
-        end else if (ssb[1].write) begin
-            if (~ss_sdr_active) begin
-                sdr_cpu_addr <= WORK_RAM_SDR_BASE[26:0] + { 4'b0, ssb[1].addr[21:0], 1'b0 };
-                sdr_cpu_be <= 2'b11;
-                sdr_cpu_rw <= 0;
-                sdr_cpu_req <= ~sdr_cpu_req;
-                sdr_cpu_data <= ssb[1].data[15:0];
-                ss_sdr_active <= 1;
-            end else if (sdr_cpu_req == sdr_cpu_ack) begin
-                ssb[1].write_ack(SSIDX_CPU_RAM);
-            end
-        end
-    end else if (~ROMn & prev_ds_n) begin
+    if (~ROMn & prev_ds_n) begin
         sdr_cpu_addr <= CPU_ROM_SDR_BASE[26:0] + { 3'b0, cpu_word_addr };
         sdr_cpu_be <= ~cpu_ds_n;
         sdr_cpu_rw <= 1;
         sdr_cpu_req <= ~sdr_cpu_req;
-        ss_sdr_active <= 0;
-    end else if (~WORKn & prev_ds_n) begin
-        sdr_cpu_addr <= WORK_RAM_SDR_BASE[26:0] + { 11'b0, cpu_word_addr[15:0] };
-        sdr_cpu_data <= cpu_data_out;
-        sdr_cpu_be <= ~cpu_ds_n;
-        sdr_cpu_rw <= cpu_rw;
-        sdr_cpu_req <= ~sdr_cpu_req;
-        ss_sdr_active <= 0;
     end else begin
-        ss_sdr_active <= 0;
     end
 end
 

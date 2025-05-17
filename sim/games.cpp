@@ -39,7 +39,8 @@ static const char *game_names[N_GAMES] =
     "qcrayon",
     "qcrayon2",
     "driftout",
-    "finalb_test"
+    "finalb_test",
+    "qjinsei_test"
 };
 
 
@@ -135,6 +136,16 @@ static void load_qjinsei()
     top->game = GAME_QJINSEI;
 }
 
+static void load_qjinsei_test()
+{
+    load_qjinsei();
+    
+    load_audio("../testroms/build/qjinsei_test/qjinsei/d48-11");
+    sdram.load_data("../testroms/build/qjinsei_test/qjinsei/d48-09", CPU_ROM_SDR_BASE + 1, 2);
+    sdram.load_data("../testroms/build/qjinsei_test/qjinsei/d48-10", CPU_ROM_SDR_BASE + 0, 2);
+}
+
+
 static void load_dinorex()
 {
     load_audio("../roms/d39-12.5");
@@ -205,6 +216,7 @@ bool game_init(game_t game)
         case GAME_LIQUIDK: load_liquidk(); break;
         case GAME_DINOREX: load_dinorex(); break;
         case GAME_FINALB_TEST: load_finalb_test(); break;
+        case GAME_QJINSEI_TEST: load_qjinsei_test(); break;
         case GAME_GROWL: load_growl(); break;
         default: return false;
     }

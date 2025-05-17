@@ -158,6 +158,16 @@ ImU8 obj_ram_read(const ImU8* , size_t off, void*)
         return top->rootp->F2__DOT__objram__DOT__ram_h[word_off];
 }
 
+ImU8 work_ram_read(const ImU8* , size_t off, void*)
+{
+    size_t word_off = off >> 1;
+
+    if (off & 1)
+        return top->rootp->F2__DOT__workram__DOT__ram_l[word_off];
+    else
+        return top->rootp->F2__DOT__workram__DOT__ram_h[word_off];
+}
+
 int main(int argc, char **argv)
 {
     const char *game_name = "finalb";
@@ -217,6 +227,7 @@ int main(int argc, char **argv)
     scn_main_mem.WriteFn = scn_mem_write;
     color_ram.ReadFn = color_ram_read;
     obj_ram.ReadFn = obj_ram_read;
+    work_mem.ReadFn = work_ram_read;
     
     video.init(320, 224, imgui_get_renderer());
 
@@ -424,7 +435,7 @@ int main(int argc, char **argv)
                 
                 if (ImGui::BeginTabItem("Work RAM"))
                 {
-                    work_mem.DrawContents(sdram.data + WORK_RAM_SDR_BASE, 64 * 1024);
+                    work_mem.DrawContents(nullptr, 64 * 1024);
                     ImGui::EndTabItem();
                 }
                 

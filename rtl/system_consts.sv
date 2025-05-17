@@ -24,7 +24,6 @@ package system_consts;
 `endif
 
     parameter bit [31:0] CPU_ROM_SDR_BASE  = 32'h0000_0000;
-    parameter bit [31:0] WORK_RAM_SDR_BASE = 32'h0080_0000;
     parameter bit [31:0] SCN0_ROM_SDR_BASE = 32'h0090_0000;
     parameter bit [31:0] ADPCMA_ROM_SDR_BASE  = 32'h00b0_0000;
     parameter bit [31:0] ADPCMB_ROM_SDR_BASE  = 32'h00d0_0000;

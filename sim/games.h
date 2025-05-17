@@ -35,6 +35,7 @@ enum game_t : uint8_t
     GAME_DRIFTOUT,
 
     GAME_FINALB_TEST,
+    GAME_QJINSEI_TEST,
 
     N_GAMES,
 
@@ -42,7 +43,6 @@ enum game_t : uint8_t
 };
 
 static const uint32_t CPU_ROM_SDR_BASE      = 0x00000000;
-static const uint32_t WORK_RAM_SDR_BASE     = 0x00800000;
 static const uint32_t SCN0_ROM_SDR_BASE     = 0x00900000;
 static const uint32_t ADPCMA_ROM_SDR_BASE   = 0x00b00000;
 static const uint32_t ADPCMB_ROM_SDR_BASE   = 0x00d00000;

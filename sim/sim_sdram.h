@@ -4,6 +4,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 class SimSDRAM
 {
@@ -13,6 +14,7 @@ public:
         size = sz;
         mask = sz - 1;
         data = new uint8_t [size];
+        delay = 0;
     }
 
     ~SimSDRAM()
@@ -24,6 +26,10 @@ public:
     void update_channel_16(uint32_t addr, uint8_t req, uint8_t rw, uint8_t be, uint16_t din, uint16_t *dout, uint8_t *ack)
     {
         if (req == *ack) return;
+
+        delay--;
+        if (delay > 0) return;
+        delay = rand() % 9;
 
         addr &= mask;
         addr &= 0xfffffffe;
@@ -128,6 +134,7 @@ public:
     uint32_t size;
     uint32_t mask;
     uint8_t *data;
+    int delay;
 };
 
 extern SimSDRAM sdram;

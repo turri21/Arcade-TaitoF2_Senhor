@@ -17,15 +17,15 @@ module rom_cache(
 
 localparam CACHE_WIDTH = 8;
 
-wire [18-CACHE_WIDTH:0] tag = { version, cpu_addr[18:CACHE_WIDTH+2] };
+wire [22-CACHE_WIDTH:0] tag = { version, cpu_addr[22:CACHE_WIDTH+2] };
 wire [CACHE_WIDTH-1:0] index = cpu_addr[CACHE_WIDTH+1:2];
 
 reg [1:0] version;
 reg [63:0] cache_data[2**CACHE_WIDTH];
-reg [18-CACHE_WIDTH:0] cache_tag[2**CACHE_WIDTH];
+reg [22-CACHE_WIDTH:0] cache_tag[2**CACHE_WIDTH];
 
 reg [63:0] cache_line;
-reg [18-CACHE_WIDTH:0] cached_tag;
+reg [22-CACHE_WIDTH:0] cached_tag;
 
 always_comb begin
     unique case(cpu_addr[1:0])

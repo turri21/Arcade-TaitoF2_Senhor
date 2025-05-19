@@ -4,7 +4,8 @@
 #include <stdint.h>
 #include <SDL.h>
 
-#include "imgui.h"
+#include "imgui_wrap.h"
+
 
 class SimVideo
 {
@@ -22,6 +23,7 @@ public:
         texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBX8888, SDL_TEXTUREACCESS_STREAMING, width, height);
         x = 0;
         y = 0;
+        rotated = true;
         in_vsync = false;
         in_hsync = false;
         in_ce = false;
@@ -106,19 +108,55 @@ public:
 
     void draw()
     {
-        ImGui::Begin("Video");
+        ImGui::Begin("Video", nullptr, ImGuiWindowFlags_NoScrollbar);
+
+        ImGui::Checkbox("TATE", &rotated);
+        ImGui::SameLine();
+        ImGui::Text("X: %03d Y: %03d", x, y);
+
         ImVec2 avail_size = ImGui::GetContentRegionAvail();
         int w = avail_size.x;
-        int h = (w * 3) / 4;
-        ImGui::Image((ImTextureID)texture, ImVec2(w, h));
-        ImGui::Text("X: %03d Y: %03d", x, y);
-        ImGui::Text("HS: %d VS: %d", in_hsync, in_vsync);
+        int h = rotated ? ( (w * 4) / 3 ) : ( (w * 3) / 4 );
 
+        ImGuiWindow* window = ImGui::GetCurrentWindow();
+        if (!window->SkipItems)
+        {
+
+            const ImRect bb(window->DC.CursorPos, window->DC.CursorPos + ImVec2(w,h));
+            ImGui::ItemSize(bb);
+            if (ImGui::ItemAdd(bb, 0))
+            {
+                // Render
+                ImVec2 uv0, uv1, uv2, uv3;
+
+                if (rotated)
+                {
+                    uv0 = ImVec2(1,0);
+                    uv1 = ImVec2(1,1);
+                    uv2 = ImVec2(0,1);
+                    uv3 = ImVec2(0,0);
+                }
+                else
+                {
+                    uv0 = ImVec2(0,0);
+                    uv1 = ImVec2(1,0);
+                    uv2 = ImVec2(1,1);
+                    uv3 = ImVec2(0,1);
+                }
+
+                window->DrawList->AddImageQuad((ImTextureID)texture,
+                                               bb.GetTL(), bb.GetTR(), bb.GetBR(), bb.GetBL(),
+                                               uv0, uv1, uv2, uv3,
+                                               ImGui::GetColorU32(ImVec4(1,1,1,1)));
+            }
+        }
         ImGui::End();
     }
 
     int width, height;
     uint32_t *pixels = nullptr;
+
+    bool rotated;
 
     int x, y;
     bool in_hsync, in_vsync, in_ce;

@@ -1,7 +1,10 @@
 #if !defined(IMGUI_WRAP_H)
 #define IMGUI_WRAP_H 1
 
+#define IMGUI_DEFINE_MATH_OPERATORS
+
 #include "imgui.h"
+#include "imgui_internal.h"
 
 bool imgui_init(const char *title);
 bool imgui_begin_frame();

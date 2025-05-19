@@ -36,6 +36,7 @@ enum game_t : uint8_t
 
     GAME_FINALB_TEST,
     GAME_QJINSEI_TEST,
+    GAME_DRIFTOUT_TEST,
 
     N_GAMES,
 
@@ -46,6 +47,7 @@ static const uint32_t CPU_ROM_SDR_BASE      = 0x00000000;
 static const uint32_t SCN0_ROM_SDR_BASE     = 0x00900000;
 static const uint32_t ADPCMA_ROM_SDR_BASE   = 0x00b00000;
 static const uint32_t ADPCMB_ROM_SDR_BASE   = 0x00d00000;
+static const uint32_t PIVOT_ROM_SDR_BASE    = 0x01000000;
 static const uint32_t OBJ_DATA_DDR_BASE     = 0x00200000;
 
 game_t game_find(const char *name);

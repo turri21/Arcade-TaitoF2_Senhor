@@ -3,6 +3,11 @@ module TC0260DAR(
     input ce_pixel,
     input ce_double,
 
+    // RGB555 vs RGB444
+    input bpp15,
+    // LSB color in [3:1]
+    input bppmix,
+
     // CPU Interface
     input [15:0] MDin,
     output reg [15:0] MDout,
@@ -55,9 +60,19 @@ always_ff @(posedge clk) begin
 
     if (ce_pixel) begin
         if (HBLANKn & VBLANKn & ~cpu_access) begin
-            VIDEOR <= { RDin[15:12], RDin[3], RDin[15:13] };
-            VIDEOG <= { RDin[11:8], RDin[2], RDin[11:9] };
-            VIDEOB <= { RDin[7:4], RDin[1], RDin[7:5] };
+            if (bpp15 & bppmix) begin
+                VIDEOR <= { RDin[15:12], RDin[3], RDin[15:13] };
+                VIDEOG <= { RDin[11:8], RDin[2], RDin[11:9] };
+                VIDEOB <= { RDin[7:4], RDin[1], RDin[7:5] };
+            end else if (bpp15) begin
+                VIDEOR <= { RDin[14:10], RDin[14:12] };
+                VIDEOG <= { RDin[9:5], RDin[9:7] };
+                VIDEOB <= { RDin[4:0], RDin[4:2] };
+            end else begin
+                VIDEOR <= { RDin[15:12], RDin[15:12] };
+                VIDEOG <= { RDin[11:8], RDin[11:8] };
+                VIDEOB <= { RDin[7:4], RDin[7:4] };
+            end
         end else begin
             VIDEOR <= 8'd0;
             VIDEOG <= 8'd0;

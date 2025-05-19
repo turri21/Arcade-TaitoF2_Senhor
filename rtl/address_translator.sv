@@ -33,6 +33,7 @@ module address_translator(
     output logic EXTENSIONn,
     output logic CCHIPn,
     output logic GROWL_HACKn,
+    output logic PIVOTn,
     output logic SS_SAVEn,
     output logic SS_RESETn,
     output logic SS_VECn
@@ -63,6 +64,7 @@ always_comb begin
     EXTENSIONn = 1;
     GROWL_HACKn = 1;
     CCHIPn = 1;
+    PIVOTn = 1;
 
     if (ss_override) begin
         if (~&cpu_ds_n) begin
@@ -96,6 +98,7 @@ always_comb begin
         EXTENSIONn = match_addr_n(cpu_word_addr, cfg_addr_extension);
         PRIORITYn = match_addr_n(cpu_word_addr, cfg_addr_priority);
         CCHIPn = match_addr_n(cpu_word_addr, cfg_addr_cchip);
+        PIVOTn = match_addr_n(cpu_word_addr, cfg_addr_roz);
 
         if (game == GAME_GROWL) begin
             GROWL_HACKn = ~(cpu_word_addr[23:16] == 8'h50 && cpu_word_addr[15]);

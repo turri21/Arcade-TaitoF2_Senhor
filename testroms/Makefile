@@ -53,6 +53,13 @@ CPU_ROM_HIGH  = d48-10
 AUDIO_CPU_ROM = d48-11 
 CPU_ROM_SIZE  = 0x40000
 DEFINES += -DGAME_QJINSEI=1
+else ifeq ($(TARGET),driftout_test)
+GAME = driftout
+CPU_ROM_LOW   = ic46.rom
+CPU_ROM_HIGH  = ic45.rom
+AUDIO_CPU_ROM = do_50.rom
+CPU_ROM_SIZE  = 0x40000
+DEFINES += -DGAME_DRIFTOUT=1
 else
 error
 endif
@@ -116,7 +123,7 @@ picorom: $(BUILT_BINS)
 	picorom reset cpu_low low
 	picorom upload cpu_low $(GAME_DIR)/$(CPU_ROM_LOW)
 	picorom upload cpu_high $(GAME_DIR)/$(CPU_ROM_HIGH)
-	picorom upload audio_cpu $(GAME_DIR)/$(AUDIO_CPU_ROM) 1mbit
+	#picorom upload audio_cpu $(GAME_DIR)/$(AUDIO_CPU_ROM) 1mbit
 	picorom reset cpu_low z
 
 mister: $(BUILD_DIR)/$(TARGET).zip

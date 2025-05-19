@@ -55,6 +55,23 @@ static TC0200OBJ_Inst *TC0200OBJ = (TC0200OBJ_Inst *)0x900000;
 static volatile uint8_t *SYT_ADDR = (volatile uint8_t *)0x200000;
 static volatile uint8_t *SYT_DATA = (volatile uint8_t *)0x200002;
 
+#elif GAME_DRIFTOUT
+
+#define HAS_TC0260DAR 1
+#define HAS_TC0360PRI 1
+
+static volatile uint16_t *TC0260DAR = (volatile uint16_t *)0x700000;
+
+static TC0100SCN_Layout *TC0100SCN = (TC0100SCN_Layout *)0x800000;
+static TC0100SCN_Control *TC0100SCN_Ctrl = (TC0100SCN_Control *)0x820000;
+
+static TC0220IOC_Control *TC0220IOC = (TC0220IOC_Control *)0xb00000;
+
+static TC0200OBJ_Inst *TC0200OBJ = (TC0200OBJ_Inst *)0x900000;
+
+static volatile uint8_t *SYT_ADDR = (volatile uint8_t *)0x200000;
+static volatile uint8_t *SYT_DATA = (volatile uint8_t *)0x200002;
+
 #else
 
 #error "No GAME_* defined"

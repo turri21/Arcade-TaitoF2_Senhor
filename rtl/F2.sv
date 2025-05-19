@@ -70,7 +70,10 @@ module F2(
     input             sync_fix
 );
 
-wire cfg_260dar, cfg_110pcr, cfg_360pri, cfg_io_swap, cfg_tmp82c265, cfg_190fmc, cfg_te7750;
+wire cfg_260dar, cfg_110pcr, cfg_360pri, cfg_360pri_high, cfg_io_swap, cfg_tmp82c265, cfg_190fmc, cfg_te7750;
+wire cfg_280grd, cfg_430grw, cfg_480scp, cfg_100scn;
+wire cfg_bpp15, cfg_bppmix;
+
 wire [1:0] cfg_obj_extender /* verilator public_flat */;
 
 wire [15:0] cfg_addr_rom;
@@ -94,11 +97,18 @@ game_board_config game_board_config(
     .cfg_110pcr,
     .cfg_260dar,
     .cfg_360pri,
+    .cfg_360pri_high,
     .cfg_obj_extender,
     .cfg_190fmc,
     .cfg_io_swap,
     .cfg_tmp82c265,
     .cfg_te7750,
+    .cfg_280grd,
+    .cfg_430grw,
+    .cfg_480scp,
+    .cfg_100scn,
+    .cfg_bpp15,
+    .cfg_bppmix,
 
     .cfg_addr_rom,
     .cfg_addr_rom1,
@@ -311,6 +321,7 @@ logic PRIORITYn;
 logic SOUNDn /* verilator public_flat */;
 logic EXTENSIONn;
 logic CCHIPn;
+logic PIVOTn;
 logic GROWL_HACKn;
 
 wire SDTACKn, CDTACKn, CPUENn, dar_dtack_n;
@@ -791,7 +802,7 @@ TC0110PR tc0110pr(
 );
 
 wire [13:0] pri360_color;
-wire [15:0] pri360_data_out;
+wire [7:0] pri360_data_out;
 
 TC0360PRI #(.SS_IDX(SSIDX_PRIORITY)) tc0360pri(
     .clk,
@@ -799,7 +810,7 @@ TC0360PRI #(.SS_IDX(SSIDX_PRIORITY)) tc0360pri(
     .reset,
 
     .cpu_addr(cpu_addr[3:0]),
-    .cpu_din(cpu_data_out),
+    .cpu_din(cfg_360pri_high ? cpu_data_out[15:8] : cpu_data_out[7:0]),
     .cpu_dout(pri360_data_out),
     .cpu_ds_n,
     .cpu_rw,
@@ -817,6 +828,9 @@ TC0260DAR tc0260dar(
     .clk,
     .ce_pixel,
     .ce_double(ce_13m),
+
+    .bpp15(cfg_bpp15),
+    .bppmix(cfg_bppmix),
 
     // CPU Interface
     .MDin(cpu_data_out),
@@ -937,6 +951,7 @@ address_translator address_translator(
     .GROWL_HACKn,
     .EXTENSIONn,
     .CCHIPn,
+    .PIVOTn,
 
     .SS_SAVEn,
     .SS_RESETn,
@@ -950,7 +965,7 @@ assign cpu_data_in = ~SS_SAVEn ? save_handler[cpu_addr[3:0]] :
                      ~WORKn ? workram_q :
                      ~SCREENn ? scn_main_data_out :
                      ~OBJECTn ? objram_data_out :
-                     ~PRIORITYn ? pri360_data_out :
+                     ~PRIORITYn ? { pri360_data_out, pri360_data_out } :
                      ~COLORn ? (cfg_260dar ? dar_data_out : pri_data_out) :
                      (~IO0n | ~IO1n) ? { 8'b0, io_data_out } :
                      ~SOUNDn ? { 4'd0, syt_cpu_dout, 8'd0 } :

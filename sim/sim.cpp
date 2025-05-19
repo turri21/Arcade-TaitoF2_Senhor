@@ -198,6 +198,8 @@ int main(int argc, char **argv)
 
     game_init(game);
 
+    g_fs.addSearchPath(".");
+
     strcpy(trace_filename, "sim.fst");
 
     top->ss_do_save = 0;

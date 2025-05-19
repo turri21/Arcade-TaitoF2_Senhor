@@ -41,7 +41,8 @@ static const char *game_names[N_GAMES] =
     "qcrayon2",
     "driftout",
     "finalb_test",
-    "qjinsei_test"
+    "qjinsei_test",
+    "driftout_test",
 };
 
 
@@ -222,6 +223,30 @@ static void load_megab()
     top->game = GAME_MEGAB;
 }
 
+static void load_driftout()
+{
+    g_fs.addSearchPath("../roms/driftout.zip");
+
+    load_audio("do_50.rom");
+
+    sdram.load_data("ic46.rom", CPU_ROM_SDR_BASE + 1, 2);
+    sdram.load_data("ic45.rom", CPU_ROM_SDR_BASE + 0, 2);
+	
+    sdram.load_data("do_piv.rom",  PIVOT_ROM_SDR_BASE, 1);
+    sdram.load_data("do_snd.rom",  ADPCMA_ROM_SDR_BASE, 1);
+
+    ddr_memory.load_data("do_obj.rom", OBJ_DATA_DDR_BASE, 1);
+
+    top->game = GAME_DRIFTOUT;
+}
+
+static void load_driftout_test()
+{
+    g_fs.addSearchPath("../testroms/build/driftout_test/driftout/");
+    load_driftout();
+}
+
+
 bool game_init(game_t game)
 {
     g_fs.clearSearchPaths();
@@ -236,6 +261,8 @@ bool game_init(game_t game)
         case GAME_QJINSEI_TEST: load_qjinsei_test(); break;
         case GAME_GROWL: load_growl(); break;
         case GAME_MEGAB: load_megab(); break;
+        case GAME_DRIFTOUT: load_driftout(); break;
+        case GAME_DRIFTOUT_TEST: load_driftout_test(); break;
         default: return false;
     }
 

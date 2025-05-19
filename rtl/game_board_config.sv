@@ -5,6 +5,7 @@ module game_board_config(
     input game_t game,
 
     output reg       cfg_360pri,
+    output reg       cfg_360pri_high,
     output reg       cfg_110pcr,
     output reg       cfg_260dar,
     output reg       cfg_190fmc,
@@ -12,6 +13,12 @@ module game_board_config(
     output reg       cfg_io_swap,
     output reg       cfg_tmp82c265,
     output reg       cfg_te7750,
+    output reg       cfg_280grd,
+    output reg       cfg_430grw,
+    output reg       cfg_480scp,
+    output reg       cfg_100scn,
+    output reg       cfg_bpp15,
+    output reg       cfg_bppmix,
 
     output reg [15:0] cfg_addr_rom,
     output reg [15:0] cfg_addr_rom1,
@@ -31,30 +38,34 @@ module game_board_config(
 // register these values to help with timing
 //
 always @(posedge clk) begin
-    bit [8:0] c;
+    bit [15:0] c;
 
     case(game)
-        //                    3 2 1 1  O 8 T I
-        //                    6 6 1 9  B 2 E O
-        //                    0 0 1 0  J C 7 S
-        //                    P D P F  E 2 7 W
-        //                    R A C M  X 6 5 A
-        //                    I R R C  T 5 0 P
-        GAME_FINALB:   c = 9'b0_0_1_0_00_0_0_0;
-        GAME_DINOREX:  c = 9'b1_1_0_0_01_0_0_0;
-        GAME_LIQUIDK:  c = 9'b1_1_0_0_00_0_0_0;
-        GAME_SSI:      c = 9'b0_1_0_0_00_0_0_0;
-        GAME_GUNFRONT: c = 9'b1_1_0_0_00_0_0_1;
-        GAME_GROWL:    c = 9'b1_1_0_1_00_1_0_0;
-        GAME_SOLFIGTR: c = 9'b1_1_0_1_00_1_0_0;
-        GAME_MEGAB:    c = 9'b1_1_0_0_00_0_0_0;
-        GAME_QTORIMON: c = 9'b0_0_1_0_00_0_0_0;
-        GAME_QUIZHQ:   c = 9'b0_0_1_0_00_0_0_0;
-        GAME_QJINSEI:  c = 9'b1_1_0_0_01_0_0_0;
-        default:       c = 9'b0_0_1_0_00_0_0_0;
+        //                      3 2 1 1  O 8 T I 2 4 4 1 B B
+        //                      6 6 1 9  B 2 E O 8 3 8 0 P P
+        //                      0 0 1 0  J C 7 S 0 0 0 0 P P
+        //                      P D P F  E 2 7 W G G S S 1 M
+        //                      R A C M  X 6 5 A R R C C 5 I
+        //                      I R R C  T 5 0 P D W P N   X
+        GAME_FINALB:   c = 16'b00_0_1_0_00_0_0_0_0_0_0_0_0_0;
+        GAME_DINOREX:  c = 16'b01_1_0_0_01_0_0_0_0_0_0_0_1_1;
+        GAME_LIQUIDK:  c = 16'b01_1_0_0_00_0_0_0_0_0_0_0_1_1;
+        GAME_SSI:      c = 16'b00_1_0_0_00_0_0_0_0_0_0_0_0_0;
+        GAME_GUNFRONT: c = 16'b01_1_0_0_00_0_0_1_0_0_0_0_0_0;
+        GAME_GROWL:    c = 16'b01_1_0_1_00_1_0_0_0_0_0_0_1_1;
+        GAME_SOLFIGTR: c = 16'b01_1_0_1_00_1_0_0_0_0_0_0_1_1;
+        GAME_MEGAB:    c = 16'b01_1_0_0_00_0_0_0_0_0_0_0_1_1;
+        GAME_DRIFTOUT: c = 16'b11_1_0_0_00_0_0_0_0_0_0_0_1_0;
+        GAME_QTORIMON: c = 16'b00_0_1_0_00_0_0_0_0_0_0_0_1_1;
+        GAME_QUIZHQ:   c = 16'b00_0_1_0_00_0_0_0_0_0_0_0_1_1;
+        GAME_QJINSEI:  c = 16'b01_1_0_0_01_0_0_0_0_0_0_0_1_1;
+        default:       c = 16'b00_0_1_0_00_0_0_0_0_0_0_0_0_0;
     endcase
 
-    { cfg_360pri, cfg_260dar, cfg_110pcr, cfg_190fmc, cfg_obj_extender, cfg_tmp82c265, cfg_te7750, cfg_io_swap } <= c;    
+    { cfg_360pri_high, cfg_360pri, cfg_260dar, cfg_110pcr, cfg_190fmc, cfg_obj_extender,
+        cfg_tmp82c265, cfg_te7750, cfg_io_swap,
+        cfg_280grd, cfg_430grw, cfg_480scp, cfg_100scn,
+        cfg_bpp15, cfg_bppmix } <= c;
 end
 
 always_ff @(posedge clk) begin

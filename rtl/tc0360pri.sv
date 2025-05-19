@@ -4,8 +4,8 @@ module TC0360PRI #(parameter SS_IDX=-1) (
     input reset,
 
     // CPU Interface
-    input [15:0] cpu_din,
-    output reg [15:0] cpu_dout,
+    input [7:0] cpu_din,
+    output reg [7:0] cpu_dout,
 
     input        cs,
     input [3:0]  cpu_addr,
@@ -31,9 +31,9 @@ always_ff @(posedge clk) begin
     end else begin
         if (cs) begin
             if (cpu_rw) begin
-                cpu_dout <= { ctrl[cpu_addr[3:0]], ctrl[cpu_addr[3:0]] };
+                cpu_dout <= ctrl[cpu_addr[3:0]];
             end else begin
-                if (~cpu_ds_n[0]) ctrl[cpu_addr[3:0]]  <= cpu_din[7:0];
+                if (~cpu_ds_n[0]) ctrl[cpu_addr[3:0]]  <= cpu_din;
             end
         end
 

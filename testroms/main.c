@@ -9,6 +9,7 @@
 #include "tilemap.h"
 #include "input.h"
 #include "system.h"
+#include "obj_test.h"
 
 #include "palette.h"
 
@@ -29,10 +30,10 @@ void set_colors(uint16_t offset, uint16_t count, uint16_t *colors)
         TC0260DAR[offset + i] = colors[i];
     }
 
-    *(uint16_t *)0xa00008 = 0x00e0;
-    *(uint16_t *)0xa0000a = 0x0084;
-    *(uint16_t *)0xa0000c = 0x0062;
-    *(uint16_t *)0xa0000e = 0x00aa;
+    *(uint16_t *)0xa00008 = 0xe0e0;
+    *(uint16_t *)0xa0000a = 0x8484;
+    *(uint16_t *)0xa0000c = 0x6262;
+    *(uint16_t *)0xa0000e = 0xaaaa;
 #endif
 }
 
@@ -45,7 +46,7 @@ void level5_handler()
 #if HAS_TC0260DAR
     *(uint16_t *)0xa00000 = 0;
 #endif
-TC0220IOC->watchdog = 0;
+    TC0220IOC->watchdog = 0;
 }
 
 void level6_handler()
@@ -53,12 +54,15 @@ void level6_handler()
     dma_count++;
 }
 
-void wait_vblank()
+uint32_t wait_vblank()
 {
     uint32_t current = vblank_count;
+    uint32_t count;
     while( current == vblank_count )
     {
+        count++;
     }
+    return count;
 }
 
 void wait_dma()
@@ -109,7 +113,7 @@ uint8_t sine_wave[256] =
 extern char _binary_font_chr_start[];
 extern char _binary_font_chr_end[];
 
-#define NUM_SCREENS 8
+#define NUM_SCREENS 9
 
 static uint32_t frame_count;
 
@@ -120,7 +124,7 @@ void reset_screen()
     int16_t base_y;
     uint16_t system_flags;
 
-    bool flip = (input_dsw() & 0x02) == 0;
+    bool flip = 0; //(input_dsw() & 0x02) == 0;
 
     if (flip)
     {
@@ -211,7 +215,7 @@ void update_scn_general()
     {
         TC0100SCN->bg0_rowscroll[18 * 8 + y] = y + 1;
     }
-
+        
 /*    for( int x = 0; x < 6; x++ )
     {
         TC0100SCN->bg1_colscroll[20 + x] = sine_wave[(frame_count*2+(x*8)) & 0xff] >> 4;
@@ -222,13 +226,15 @@ void update_scn_general()
     }
 
 
-    on_layer(BG0);
+    on_layer(FG0);
     pen_color(0);
     move_to(3, 3);
-    print("VBL: %05X  FRAME: %05X", vblank_count, frame_count);
+    print("VBL: %05X  FRAME: %05X\n", vblank_count, frame_count);
 
     frame_count++;
 }
+
+int16_t invalid_read_count;
 
 void init_scn_align()
 {
@@ -277,6 +283,9 @@ void init_scn_align()
     {
         TC0100SCN->bg0_rowscroll[(8 * 10) + y] = y - 39;
     }
+
+    frame_count = 0;
+    invalid_read_count = 0;
 }
 
 void update_scn_align()
@@ -310,6 +319,56 @@ void update_scn_align()
     TC0100SCN_Ctrl->layer_flags = 0;
     TC0100SCN_Ctrl->bg0_y = base_y;
     TC0100SCN_Ctrl->bg0_x = base_x;
+
+    TC0200OBJ_Inst *obj_ptr = TC0200OBJ;
+    TC0200OBJ_Inst work;
+    TC0200OBJ_Inst *o = &work;
+    uint16_t cmd_base = OBJCMD_6BPP;
+
+    if (flip) cmd_base |= OBJCMD_FLIPSCREEN;
+
+    obj_reset(o);
+    obj_cmd(o, cmd_base); obj_commit_reset(o, &obj_ptr);
+    obj_master_xy(o, 100, 30); obj_commit_reset(o, &obj_ptr);
+  
+    GridOptions opt;
+    opt.w = 3; opt.h = 3;
+    opt.extra = opt.zoom = 0b100'000'000;
+    opt.seq = 0b111'111'110;
+    opt.latch_y = 0b011'011'011; opt.inc_y = 0b011'011'011;
+    opt.latch_x = 0b000'111'111; opt.inc_x = 0b000'100'100;
+    opt.zoom_x = 0; opt.zoom_y = 0;
+    opt.pos = 0;
+    obj_grid(135, 40, &opt, &obj_ptr);
+
+    opt.w = 1; opt.h = 1;
+    opt.extra = opt.zoom = 1;
+    opt.latch_x = opt.latch_y = 0;
+    opt.seq = 0;
+    opt.zoom_x = 0; opt.zoom_y = 0;
+    opt.pos = 0;
+    obj_grid(8, -15, &opt, &obj_ptr);
+    obj_grid(8, 200, &opt, &obj_ptr);
+
+
+    for( int i = 0; i < 512; i++ )
+    {
+        obj_ptr[i].pos0 = frame_count;
+    }
+    for( int i = 0; i < 512; i++ )
+    {
+        if( obj_ptr[i].pos0 != frame_count )
+        {
+            *(uint32_t *)0xff0000 = 1;
+            invalid_read_count++;
+        }
+    }
+
+    frame_count++;
+
+    on_layer(BG0);
+    move_to(20, 1);
+    print("%u %u", frame_count, invalid_read_count);
 }
 
 
@@ -606,65 +665,6 @@ void update_sound_test()
     print_at(4, 4, "SOUND CODE: %02X", sound_code);
     print_at(4, 5, "STATUS: %02X", status);
     print_at(4, 6, "MESSAGE: %02X %02X", sound_msg, sound_msg2);
-}
-
-
-#define GRD_ALWAYS  0xffff
-#define GRD_NEVER   0x0000
-
-typedef struct
-{
-    int16_t  w;
-    int16_t  h;
-    uint8_t  zoom_x;
-    uint8_t  zoom_y;
-    uint16_t seq;
-    uint16_t inc_x;
-    uint16_t inc_y;
-    uint16_t latch_x;
-    uint16_t latch_y;
-    uint16_t zoom;
-    uint16_t extra;
-    uint16_t pos;
-
-} GridOptions;
-
-static void obj_grid(int x, int y, const GridOptions *opts, TC0200OBJ_Inst **ptr)
-{
-    int count = opts->w * opts->h;
-    int idx = 0;
-    uint16_t bit;
-
-    bit = 1 << (count-1);
-
-    TC0200OBJ_Inst work;
-    TC0200OBJ_Inst *o = &work;
-
-    for( int xx = 0; xx < opts->w; xx++ )
-    {
-        for( int yy = 0; yy < opts->h; yy++ )
-        {
-            obj_reset(o);
-            if ( opts->extra & bit ) obj_extra_xy(o, x, y);
-            if ( opts->pos & bit ) obj_xy(o, x, y);
-            if ( opts->zoom & bit )
-            {
-                o->zoom_x = opts->zoom_x;
-                o->zoom_y = opts->zoom_y;
-            }
-
-            o->code = 0x1a4e + (idx % 10);
-            o->is_seq  = opts->seq & bit ? 1 : 0;
-            o->inc_x   = opts->inc_x & bit ? 1 : 0;
-            o->inc_y   = opts->inc_y & bit ? 1 : 0;
-            o->latch_x = opts->latch_x & bit ? 1 : 0;
-            o->latch_y = opts->latch_y & bit ? 1 : 0;
-
-            obj_commit(o, ptr);
-            idx++;
-            bit >>= 1;
-        }
-    }
 }
 
 void init_obj_test1()
@@ -966,6 +966,61 @@ void update_obj_test3()
     obj_cmd(o, cmd_base | OBJCMD_DISABLE); obj_commit_reset(o, &obj_ptr);
 }
 
+void init_basic_timing()
+{
+    reset_screen();
+}
+
+void update_basic_timing()
+{
+    uint32_t increment = 0;
+    uint32_t scn_write = 0;
+    uint32_t obj_write = 0;
+    uint32_t dar_write = 0;
+
+    volatile uint16_t *scn_addr = &TC0100SCN->bg0[0].code;
+    volatile uint16_t *obj_addr = &TC0200OBJ[64].pos0;
+    volatile uint8_t *dar_addr = (uint8_t *)&TC0260DAR[128];
+
+    uint32_t vb = vblank_count;
+    while( vb == vblank_count ) {}
+    vb = vblank_count;
+    
+    while( vb == vblank_count )
+    {
+        increment++;
+    }
+    vb = vblank_count;
+
+    while( vb == vblank_count )
+    {
+        *scn_addr = 0x0000;
+        scn_write++;
+    }
+    vb = vblank_count;
+
+    while( vb == vblank_count )
+    {
+        *obj_addr = 0x0000;
+        obj_write++;
+    }
+    vb = vblank_count;
+
+    while( vb == vblank_count )
+    {
+        *dar_addr = 0x0000;
+        dar_write++;
+    }
+    vb = vblank_count;
+
+    pen_color(0);
+    on_layer(FG0);
+    move_to(4, 4);
+    print("INCREMENT: %08X\n", increment);
+    print("SCN_WRITE: %08X\n", scn_write);
+    print("OBJ_WRITE: %08X\n", obj_write);
+    print("DAR_WRITE: %08X\n", dar_write);
+}
 
 void init_screen(int screen)
 {
@@ -979,6 +1034,7 @@ void init_screen(int screen)
         case 5: init_obj_test3(); break;
         case 6: init_sound_test(); break;
         case 7: init_scn_align(); break;
+        case 8: init_basic_timing(); break;
         default: break;
     }
 }
@@ -995,6 +1051,7 @@ void update_screen(int screen)
         case 5: update_obj_test3(); break;
         case 6: update_sound_test(); break;
         case 7: update_scn_align(); break;
+        case 8: update_basic_timing(); break;
         default: break;
     }
 }
@@ -1013,13 +1070,23 @@ int main(int argc, char *argv[])
 
     uint32_t system_flags = 0;
 
-    int current_screen = 7;
+    int current_screen = 0;
 
     init_screen(current_screen);
     
     while(1)
     {
+        uint16_t foo = 0;
         input_update();
+
+        TC0260DAR[0] = foo++;
+
+        // 0x0200 // ACC MODE
+        // 0x0100 // Brightness? 
+        // 0x0002 // Z4
+        // 0x0001 // Z3
+        //
+        //*(uint16_t*)0x500000 = 0x0000;
 
         if (input_pressed(START))
         {

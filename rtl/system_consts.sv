@@ -12,6 +12,7 @@ package system_consts;
     parameter int SSIDX_PRIORITY = 10;
     parameter int SSIDX_190FMC = 11;
     parameter int SSIDX_CCHIP_RAM = 12;
+    parameter int SSIDX_PIVOT_CTRL = 13;
 
 
 `ifdef VERILATOR

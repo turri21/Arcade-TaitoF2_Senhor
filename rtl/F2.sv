@@ -153,9 +153,9 @@ reg ss_read = 0;
 wire ss_busy;
 
 ssbus_if ssbus();
-ssbus_if ssb[14]();
+ssbus_if ssb[15]();
 
-ssbus_mux #(.COUNT(14)) ssmux(
+ssbus_mux #(.COUNT(15)) ssmux(
     .clk,
     .slave(ssbus),
     .masters(ssb)
@@ -324,12 +324,12 @@ logic CCHIPn;
 logic PIVOTn;
 logic GROWL_HACKn;
 
-wire SDTACKn, CDTACKn, CPUENn, dar_dtack_n;
+wire SDTACKn, CDTACKn, CPUENn, dar_dtack_n, pivot_dtack_n;
 
 //wire sdr_dtack_n = sdr_cpu_req != sdr_cpu_ack;
 wire sdr_dtack_n;
 
-wire dtack_n = sdr_dtack_n | pre_sdr_dtack_n | SDTACKn | (cfg_260dar ? dar_dtack_n : CDTACKn) | CPUENn;
+wire dtack_n = sdr_dtack_n | pre_sdr_dtack_n | SDTACKn | (cfg_260dar ? dar_dtack_n : CDTACKn) | CPUENn | pivot_dtack_n;
 wire [2:0] IPLn;
 wire DTACKn = dtack_n;
 
@@ -726,6 +726,43 @@ TC0100SCN #(.SS_IDX(SSIDX_SCN_0)) scn_main(
     .ssbus(ssb[5])
 );
 
+wire [15:0] pivot_dout;
+wire [5:0] pivot_dot;
+
+TC0430GRW #(.SS_IDX(SSIDX_PIVOT_CTRL)) tc0430grw(
+    .clk,
+    .ce_13m,
+    .ce_pixel,
+
+    .reset,
+
+    .VA(cpu_addr[12:0]),
+    .Din(cpu_data_out),
+    .Dout(pivot_dout),
+    .LDSn(cpu_ds_n[0]),
+    .UDSn(cpu_ds_n[1]),
+    .SCCSn(PIVOTn),
+    .RW(cpu_rw),
+    .DACKn(pivot_dtack_n),
+
+    .SA(),
+    .SDin(0),
+    .SDout(),
+    .WEUPn(),
+    .WELOn(),
+
+    .rom_address(),
+    .rom_data(0),
+    .rom_req(),
+    .rom_ack(0),
+
+    .SC(pivot_dot),
+
+    .HSYNn(~hsync),
+    .VSYNn(~vsync),
+
+    .ssbus(ssb[14])
+);
 
 wire [15:0] color_ram_q;
 wire [15:0] color_ram_data;
@@ -818,7 +855,7 @@ TC0360PRI #(.SS_IDX(SSIDX_PRIORITY)) tc0360pri(
 
     .color_in0({scn_main_dot_color[14:13], scn_main_dot_color[11:0]}),
     .color_in1({obj_dot[11:10], obj_dot[11:0]}),
-    .color_in2(0),
+    .color_in2(pivot_dot),
     .color_out(pri360_color),
 
     .ssbus(ssb[11])
@@ -972,6 +1009,7 @@ assign cpu_data_in = ~SS_SAVEn ? save_handler[cpu_addr[3:0]] :
                      ~EXTENSIONn ? extension_data :
                      ~GROWL_HACKn ? growl_hack_data :
                      ~CCHIPn ? { 8'h00, cchip_data } :
+                     ~PIVOTn ? { pivot_dout } :
                      16'd0;
 
 wire [14:0] workram_addr;

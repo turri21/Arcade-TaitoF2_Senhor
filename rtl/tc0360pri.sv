@@ -14,7 +14,7 @@ module TC0360PRI #(parameter SS_IDX=-1) (
 
     input [13:0] color_in0 /* verilator public_flat */,
     input [13:0] color_in1 /* verilator public_flat */,
-    input [13:0] color_in2 /* verilator public_flat */,
+    input [5:0]  color_in2 /* verilator public_flat */,
     output reg [13:0] color_out /* verilator public_flat */,
 
     ssbus_if.slave ssbus
@@ -60,7 +60,7 @@ wire [15:0] prio_vals2 = { ctrl[9], ctrl[8] };
 
 wire [3:0] prio0 = prio_vals0[ 4 * sel0 +: 4 ];
 wire [3:0] prio1 = prio_vals1[ 4 * sel1 +: 4 ];
-wire [3:0] prio2 = prio_vals2[ 4 * sel1 +: 4 ];
+wire [3:0] prio2 = prio_vals2[ 4 * sel2 +: 4 ];
 
 wire bm1 = ctrl[0][7] & ctrl[0][6]; 
 
@@ -72,13 +72,13 @@ always_ff @(posedge clk) begin
         end else if (bm1 && (prio1 == (prio0 + 4'd1)) && |color_in0[3:0]) begin
             color_out <= { color_in0[13:4], color_in1[3:0] };
         end else if (prio1 > prio0) begin
-            if (prio2 > prio1) begin
-                color_out <= color_in2;
+            if (prio2 > prio1 || ~|color_in1[3:0]) begin
+                color_out <= { 8'b0, color_in2 };
             end else if (|color_in1[3:0]) begin
                 color_out <= color_in1;
             end
-        end else if (prio2 > prio0) begin
-            color_out <= color_in2;
+        end else if (prio2 > prio0 || ~|color_in0[3:0]) begin
+            color_out <= { 8'b0, color_in2 };
         end
     end
 end

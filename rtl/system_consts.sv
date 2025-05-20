@@ -55,14 +55,16 @@ package system_consts;
     parameter region_t REGION_AUDIO_ROM = '{ base_addr:AUDIO_ROM_BLOCK_BASE, storage:STORAGE_BLOCK, encoding:ENCODING_NORMAL };
     parameter region_t REGION_ADPCMA    = '{ base_addr:ADPCMA_ROM_SDR_BASE,  storage:STORAGE_SDR,   encoding:ENCODING_NORMAL };
     parameter region_t REGION_ADPCMB    = '{ base_addr:ADPCMB_ROM_SDR_BASE,  storage:STORAGE_SDR,   encoding:ENCODING_NORMAL };
+    parameter region_t REGION_PIVOT     = '{ base_addr:PIVOT_ROM_SDR_BASE,   storage:STORAGE_SDR,   encoding:ENCODING_NORMAL };
 
-    parameter region_t LOAD_REGIONS[6] = '{
+    parameter region_t LOAD_REGIONS[7] = '{
         REGION_CPU_ROM,
         REGION_SCN0,
         REGION_OBJ0,
         REGION_AUDIO_ROM,
         REGION_ADPCMA,
-        REGION_ADPCMB
+        REGION_ADPCMB,
+        REGION_PIVOT
     };
 
     typedef enum bit [7:0] {

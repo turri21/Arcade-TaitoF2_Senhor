@@ -451,7 +451,7 @@ TC0220IOC tc0220ioc(
     .COINMETER_A(),
     .COINMETER_B(),
 
-    .INB(~{4'b0000, coin[1:0], 2'b00}),
+    .INB(~{2'b00, start[1:0], coin[1:0], 2'b00}),
     .IN(~{  start[1], joystick_p2[6:4], joystick_p2[0], joystick_p2[1], joystick_p2[2], joystick_p2[3],
             start[0], joystick_p1[6:4], joystick_p1[0], joystick_p1[1], joystick_p1[2], joystick_p1[3],
             dswb, dswa})

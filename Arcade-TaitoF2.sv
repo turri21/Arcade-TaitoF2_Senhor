@@ -316,10 +316,12 @@ wire sdr_ch1_req, sdr_ch2_req, sdr_ch4_req;
 wire sdr_ch1_ack, sdr_ch2_ack, sdr_ch4_ack;
 wire [31:0] sdr_ch1_dout;
 
-wire [63:0] sdr_ch2_dout;
+wire [15:0] sdr_ch2_dout;
 
 wire [63:0] sdr_ch3_dout;
 wire sdr_ch3_ack;
+
+wire [15:0] sdr_ch4_dout;
 
 wire [26:0] sdr_cpu_addr, sdr_rom_addr;
 wire [15:0] sdr_cpu_din, sdr_rom_din;
@@ -373,10 +375,10 @@ sdram sdram
     .ch3_rnw(sdr_ch3_rnw),     // 1 - read, 0 - write
     .ch3_ack(sdr_ch3_ack),
 
-    .ch4_addr(0),
-    .ch4_dout(),
-    .ch4_req(0),
-    .ch4_ack()
+    .ch4_addr(sdr_ch4_addr),
+    .ch4_dout(sdr_ch4_dout),
+    .ch4_req(sdr_ch4_req),
+    .ch4_ack(sdr_ch4_ack)
 );
 
 ddr_if ddr_host(), ddr_romload(), ddr_x(), ddr_romload_adaptor(), ddr_romload_loader(), ddr_f2(), ddr_rotate();
@@ -546,9 +548,15 @@ F2 F2(
     .sdr_scn_main_ack(sdr_ch1_ack),
 
     .sdr_audio_addr(sdr_ch2_addr),
-    .sdr_audio_q(sdr_ch2_dout[15:0]),
+    .sdr_audio_q(sdr_ch2_dout),
     .sdr_audio_req(sdr_ch2_req),
     .sdr_audio_ack(sdr_ch2_ack),
+
+    .sdr_pivot_addr(sdr_ch4_addr),
+    .sdr_pivot_q(sdr_ch4_dout),
+    .sdr_pivot_req(sdr_ch4_req),
+    .sdr_pivot_ack(sdr_ch4_ack),
+
 
     // Memory stream interface
     .ddr_acquire(ddr_f2.acquire),

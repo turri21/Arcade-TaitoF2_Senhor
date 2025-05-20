@@ -40,6 +40,10 @@ module F2(
     output reg        sdr_audio_req,
     input             sdr_audio_ack,
 
+    output reg [26:0] sdr_pivot_addr,
+    input      [15:0] sdr_pivot_q,
+    output reg        sdr_pivot_req,
+    input             sdr_pivot_ack,
 
     // Memory stream interface
     output            ddr_acquire,
@@ -153,9 +157,9 @@ reg ss_read = 0;
 wire ss_busy;
 
 ssbus_if ssbus();
-ssbus_if ssb[15]();
+ssbus_if ssb[16]();
 
-ssbus_mux #(.COUNT(15)) ssmux(
+ssbus_mux #(.COUNT(16)) ssmux(
     .clk,
     .slave(ssbus),
     .masters(ssb)
@@ -507,7 +511,7 @@ wire [14:0] objram_addr;
 wire [15:0] objram_data;
 wire objram_lds_n, objram_uds_n;
 
-m68k_ram #(.WIDTHAD(15)) objram(
+m68k_ram #(.WIDTHAD(15)) obj_ram(
     .clock(clk),
     .address(objram_addr),
     .we_lds_n(objram_lds_n),
@@ -726,6 +730,43 @@ TC0100SCN #(.SS_IDX(SSIDX_SCN_0)) scn_main(
     .ssbus(ssb[5])
 );
 
+
+wire [11:0] pivot_ram_addr;
+wire [15:0] pivot_ram_data;
+wire [15:0] pivot_ram_q;
+wire pivot_ram_we_up_n, pivot_ram_we_lo_n;
+
+wire [11:0] pivot_ram_addr1;
+wire [15:0] pivot_ram_data1;
+wire pivot_ram_lds_n, pivot_ram_uds_n;
+
+m68k_ram #(.WIDTHAD(12)) pivot_ram(
+    .clock(clk),
+    .address(pivot_ram_addr1),
+    .we_lds_n(pivot_ram_lds_n),
+    .we_uds_n(pivot_ram_uds_n),
+    .data(pivot_ram_data1),
+    .q(pivot_ram_q)
+);
+
+m68k_ram_ss_adaptor #(.WIDTHAD(12), .SS_IDX(SSIDX_PIVOT_RAM)) pivot_ram_ss(
+    .clk,
+    .addr_in(pivot_ram_addr),
+    .lds_n_in(pivot_ram_we_lo_n),
+    .uds_n_in(pivot_ram_we_up_n),
+    .data_in(pivot_ram_data),
+
+    .q(pivot_ram_q),
+
+    .addr_out(pivot_ram_addr1),
+    .lds_n_out(pivot_ram_lds_n),
+    .uds_n_out(pivot_ram_uds_n),
+    .data_out(pivot_ram_data1),
+
+    .ssbus(ssb[14])
+);
+
+
 wire [15:0] pivot_dout;
 wire [5:0] pivot_dot;
 
@@ -745,23 +786,23 @@ TC0430GRW #(.SS_IDX(SSIDX_PIVOT_CTRL)) tc0430grw(
     .RW(cpu_rw),
     .DACKn(pivot_dtack_n),
 
-    .SA(),
-    .SDin(0),
-    .SDout(),
-    .WEUPn(),
-    .WELOn(),
+    .SA(pivot_ram_addr),
+    .SDin(pivot_ram_q),
+    .SDout(pivot_ram_data),
+    .WEUPn(pivot_ram_we_up_n),
+    .WELOn(pivot_ram_we_lo_n),
 
-    .rom_address(),
-    .rom_data(0),
-    .rom_req(),
-    .rom_ack(0),
+    .rom_address(sdr_pivot_addr),
+    .rom_data(sdr_pivot_q),
+    .rom_req(sdr_pivot_req),
+    .rom_ack(sdr_pivot_ack),
 
     .SC(pivot_dot),
 
     .HSYNn(~hsync),
     .VSYNn(~vsync),
 
-    .ssbus(ssb[14])
+    .ssbus(ssb[15])
 );
 
 wire [15:0] color_ram_q;
@@ -1016,7 +1057,7 @@ wire [14:0] workram_addr;
 wire workram_lds_n, workram_uds_n;
 wire [15:0] workram_data, workram_q;
 
-m68k_ram #(.WIDTHAD(15)) workram(
+m68k_ram #(.WIDTHAD(15)) work_ram(
     .clock(clk),
     .address(workram_addr),
     .we_lds_n(workram_lds_n),

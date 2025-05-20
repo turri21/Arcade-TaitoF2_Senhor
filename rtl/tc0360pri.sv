@@ -73,12 +73,12 @@ always_ff @(posedge clk) begin
             color_out <= { color_in0[13:4], color_in1[3:0] };
         end else if (prio1 > prio0) begin
             if (prio2 > prio1 || ~|color_in1[3:0]) begin
-                color_out <= { 8'b0, color_in2 };
+                color_out <= { 2'b0, ctrl[1][5:0], color_in2 };
             end else if (|color_in1[3:0]) begin
                 color_out <= color_in1;
             end
         end else if (prio2 > prio0 || ~|color_in0[3:0]) begin
-            color_out <= { 8'b0, color_in2 };
+            color_out <= { 2'b0, ctrl[1][5:0], color_in2 };
         end
     end
 end

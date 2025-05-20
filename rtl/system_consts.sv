@@ -13,6 +13,7 @@ package system_consts;
     parameter int SSIDX_190FMC = 11;
     parameter int SSIDX_CCHIP_RAM = 12;
     parameter int SSIDX_PIVOT_CTRL = 13;
+    parameter int SSIDX_PIVOT_RAM = 14;
 
 
 `ifdef VERILATOR
@@ -25,11 +26,12 @@ package system_consts;
     parameter bit [31:0] OBJ_DATA_DDR_BASE = 32'h3810_0000;
 `endif
 
-    parameter bit [31:0] CPU_ROM_SDR_BASE  = 32'h0000_0000;
-    parameter bit [31:0] SCN0_ROM_SDR_BASE = 32'h0090_0000;
+    parameter bit [31:0] CPU_ROM_SDR_BASE     = 32'h0000_0000;
+    parameter bit [31:0] SCN0_ROM_SDR_BASE    = 32'h0090_0000;
     parameter bit [31:0] ADPCMA_ROM_SDR_BASE  = 32'h00b0_0000;
     parameter bit [31:0] ADPCMB_ROM_SDR_BASE  = 32'h00d0_0000;
-    parameter bit [31:0] AUDIO_ROM_BLOCK_BASE  = 32'h0010_0000;
+    parameter bit [31:0] AUDIO_ROM_BLOCK_BASE = 32'h0010_0000;
+    parameter bit [31:0] PIVOT_ROM_SDR_BASE   = 32'h0100_0000;
 
     typedef enum bit [3:0] {
         STORAGE_SDR,

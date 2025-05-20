@@ -18,21 +18,21 @@ module TC0430GRW #(parameter SS_IDX=-1) (
     output DACKn,
 
     // RAM interface
-    output     [11:0] SA,
+    output reg [11:0] SA,
     input      [15:0] SDin,
     output     [15:0] SDout,
     output reg        WEUPn,
     output reg        WELOn,
 
     // ROM interface
-    output reg [20:0] rom_address,
+    output reg [26:0] rom_address,
     input      [15:0] rom_data,
     output reg        rom_req,
     input             rom_ack,
 
 
     // Video interface
-    output [5:0] SC,
+    output reg [5:0] SC,
 
     // assume it is positioned using sync,
     // FIXME - confirm what video signals are inputs
@@ -47,7 +47,6 @@ reg prev_cs_n;
 
 reg ram_pending = 0;
 reg ram_access = 0;
-reg [11:0] ram_addr;
 
 reg [15:0] ctrl[8];
 
@@ -60,15 +59,20 @@ wire [23:0] dyy = { {8{ctrl[7][15]}}, ctrl[7] };
 
 
 assign DACKn = SCCSn ? 0 : dtack_n;
-assign SA = ram_addr[11:0];
 assign SDout = Din;
 
 reg [23:0] row_x, row_y;
 reg [23:0] cur_x, cur_y;
 
+wire [2:0] pixel_x = cur_x[14:12];
+wire [5:0] tile_x = cur_x[20:15];
+wire [2:0] pixel_y = cur_y[14:12];
+wire [5:0] tile_y = cur_y[20:15];
+
+
 reg prev_vsync_n, prev_hsync_n;
 
-assign SC = { 4'b0, cur_x[16] ^ cur_y[16], 1'b1 };
+//assign SC = { 4'b0, tile_x[0] ^ tile_y[0], 1'b1 };
 
 always @(posedge clk) begin
     if (ce_pixel) begin
@@ -94,6 +98,10 @@ end
 
 //wire [3:0] access_cycle = full_hcnt[3:0];
 
+reg [1:0] color_hi;
+reg [1:0] nibble;
+reg valid_pixel;
+
 always @(posedge clk) begin
     bit [8:0] v;
     bit [5:0] h;
@@ -117,11 +125,48 @@ always @(posedge clk) begin
                 end
                 dtack_n <= 0;
             end else begin // ram access
-                dtack_n <= 0; //FIXME
                 ram_pending <= 1;
             end
         end else if (SCCSn) begin
             dtack_n <= 1;
+        end
+
+        if (ce_pixel) begin
+            if (|SDin[13:0]) begin
+                rom_address <= PIVOT_ROM_SDR_BASE[26:0] + { 8'b0, SDin[13:0], pixel_y[2:0], pixel_x[2], 1'b0 };
+                rom_req <= ~rom_req;
+                color_hi <= SDin[15:14];
+                nibble <= pixel_x[1:0];
+                valid_pixel <= 1;
+            end else begin
+                valid_pixel <= 0;
+            end
+
+            if (valid_pixel) begin
+                case(nibble)
+                0: SC <= { color_hi, rom_data[ 3:0 ] };
+                1: SC <= { color_hi, rom_data[ 7:4 ] };
+                2: SC <= { color_hi, rom_data[ 11:8 ] };
+                3: SC <= { color_hi, rom_data[ 15:12 ] };
+                endcase
+            end else begin
+                SC <= 6'd0;
+            end
+
+            SA <= VA[11:0];
+            if (ram_pending) begin
+                WELOn <= RW | LDSn;
+                WEUPn <= RW | UDSn;
+                ram_access <= 1;
+                ram_pending <= 0;
+            end
+        end else begin
+            SA <= { tile_y, tile_x };
+            if (ram_access) begin
+                Dout <= SDin;
+                dtack_n <= 0;
+                ram_access <= 0;
+            end
         end
     end
 

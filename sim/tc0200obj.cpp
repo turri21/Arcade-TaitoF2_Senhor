@@ -153,8 +153,8 @@ void get_obj_inst(uint16_t index, TC0200OBJ_Inst *inst)
 
     for( int i = 0; i < 8; i++ )
     {
-        inst_data[(i * 2) + 0] = top->rootp->F2__DOT__objram__DOT__ram_l.m_storage[offset + i];
-        inst_data[(i * 2) + 1] = top->rootp->F2__DOT__objram__DOT__ram_h.m_storage[offset + i];
+        inst_data[(i * 2) + 0] = top->rootp->F2__DOT__obj_ram__DOT__ram_l.m_storage[offset + i];
+        inst_data[(i * 2) + 1] = top->rootp->F2__DOT__obj_ram__DOT__ram_h.m_storage[offset + i];
     }
 }
 

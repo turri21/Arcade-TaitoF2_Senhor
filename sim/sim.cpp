@@ -72,6 +72,7 @@ void sim_tick(int count = 1)
         sdram.update_channel_64(top->sdr_cpu_addr, top->sdr_cpu_req, 1, 0, 0, &top->sdr_cpu_q, &top->sdr_cpu_ack);
         sdram.update_channel_32(top->sdr_scn_main_addr, top->sdr_scn_main_req, 1, 0, 0, &top->sdr_scn_main_q, &top->sdr_scn_main_ack);
         sdram.update_channel_16(top->sdr_audio_addr, top->sdr_audio_req, 1, 0, 0, &top->sdr_audio_q, &top->sdr_audio_ack);
+        sdram.update_channel_16(top->sdr_pivot_addr, top->sdr_pivot_req, 1, 0, 0, &top->sdr_pivot_q, &top->sdr_pivot_ack);
         video.clock(top->ce_pixel != 0, top->hblank != 0, top->vblank != 0, top->red, top->green, top->blue);
         
         // Process memory stream operations
@@ -116,56 +117,43 @@ void sim_tick_until(std::function<bool()> until)
     }
 }
 
-ImU8 scn_mem_read(const ImU8* , size_t off, void*)
-{
-    size_t word_off = off >> 1;
+#define blockram_16_rw(instance, size) \
+ImU8 instance##_read(const ImU8* , size_t off, void*) \
+{ \
+    size_t word_off = off >> 1; \
+    if (off & 1) \
+        return top->rootp->F2__DOT__##instance##__DOT__ram_l[word_off]; \
+    else \
+        return top->rootp->F2__DOT__##instance##__DOT__ram_h[word_off]; \
+} \
+void instance##_write(ImU8* , size_t off, ImU8 d, void*) \
+{ \
+    size_t word_off = off >> 1; \
+    if (off & 1) \
+        top->rootp->F2__DOT__##instance##__DOT__ram_l[word_off] = d; \
+    else \
+        top->rootp->F2__DOT__##instance##__DOT__ram_h[word_off] = d; \
+} \
+class instance##_Editor : public MemoryEditor \
+{ \
+public: \
+    instance##_Editor() : MemoryEditor() \
+    { \
+        ReadFn = instance##_read; \
+        WriteFn = instance##_write; \
+    } \
+    void DrawContents() \
+    { \
+        MemoryEditor::DrawContents(nullptr, size); \
+    } \
+}; \
+instance##_Editor instance;
 
-    if (off & 1)
-        return top->rootp->F2__DOT__scn_ram_0__DOT__ram_l[word_off];
-    else
-        return top->rootp->F2__DOT__scn_ram_0__DOT__ram_h[word_off];
-}
-
-void scn_mem_write(ImU8* , size_t off, ImU8 d, void*)
-{
-    size_t word_off = off >> 1;
-
-    if (off & 1)
-        top->rootp->F2__DOT__scn_ram_0__DOT__ram_l[word_off] = d;
-    else
-        top->rootp->F2__DOT__scn_ram_0__DOT__ram_h[word_off] = d;
-}
-
-
-ImU8 color_ram_read(const ImU8* , size_t off, void*)
-{
-    size_t word_off = off >> 1;
-
-    if (off & 1)
-        return top->rootp->F2__DOT__color_ram__DOT__ram_l[word_off];
-    else
-        return top->rootp->F2__DOT__color_ram__DOT__ram_h[word_off];
-}
-
-ImU8 obj_ram_read(const ImU8* , size_t off, void*)
-{
-    size_t word_off = off >> 1;
-
-    if (off & 1)
-        return top->rootp->F2__DOT__objram__DOT__ram_l[word_off];
-    else
-        return top->rootp->F2__DOT__objram__DOT__ram_h[word_off];
-}
-
-ImU8 work_ram_read(const ImU8* , size_t off, void*)
-{
-    size_t word_off = off >> 1;
-
-    if (off & 1)
-        return top->rootp->F2__DOT__workram__DOT__ram_l[word_off];
-    else
-        return top->rootp->F2__DOT__workram__DOT__ram_h[word_off];
-}
+blockram_16_rw(scn_ram_0, 64 * 1024);
+blockram_16_rw(color_ram, 8 * 1024);
+blockram_16_rw(obj_ram, 64 * 1024);
+blockram_16_rw(work_ram, 64 * 1024);
+blockram_16_rw(pivot_ram, 8 * 1024);
 
 int main(int argc, char **argv)
 {
@@ -213,23 +201,13 @@ int main(int argc, char **argv)
 
     //memset(&ddr_memory.memory[0x100000 + 8192], 0x01, 8192);
 
-    MemoryEditor obj_ram;
-    MemoryEditor scn_main_mem;
     MemoryEditor scn_main_rom;
-    MemoryEditor color_ram;
     MemoryEditor rom_mem;
-    MemoryEditor work_mem;
     MemoryEditor ddr_mem_editor;
     MemoryEditor sound_ram;
     MemoryEditor sound_rom;
     MemoryEditor extension_ram;
 
-    scn_main_mem.ReadFn = scn_mem_read;
-    scn_main_mem.WriteFn = scn_mem_write;
-    color_ram.ReadFn = color_ram_read;
-    obj_ram.ReadFn = obj_ram_read;
-    work_mem.ReadFn = work_ram_read;
-    
     video.init(320, 224, imgui_get_renderer());
 
     init_obj_cache(imgui_get_renderer(),
@@ -405,19 +383,19 @@ int main(int argc, char **argv)
             {
                 if (ImGui::BeginTabItem("Screen RAM"))
                 {
-                    scn_main_mem.DrawContents(nullptr, 64 * 1024);
+                    scn_ram_0.DrawContents();
                     ImGui::EndTabItem();
                 }
 
                 if (ImGui::BeginTabItem("Color RAM"))
                 {
-                    color_ram.DrawContents(nullptr, 8 * 1024);
+                    color_ram.DrawContents();
                     ImGui::EndTabItem();
                 }
                 
                 if (ImGui::BeginTabItem("OBJ RAM"))
                 {
-                    obj_ram.DrawContents(nullptr, 64 * 1024);
+                    obj_ram.DrawContents();
                     ImGui::EndTabItem();
                 }
 
@@ -436,10 +414,16 @@ int main(int argc, char **argv)
                 
                 if (ImGui::BeginTabItem("Work RAM"))
                 {
-                    work_mem.DrawContents(nullptr, 64 * 1024);
+                    work_ram.DrawContents();
                     ImGui::EndTabItem();
                 }
-                
+
+                if (ImGui::BeginTabItem("Pivot RAM"))
+                {
+                    pivot_ram.DrawContents();
+                    ImGui::EndTabItem();
+                }
+                 
                 if (ImGui::BeginTabItem("DDR"))
                 {
                     ddr_mem_editor.DrawContents(ddr_memory.memory.data(), ddr_memory.size);

@@ -52,9 +52,9 @@ reg [15:0] ctrl[8];
 
 wire [23:0] origin_x = { ctrl[0][7:0], ctrl[1] };
 wire [23:0] dxx = { {8{ctrl[2][15]}}, ctrl[2] };
-wire [23:0] dyx = { {8{ctrl[3][15]}}, ctrl[3] };
+wire [23:0] dyx = { {8{ctrl[6][15]}}, ctrl[6] };
 wire [23:0] origin_y = { ctrl[4][7:0], ctrl[5] };
-wire [23:0] dxy = { {8{ctrl[6][15]}}, ctrl[6] };
+wire [23:0] dxy = { {8{ctrl[3][15]}}, ctrl[3] };
 wire [23:0] dyy = { {8{ctrl[7][15]}}, ctrl[7] };
 
 
@@ -144,10 +144,10 @@ always @(posedge clk) begin
 
             if (valid_pixel) begin
                 case(nibble)
-                0: SC <= { color_hi, rom_data[ 3:0 ] };
-                1: SC <= { color_hi, rom_data[ 7:4 ] };
-                2: SC <= { color_hi, rom_data[ 11:8 ] };
-                3: SC <= { color_hi, rom_data[ 15:12 ] };
+                1: SC <= { color_hi, rom_data[ 3:0 ] };
+                0: SC <= { color_hi, rom_data[ 7:4 ] };
+                3: SC <= { color_hi, rom_data[ 11:8 ] };
+                2: SC <= { color_hi, rom_data[ 15:12 ] };
                 endcase
             end else begin
                 SC <= 6'd0;

@@ -30,9 +30,11 @@
 - [ ] Unk1 usage in dinorex
 - [ ] Sprite position latch behavior
 - [ ] Screen edge behavior
-- [ ] CRT adjust
+- [x] CRT adjust
 - [ ] Verify sprite zoom
-
+- [ ] TC0430GRW
+- [ ] TC0100SCN Colscroll
+- [ ] TC0100SCN Ordering
 
 - [x] Move testbed into main repo
 - [x] Audio ROM support in testbed

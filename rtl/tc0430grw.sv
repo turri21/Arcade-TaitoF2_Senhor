@@ -72,24 +72,33 @@ wire [5:0] tile_y = cur_y[20:15];
 
 reg prev_vblank_n, prev_hblank_n;
 
-//assign SC = { 4'b0, tile_x[0] ^ tile_y[0], 1'b1 };
+reg [8:0] hcnt;
+
+// 85 was determined experimentally to get the layers to line up between read
+// hardware and the core. vblank seems to be the correct signal to use to
+// determine vertical alignment
+wire do_increments = VBLANKn && (hcnt > 85);
+wire do_rom_reads = VBLANKn && (hcnt > 83);
 
 always @(posedge clk) begin
     if (ce_pixel) begin
         prev_hblank_n <= HBLANKn;
         prev_vblank_n <= VBLANKn;
 
+        hcnt <= hcnt + 9'd1;
+
         if (~HBLANKn & prev_hblank_n & VBLANKn) begin
             row_x <= row_x + dxy;
             row_y <= row_y + dyy;
             cur_x <= row_x + dxy;
             cur_y <= row_y + dyy;
+            hcnt <= 0;
         end else if (~VBLANKn & prev_vblank_n) begin
             row_x <= origin_x;
             row_y <= origin_y;
             cur_x <= origin_x;
             cur_y <= origin_y;
-        end else if (VBLANKn & HBLANKn ) begin
+        end else if (do_increments) begin
             cur_x <= cur_x + dxx;
             cur_y <= cur_y + dyx;
         end
@@ -132,7 +141,7 @@ always @(posedge clk) begin
         end
 
         if (ce_pixel) begin
-            if (|SDin[13:0]) begin
+            if (|SDin[13:0] & do_rom_reads) begin
                 rom_address <= PIVOT_ROM_SDR_BASE[26:0] + { 8'b0, SDin[13:0], pixel_y[2:0], pixel_x[2], 1'b0 };
                 rom_req <= ~rom_req;
                 color_hi <= SDin[15:14];

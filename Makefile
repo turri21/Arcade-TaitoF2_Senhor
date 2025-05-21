@@ -53,7 +53,7 @@ sim:
 	$(MAKE) -j8 -C sim sim
 
 sim/run: sim/driftout
-sim/test: sim/qjinsei_test
+sim/test: sim/driftout_test
 
 sim/dinorex:
 	$(MAKE) -j8 -C sim run GAME=dinorex
@@ -73,8 +73,9 @@ sim/driftout_test:
 	$(MAKE) -j8 -C sim run GAME=driftout_test
 
 
-debug:
-	$(MAKE) -j8 -C testroms debug
+debug: debug/driftout_test
+debug/driftout_test:
+	$(MAKE) -j8 -C testroms debug TARGET=driftout_test
 
 picorom:
 	$(MAKE) -j8 -C testroms TARGET=driftout_test picorom

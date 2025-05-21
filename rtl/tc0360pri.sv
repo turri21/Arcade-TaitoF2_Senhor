@@ -58,28 +58,38 @@ wire [15:0] prio_vals0 = { ctrl[5], ctrl[4] };
 wire [15:0] prio_vals1 = { ctrl[7], ctrl[6] };
 wire [15:0] prio_vals2 = { ctrl[9], ctrl[8] };
 
-wire [3:0] prio0 = prio_vals0[ 4 * sel0 +: 4 ];
-wire [3:0] prio1 = prio_vals1[ 4 * sel1 +: 4 ];
-wire [3:0] prio2 = prio_vals2[ 4 * sel2 +: 4 ];
+reg [3:0] prio0, prio1, prio2;
+reg [11:0] color0, color1, color2;
+reg [11:0] color_final;
 
 wire bm1 = ctrl[0][7] & ctrl[0][6]; 
 
 always_ff @(posedge clk) begin
     if (ce_pixel) begin
-        color_out <= color_in0;
-        if (bm1 && (prio1 == (prio0 - 4'd1)) && |color_in1[3:0]) begin
-            color_out <= { color_in1[13:4], color_in0[3:0] };
-        end else if (bm1 && (prio1 == (prio0 + 4'd1)) && |color_in0[3:0]) begin
-            color_out <= { color_in0[13:4], color_in1[3:0] };
+        prio0 <= |color_in0[3:0] ? prio_vals0[ 4 * sel0 +: 4 ] : 4'b0;
+        prio1 <= |color_in1[3:0] ? prio_vals1[ 4 * sel1 +: 4 ] : 4'b0;
+        prio2 <= |color_in2[3:0] ? prio_vals2[ 4 * sel2 +: 4 ] : 4'b0;
+
+        color0 <= color_in0[11:0];
+        color1 <= color_in1[11:0];
+        color2 <= { ctrl[1][5:0], color_in2 };
+
+        color_final <= color0;
+        if (bm1 && (prio1 == (prio0 - 4'd1))) begin
+            color_final <= { color1[11:4], color0[3:0] };
+        end else if (bm1 && (prio1 == (prio0 + 4'd1))) begin
+            color_final <= { color0[11:4], color1[3:0] };
         end else if (prio1 > prio0) begin
-            if (prio2 > prio1 || ~|color_in1[3:0]) begin
-                color_out <= { 2'b0, ctrl[1][5:0], color_in2 };
-            end else if (|color_in1[3:0]) begin
-                color_out <= color_in1;
+            if (prio2 > prio1) begin
+                color_final <= color2;
+            end else begin
+                color_final <= color1;
             end
-        end else if (prio2 > prio0 || ~|color_in0[3:0]) begin
-            color_out <= { 2'b0, ctrl[1][5:0], color_in2 };
+        end else if (prio2 > prio0) begin
+            color_final <= color2;
         end
+
+        color_out <= { 2'b0, color_final };
     end
 end
 

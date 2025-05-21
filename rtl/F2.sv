@@ -799,8 +799,8 @@ TC0430GRW #(.SS_IDX(SSIDX_PIVOT_CTRL)) tc0430grw(
 
     .SC(pivot_dot),
 
-    .HSYNn(~hsync),
-    .VSYNn(~vsync),
+    .HBLANKn(~hblank),
+    .VBLANKn(~vblank),
 
     .ssbus(ssb[15])
 );

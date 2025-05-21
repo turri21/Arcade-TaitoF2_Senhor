@@ -36,8 +36,8 @@ module TC0430GRW #(parameter SS_IDX=-1) (
 
     // assume it is positioned using sync,
     // FIXME - confirm what video signals are inputs
-    input HSYNn,
-    input VSYNn,
+    input HBLANKn,
+    input VBLANKn,
 
     ssbus_if.slave ssbus
 );
@@ -70,26 +70,26 @@ wire [2:0] pixel_y = cur_y[14:12];
 wire [5:0] tile_y = cur_y[20:15];
 
 
-reg prev_vsync_n, prev_hsync_n;
+reg prev_vblank_n, prev_hblank_n;
 
 //assign SC = { 4'b0, tile_x[0] ^ tile_y[0], 1'b1 };
 
 always @(posedge clk) begin
     if (ce_pixel) begin
-        prev_hsync_n <= HSYNn;
-        prev_vsync_n <= VSYNn;
+        prev_hblank_n <= HBLANKn;
+        prev_vblank_n <= VBLANKn;
 
-        if (HSYNn & ~prev_hsync_n) begin
+        if (~HBLANKn & prev_hblank_n & VBLANKn) begin
             row_x <= row_x + dxy;
             row_y <= row_y + dyy;
             cur_x <= row_x + dxy;
             cur_y <= row_y + dyy;
-        end else if (VSYNn & ~prev_vsync_n) begin
+        end else if (~VBLANKn & prev_vblank_n) begin
             row_x <= origin_x;
             row_y <= origin_y;
             cur_x <= origin_x;
             cur_y <= origin_y;
-        end else begin
+        end else if (VBLANKn & HBLANKn ) begin
             cur_x <= cur_x + dxx;
             cur_y <= cur_y + dyx;
         end

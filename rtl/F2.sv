@@ -777,6 +777,8 @@ TC0430GRW #(.SS_IDX(SSIDX_PIVOT_CTRL)) tc0430grw(
 
     .reset,
 
+    .is_280grd(cfg_280grd),
+
     .VA(cpu_addr[12:0]),
     .Din(cpu_data_out),
     .Dout(pivot_dout),

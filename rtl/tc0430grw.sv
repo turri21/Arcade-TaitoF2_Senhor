@@ -7,6 +7,8 @@ module TC0430GRW #(parameter SS_IDX=-1) (
 
     input reset,
 
+    input is_280grd,
+
     // CPU interface
     input [12:0] VA,
     input [15:0] Din,
@@ -51,8 +53,8 @@ reg ram_access = 0;
 reg [15:0] ctrl[8];
 
 wire [23:0] origin_x = { ctrl[0][7:0], ctrl[1] };
-wire [23:0] dxx = { {8{ctrl[2][15]}}, ctrl[2] };
-wire [23:0] dyx = { {8{ctrl[6][15]}}, ctrl[6] };
+wire [23:0] dxx = is_280grd ? { {7{ctrl[2][15]}}, ctrl[2], 1'b0 } : { {8{ctrl[2][15]}}, ctrl[2] };
+wire [23:0] dyx = is_280grd ? { {7{ctrl[6][15]}}, ctrl[6], 1'b0 } : { {8{ctrl[6][15]}}, ctrl[6] };
 wire [23:0] origin_y = { ctrl[4][7:0], ctrl[5] };
 wire [23:0] dxy = { {8{ctrl[3][15]}}, ctrl[3] };
 wire [23:0] dyy = { {8{ctrl[7][15]}}, ctrl[7] };

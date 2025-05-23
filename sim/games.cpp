@@ -240,6 +240,24 @@ static void load_driftout()
     top->game = GAME_DRIFTOUT;
 }
 
+static void load_cameltry()
+{
+    g_fs.addSearchPath("../roms/cameltry.zip");
+
+    load_audio("c38-08.bin");
+
+    sdram.load_data("c38-11", CPU_ROM_SDR_BASE + 1, 2);
+    sdram.load_data("c38-14", CPU_ROM_SDR_BASE + 0, 2);
+	
+    sdram.load_data("c38-02.bin", PIVOT_ROM_SDR_BASE, 1);
+    sdram.load_data("c38-03.bin",  ADPCMA_ROM_SDR_BASE, 1);
+
+    ddr_memory.load_data("c38-01.bin", OBJ_DATA_DDR_BASE, 1);
+
+    top->game = GAME_CAMELTRY;
+}
+
+
 static void load_driftout_test()
 {
     g_fs.addSearchPath("../testroms/build/driftout_test/driftout/");
@@ -263,6 +281,7 @@ bool game_init(game_t game)
         case GAME_MEGAB: load_megab(); break;
         case GAME_DRIFTOUT: load_driftout(); break;
         case GAME_DRIFTOUT_TEST: load_driftout_test(); break;
+        case GAME_CAMELTRY: load_cameltry(); break;
         default: return false;
     }
 

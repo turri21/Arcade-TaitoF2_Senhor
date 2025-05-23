@@ -75,12 +75,15 @@ wire [5:0] tile_y = cur_y[20:15];
 reg prev_vblank_n, prev_hblank_n;
 
 reg [8:0] hcnt;
+reg [8:0] vcnt;
 
 // 85 was determined experimentally to get the layers to line up between read
 // hardware and the core. vblank seems to be the correct signal to use to
 // determine vertical alignment
-wire do_increments = VBLANKn && (hcnt > 85);
-wire do_rom_reads = VBLANKn && (hcnt > 83);
+wire do_h_increments = is_280grd ? (hcnt > 83) : (hcnt > 83);
+wire do_v_increments = is_280grd ? (vcnt > 21) : (vcnt > 37);
+
+wire do_rom_reads = 1; // VBLANKn && (hcnt > 83);
 
 always @(posedge clk) begin
     if (ce_pixel) begin
@@ -89,18 +92,22 @@ always @(posedge clk) begin
 
         hcnt <= hcnt + 9'd1;
 
-        if (~HBLANKn & prev_hblank_n & VBLANKn) begin
-            row_x <= row_x + dxy;
-            row_y <= row_y + dyy;
-            cur_x <= row_x + dxy;
-            cur_y <= row_y + dyy;
+        if (~HBLANKn & prev_hblank_n) begin
+            vcnt <= vcnt + 9'd1;
             hcnt <= 0;
+            if( do_v_increments ) begin
+                row_x <= row_x + dxy;
+                row_y <= row_y + dyy;
+                cur_x <= row_x + dxy;
+                cur_y <= row_y + dyy;
+            end
         end else if (~VBLANKn & prev_vblank_n) begin
+            vcnt <= 0;
             row_x <= origin_x;
             row_y <= origin_y;
             cur_x <= origin_x;
             cur_y <= origin_y;
-        end else if (do_increments) begin
+        end else if (do_h_increments) begin
             cur_x <= cur_x + dxx;
             cur_y <= cur_y + dyx;
         end

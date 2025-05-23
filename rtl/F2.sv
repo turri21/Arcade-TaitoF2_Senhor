@@ -671,11 +671,12 @@ wire HBLOn;
 wire VBLOn;
 
 wire [7:0] dar_red, dar_green, dar_blue;
+wire dar_hblank_n, dar_vblank_n;
 
 assign hsync = ~HSYNCn;
 assign vsync = ~VSYNCn;
-assign hblank = ~HBLn;
-assign vblank = ~VBLn;
+assign hblank = cfg_260dar ? ~dar_hblank_n : ~HBLn;
+assign vblank = cfg_260dar ? ~dar_vblank_n : ~VBLn;
 
 assign blue = cfg_260dar ? dar_blue : {color_ram_q[14:10], color_ram_q[14:12]};
 assign green = cfg_260dar ? dar_green : {color_ram_q[9:5], color_ram_q[9:7]};
@@ -930,6 +931,8 @@ TC0260DAR tc0260dar(
     // Video Input
     .HBLANKn(HBLn),
     .VBLANKn(VBLn),
+    .OHBLANKn(dar_hblank_n),
+    .OVBLANKn(dar_vblank_n),
 
     .IM({2'b00, cfg_360pri ? pri360_color[11:0] : obj_dot}),
 

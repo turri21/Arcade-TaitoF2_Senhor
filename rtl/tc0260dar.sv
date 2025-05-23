@@ -26,6 +26,9 @@ module TC0260DAR(
     input HBLANKn,
     input VBLANKn,
 
+    output OHBLANKn,
+    output OVBLANKn,
+
     input [13:0] IM,
     output reg [7:0] VIDEOR,
     output reg [7:0] VIDEOG,
@@ -42,7 +45,9 @@ module TC0260DAR(
     output reg RWEHn
 );
 
-wire busy = ~ACCMODE ? (HBLANKn & VBLANKn) : 0;
+reg hb1, hb2, vb1, vb2;
+
+wire busy = ~ACCMODE ? (HBLANKn & VBLANKn & hb1 & hb2 & vb1 & vb2) : 0;
 reg cpu_access;
 
 assign MDout = RDin;
@@ -51,6 +56,8 @@ assign RA = cpu_access ? MA : IM;
 assign RWELn = cpu_access ? (RWn | LDSn) : 1;
 assign RWEHn = cpu_access ? (RWn | UDSn) : 1;
 assign DTACKn = CS ? ~cpu_access : 0;
+assign OHBLANKn = hb2;
+assign OVBLANKn = vb2;
 
 
 always_ff @(posedge clk) begin
@@ -59,7 +66,10 @@ always_ff @(posedge clk) begin
     end
 
     if (ce_pixel) begin
-        if (HBLANKn & VBLANKn & ~cpu_access) begin
+        hb1 <= HBLANKn; hb2 <= hb1;
+        vb1 <= VBLANKn; vb2 <= vb1;
+
+        if (hb2 & vb2 & ~cpu_access) begin
             if (bpp15 & bppmix) begin
                 VIDEOR <= { RDin[15:12], RDin[3], RDin[15:13] };
                 VIDEOG <= { RDin[11:8], RDin[2], RDin[11:9] };

@@ -128,6 +128,8 @@ assign HBLOn = HSYNn;
 assign VSYNn = vcnt_actual >= 2 && vcnt_actual < 226;
 assign VBLOn = VSYNn;
 
+// FIXME, are the MSB correct?
+//
 assign SC = (fg0_en & |fg0_dot[3:0]) ? { 3'b010, fg0_dot } :
             (~bg0_prio & bg1_en & |bg1_dot[3:0]) ? { 3'b110, bg1_dot } :
             (bg0_en & |bg0_dot[3:0]) ? { 3'b100, bg0_dot } :

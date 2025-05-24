@@ -1,10 +1,14 @@
 [regions]
-maincpu = 0
-tc0100scn_1 = 1
-sprites = 2
-audiocpu = 3
-"ymsnd:adpcma" = 4
-"ymsnd:adpcmb" = 5
+maincpu.id = 0
+tc0100scn_1.id = 1
+sprites.id = 2
+sprites.swap = true
+audiocpu.id = 3
+"ymsnd:adpcma" = { id = 4 }
+"ymsnd:adpcmb" = { id = 5 }
+tc0430grw = 6
+tc0280grd = 6
+tc0430scp = 7
 
 [machines]
 finalb = "00 00"
@@ -39,8 +43,18 @@ driftout = "1b 00"
 [buttons]
 default.snes = "B,A,X,Y,Start,Select"
 default.game = "Btn1,Btn2,Btn3,Btn4,Start,Coin"
-finalb = { snes = "B,A,X,Start,Select", game = "Btn1,Btn2,Btn2,-,Start,Coin" }
+finalb = { snes = "B,A,X,Start,Select", game = "Punch A,Punch B,Duck,-,Start,Coin" }
+dondokod = { snes = "B,A,Start,Select", game = "Attack,Jump,-,-,Start,Coin" }
+cameltry = { snes = "B,Start,Select", game = "Shake,-,-,-,Start,Coin" }
+liquidk = { snes = "B,A,Start,Select", game = "Attack,Jump,-,-,Start,Coin" }
+ssi = { snes = "B,A,Start,Select", game = "Shoot,Use Item,-,-,Start,Coin" }
+gunfront = { snes = "B,A,Start,Select", game = "Shoot,Bomb,-,-,Start,Coin" }
+growl = { snes = "B,A,Start,Select", game = "Attack,Jump,-,-,Start,Coin" }
+dinorex = { snes = "B,A,Start,Select", game = "Bite/Punch,Kick,-,-,Start,Coin" }
+solfigtr = { snes = "B,A,X,Start,Select", game = "Punch,Kick,Jump,-,Start,Coin" }
+driftout = { snes = "B,A,Start,Select", game = "Accelerator,Brake,-,-,Start,Coin" }
+
 
 [metadata]
-default.mameversion = 261
+default.mameversion = 274
 

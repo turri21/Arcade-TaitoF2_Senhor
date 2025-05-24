@@ -323,7 +323,37 @@ class MRAGenerator:
         try:
             with open(self.config_file, "rb") as f:
                 self.config = tomli.load(f)
-                return self.config.get("regions", {})
+                # Extract region mapping with the new format
+                regions_data = self.config.get("regions", {})
+                region_map = {}
+                
+                # Process each region entry
+                for region_name, value in regions_data.items():
+                    # Handle different formats of region specification
+                    if isinstance(value, dict):
+                        # New format: {id = x, swap = y}
+                        region_id = value.get("id")
+                        swap = value.get("swap", False)
+                        if region_id is not None:
+                            region_map[region_name] = {"id": region_id, "swap": swap}
+                    elif isinstance(value, int):
+                        # Old format still supported: direct ID assignment
+                        region_map[region_name] = {"id": value, "swap": False}
+                    elif "." in region_name:
+                        # Handle cases like "region.id = 1" or "region.swap = true"
+                        base_name, attribute = region_name.split(".", 1)
+                        
+                        # Create entry if it doesn't exist
+                        if base_name not in region_map:
+                            region_map[base_name] = {"id": None, "swap": False}
+                            
+                        # Set the attribute
+                        if attribute == "id":
+                            region_map[base_name]["id"] = value
+                        elif attribute == "swap":
+                            region_map[base_name]["swap"] = value
+                
+                return region_map
         except Exception as e:
             print(f"Warning: Could not load region mapping from {self.config_file}: {e}")
             self.config = {}
@@ -578,8 +608,9 @@ class MRAGenerator:
             # Calculate total size of all ROMs in this region
             total_size = sum(rom.size for rom in region_roms)
             
-            # Get region ID from mapping
-            region_id = self.region_map[region_name]
+            # Get region info from mapping
+            region_info = self.region_map[region_name]
+            region_id = region_info["id"]
             
             # Add comment with region name and size in decimal
             comment_text = f"Region: {region_name}, Size: {total_size} bytes"
@@ -610,13 +641,16 @@ class MRAGenerator:
                     first_rom = rom
                     second_rom = region_roms[i + 1]
                     
-                    # Determine the mapping based on offset parity
+                    # Get swap flag for this region
+                    swap = self.region_map[region_name].get("swap", False)
+                    
+                    # Determine the mapping based on offset parity and swap flag
                     if first_rom.offset % 2 == 0:  # Even offset
-                        first_map = "10"
-                        second_map = "01"
+                        first_map = "01" if swap else "10"
+                        second_map = "10" if swap else "01"
                     else:  # Odd offset
-                        first_map = "01"
-                        second_map = "10"
+                        first_map = "10" if swap else "01"
+                        second_map = "01" if swap else "10"
                     
                     # Add first part
                     first_part = ET.SubElement(interleave, "part")
@@ -672,8 +706,10 @@ class MRAGenerator:
             total_size = sum(rom.size for rom in sprites_roms)
             total_size += sprites_hi_roms[0].size * 2  # Count sprites_hi ROM twice
             
-            # Get region ID from mapping
-            region_id = self.region_map["sprites"]
+            # Get region info from mapping
+            region_info = self.region_map["sprites"]
+            region_id = region_info["id"]
+            swap = region_info.get("swap", False)
             
             # Add comment explaining the special case
             comment_text = f"Region: sprites + sprites_hi (32-bit interleave), Size: {total_size} bytes"
@@ -689,32 +725,44 @@ class MRAGenerator:
             interleave = ET.SubElement(roms_elem, "interleave")
             interleave.set("output", "32")
             
-            # Add the first sprite ROM with map="0001"
+            # Determine the map values based on the swap flag
+            if swap:
+                sprite1_map = "0010"
+                sprite2_map = "0001"
+                sprites_hi1_map = "1000"
+                sprites_hi2_map = "0100"
+            else:
+                sprite1_map = "0001"
+                sprite2_map = "0010"
+                sprites_hi1_map = "0100"
+                sprites_hi2_map = "1000"
+            
+            # Add the first sprite ROM
             sprite1_part = ET.SubElement(interleave, "part")
             if sprites_roms[0].crc:
                 sprite1_part.set("crc", sprites_roms[0].crc)
             sprite1_part.set("name", sprites_roms[0].name)
-            sprite1_part.set("map", "0001")
+            sprite1_part.set("map", sprite1_map)
             
-            # Add the second sprite ROM with map="0010"
+            # Add the second sprite ROM
             sprite2_part = ET.SubElement(interleave, "part")
             if sprites_roms[1].crc:
                 sprite2_part.set("crc", sprites_roms[1].crc)
             sprite2_part.set("name", sprites_roms[1].name)
-            sprite2_part.set("map", "0010")
+            sprite2_part.set("map", sprite2_map)
             
-            # Add the sprites_hi ROM twice with map="0100" and map="1000"
+            # Add the sprites_hi ROM twice
             sprites_hi_part1 = ET.SubElement(interleave, "part")
             if sprites_hi_roms[0].crc:
                 sprites_hi_part1.set("crc", sprites_hi_roms[0].crc)
             sprites_hi_part1.set("name", sprites_hi_roms[0].name)
-            sprites_hi_part1.set("map", "0100")
+            sprites_hi_part1.set("map", sprites_hi1_map)
             
             sprites_hi_part2 = ET.SubElement(interleave, "part")
             if sprites_hi_roms[0].crc:
                 sprites_hi_part2.set("crc", sprites_hi_roms[0].crc)
             sprites_hi_part2.set("name", sprites_hi_roms[0].name)
-            sprites_hi_part2.set("map", "1000")
+            sprites_hi_part2.set("map", sprites_hi2_map)
         else:
             # Unexpected ROM count pattern - fallback to normal processing
             print(f"Warning: Unexpected ROM count in sprites ({len(sprites_roms)}) or sprites_hi ({len(sprites_hi_roms)}) regions.")
@@ -723,8 +771,9 @@ class MRAGenerator:
             # Calculate total size of sprites region only
             total_size = sum(rom.size for rom in sprites_roms)
             
-            # Get region ID from mapping
-            region_id = self.region_map["sprites"]
+            # Get region info from mapping
+            region_info = self.region_map["sprites"]
+            region_id = region_info["id"]
             
             # Add comment
             comment_text = f"Region: sprites, Size: {total_size} bytes"

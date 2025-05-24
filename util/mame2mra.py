@@ -891,9 +891,7 @@ class MRAGenerator:
         # ElementTree in Python sometimes abbreviates tag names, fix those
         pretty_string = pretty_string.replace("<n>", "<name>").replace("</n>", "</name>")
         
-        # Add XML declaration
-        xml_declaration = '<?xml version="1.0" encoding="UTF-8"?>\n'
-        return xml_declaration + pretty_string
+        return pretty_string
 
 
 def _sanitize_makefile_path(description):

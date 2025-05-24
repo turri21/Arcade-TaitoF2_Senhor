@@ -32,6 +32,7 @@ $(OUTDIR)/Arcade-TaitoF2.rbf: $(SRCS)
 
 deploy.done: $(RBF)
 	scp $(RBF) $(MISTER):/media/fat/_Development/cores/TaitoF2.rbf
+	scp $(RBF) $(MISTER):/media/fat/_Arcade/cores/TaitoF2-Alpha.rbf
 	echo done > deploy.done
 
 deploy: deploy.done

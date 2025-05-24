@@ -22,6 +22,11 @@ module F2(
     input       [3:0] start,
     input       [3:0] coin,
 
+    input             analog_inc,
+    input             analog_abs,
+    input       [7:0] analog_p1,
+    input       [7:0] analog_p2,
+
     input       [7:0] dswa,
     input       [7:0] dswb,
 
@@ -454,7 +459,12 @@ TC0220IOC tc0220ioc(
     .INB(~{2'b00, start[1:0], coin[1:0], 2'b00}),
     .IN(~{  start[1], joystick_p2[6:4], joystick_p2[0], joystick_p2[1], joystick_p2[2], joystick_p2[3],
             start[0], joystick_p1[6:4], joystick_p1[0], joystick_p1[1], joystick_p1[2], joystick_p1[3],
-            dswb, dswa})
+            dswb, dswa}),
+
+    .rotary_abs(analog_abs),
+    .rotary_inc(analog_inc),
+    .rotary_a(analog_p1),
+    .rotary_b(analog_p2)
 );
 
 TMP82C265 tmp82c265(

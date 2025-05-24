@@ -210,6 +210,10 @@ localparam CONF_STR = {
     "P1O[13:9],Analog Video H-Pos,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
     "P1O[18:14],Analog Video V-Pos,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
     "-;",
+    "O[33:32],Analog Input,Joystick,Paddle,Spinner,D-Pad;",
+    "O[35:34],Analog Sensitivity,High,Medium,Low,Very Low;",
+    "O[36],Analog Invert,No,Yes;",
+    "-;",
     "R[64],Save State 1;",
     "R[65],Save State 2;",
     "R[66],Save State 3;",
@@ -254,6 +258,9 @@ wire  [7:0] ioctl_din = 0; // = ioctl_m107_din | ioctl_hs_din;
 wire        ioctl_wait = ioctl_rom_wait;
 
 wire [15:0] joystick_p1, joystick_p2, joystick_p3, joystick_p4;
+wire [7:0] analog_x_p1, analog_y_p1, analog_x_p2, analog_y_p2;
+wire [7:0] paddle_p1, paddle_p2;
+wire [8:0] spinner_p1, spinner_p2;
 
 wire [21:0] gamma_bus;
 wire        direct_video;
@@ -293,6 +300,16 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
     .joystick_1(joystick_p2),
     .joystick_2(joystick_p3),
     .joystick_3(joystick_p4),
+
+    .joystick_l_analog_0({analog_y_p1, analog_x_p1}),
+    .joystick_l_analog_1({analog_y_p2, analog_x_p2}),
+
+    .paddle_0(paddle_p1),
+    .paddle_1(paddle_p2),
+
+    .spinner_0(spinner_p1),
+    .spinner_1(spinner_p2),
+
 
     .ps2_key(ps2_key)
 );
@@ -510,6 +527,60 @@ assign ddr_host.busy = DDRAM_BUSY;
 
 wire sync_fix = ~status[19];
 
+
+reg [7:0] analog_p1, analog_p2;
+reg [1:0] prev_spinner;
+reg analog_inc, analog_abs;
+wire [1:0] analog_mode = status[33:32];
+wire [1:0] analog_sens = status[35:34];
+wire analog_invert = status[36];
+
+function bit [7:0] sens(input [7:0] d);
+    bit [7:0] r;
+    unique case (analog_sens)
+        2'b00: r = d;
+        2'b01: r = {d[7], d[7:1]};
+        2'b10: r = {d[7], d[7], d[7:2]};
+        2'b11: r = {d[7], d[7], d[7], d[7:3]};
+    endcase
+    return analog_invert ? (r ? ~r : r) : r;
+endfunction
+
+always_ff @(posedge clk_sys) begin
+    prev_spinner <= { spinner_p2[8], spinner_p1[8] };
+    analog_p1 <= 0;
+    analog_p2 <= 0;
+    analog_inc <= 0;
+    analog_abs <= 0;
+    unique case(analog_mode)
+        2'b00: begin
+            analog_p1 <= sens(analog_x_p1);
+            analog_p2 <= sens(analog_x_p2);
+            analog_abs <= 1;
+        end
+        2'b01: begin
+            analog_p1 <= sens(paddle_p1 - 8'h7f);
+            analog_p2 <= sens(paddle_p2 - 8'h7f);
+            analog_abs <= 1;
+        end
+        2'b10: begin
+            if (prev_spinner[0] ^ spinner_p1[8]) begin
+                analog_p1 <= sens(spinner_p1[7:0]);
+                analog_inc <= 1;
+            end
+            if (prev_spinner[1] ^ spinner_p2[8]) begin
+                analog_p2 <= sens(spinner_p2[7:0]);
+                analog_inc <= 1;
+            end
+        end
+        2'b11: begin
+            analog_p1 <= sens(joystick_p1[0] ? 8'h40 : joystick_p1[1] ? 8'hc0 : 8'h00);
+            analog_p2 <= sens(joystick_p2[0] ? 8'h40 : joystick_p2[1] ? 8'hc0 : 8'h00);
+            analog_abs <= 1;
+        end
+    endcase
+end
+
 F2 F2(
     .clk(clk_sys),
     .reset(reset),
@@ -532,6 +603,12 @@ F2 F2(
     .joystick_p2(joystick_p2[7:0]),
     .joystick_p3(joystick_p3[7:0]),
     .joystick_p4(joystick_p4[7:0]),
+
+    .analog_abs(analog_abs),
+    .analog_inc(analog_inc),
+    .analog_p1(analog_p1),
+    .analog_p2(analog_p2),
+
     .start({joystick_p4[8], joystick_p3[8], joystick_p2[8], joystick_p1[8]}),
     .coin({joystick_p4[9], joystick_p3[9], joystick_p2[9], joystick_p1[9]}),
 

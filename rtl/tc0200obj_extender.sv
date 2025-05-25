@@ -22,7 +22,7 @@ module TC0200OBJ_Extender(
 wire [7:0] ram_a_data, ram_a_q;
 wire [11:0] ram_a_addr;
 wire ram_a_wr;
-wire [7:0] cpu_byte_din = din[7:0];
+wire [7:0] cpu_byte_din = mode == 2'b10 ? din[15:8] : din[7:0];
 wire [7:0] cpu_byte_dout;
 
 assign dout = { cpu_byte_dout, cpu_byte_dout };
@@ -62,7 +62,7 @@ ram_ss_adaptor #(.WIDTH(8), .WIDTHAD(12), .SS_IDX(SSIDX_EXTENSION_RAM)) extensio
 always_ff @(posedge clk) begin
     if (mode == 2'b00) begin // passthrough
         code_modified <= { 6'd0, code_original };
-    end else if (mode == 2'b01) begin
+    end else if (mode == 2'b01 || mode == 2'b10) begin
         if (code_req) begin
             code_modified <= { 3'd0, ram_a_q, code_original[7:0] };
         end

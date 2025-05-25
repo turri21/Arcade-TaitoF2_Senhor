@@ -5,8 +5,8 @@
 
 - [ ] Expand address mapping to 12-bits
 
-- [ ] CPU SDR cache
-- [ ] Clock enable catchup for CPU
+- [x] CPU SDR cache
+- [x] Clock enable catchup for CPU
 - [ ] Clean up 68k savestate code
 - [ ] Clocked auto_ss
 
@@ -29,13 +29,14 @@
 - [x] Sprite disable flag
 - [ ] Unk1 usage in dinorex
 - [ ] Sprite position latch behavior
-- [ ] Screen edge behavior
+- [x] Screen edge behavior
 - [x] CRT adjust
 - [ ] Verify sprite zoom
-- [ ] TC0430GRW
+- [x] TC0430GRW
 - [ ] TC0100SCN Colscroll
-- [ ] TC0100SCN Ordering
-
+- [x] TC0100SCN Ordering
+- [ ] TC0480SCP
+- [ ] TE7750
 - [x] Move testbed into main repo
 - [x] Audio ROM support in testbed
 - [x] Port z80 asm for mdfourier

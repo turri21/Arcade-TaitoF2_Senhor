@@ -359,6 +359,23 @@ class MRAGenerator:
             self.config = {}
             return {}
     
+    def _apply_abbreviations(self, text):
+        """Apply abbreviations from TOML config to text."""
+        abbreviations = self.config.get("abbreviations", {})
+        return abbreviations.get(text, text)
+    
+    def _validate_dipswitch_length(self, dipswitch_name, value_names):
+        """Validate that dipswitch name and all value names are within 24 character limit."""
+        if len(dipswitch_name) > 24:
+            print(f"Warning: Dipswitch name '{dipswitch_name}' is {len(dipswitch_name)} characters (max 24)")
+        
+        for value_name in value_names:
+            if len(value_name) > 24:
+                print(f"Warning: Dipvalue name '{value_name}' is {len(value_name)} characters (max 24)")
+            combined_length = len(dipswitch_name) + len(value_name)
+            if combined_length > 24:
+                print(f"Warning: Combined length of dipswitch '{dipswitch_name}' + value '{value_name}' is {combined_length} characters (max 24)")
+    
     def generate_mra(self):
         """Generate an MRA file for the machine."""
         # Create the MRA XML structure
@@ -463,13 +480,12 @@ class MRAGenerator:
                     else:
                         bits_attr = f"{lowest_bit},{highest_bit}"
                     
-                    # Create dipswitch entry
-                    dip = ET.SubElement(switches, "dip")
-                    dip.set("name", dipswitch.name)
-                    dip.set("bits", bits_attr)
+                    # Apply abbreviations to dipswitch and value names
+                    abbreviated_dipswitch_name = self._apply_abbreviations(dipswitch.name)
                     
                     # Process value IDs - ensure they match only the relevant bits in the mask
                     values_list = []
+                    abbreviated_value_names = []
                     for value in dipswitch.values:
                         value_int = int(value.value) 
                         # If DSWB, shift the value
@@ -483,9 +499,17 @@ class MRAGenerator:
                         normalized_value = masked_value >> lowest_bit
                         
                         values_list.append(str(normalized_value))
+                        abbreviated_value_names.append(self._apply_abbreviations(value.name))
                     
+                    # Validate length requirements
+                    self._validate_dipswitch_length(abbreviated_dipswitch_name, abbreviated_value_names)
+                    
+                    # Create dipswitch entry
+                    dip = ET.SubElement(switches, "dip")
+                    dip.set("name", abbreviated_dipswitch_name)
+                    dip.set("bits", bits_attr)
                     dip.set("values", ",".join(values_list))
-                    dip.set("ids", ",".join(value.name for value in dipswitch.values))
+                    dip.set("ids", ",".join(abbreviated_value_names))
                     
                 except Exception as e:
                     print(f"Error processing dipswitch '{dipswitch.name}': {e}. Skipping.")

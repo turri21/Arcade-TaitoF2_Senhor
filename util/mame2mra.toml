@@ -55,6 +55,39 @@ solfigtr = { snes = "B,A,X,Start,Select", game = "Punch,Kick,Jump,-,Start,Coin" 
 driftout = { snes = "B,A,Start,Select", game = "Accelerator,Brake,-,-,Start,Coin" }
 
 
+[abbreviations]
+# Dip switch name abbreviations (24 character limit)
+"Number of Enemies 1/2 Player" = "Enemies 1P/2P"
+"Price to Continue" = "Continue Price"
+"Game Over Type" = "Game Over"
+"2 Players Mode" = "2P Mode"
+
+# Dip switch value abbreviations (24 character limit)
+"MTX2 (4 players / 2 cabinets combined)" = "MTX2 4P/2C"
+"4 Players / 2 cabinets combined" = "4P/2 cabs"
+"TROG (4 players / 2 coin slots)" = "TROG 4P/2C"
+"TMNT (4 players / 4 coin slots)" = "TMNT 4P/4C"
+"Losing Team's Game is Over" = "Losing Team"
+"4 Players / 4 Coin Slots" = "4P/4 Coins"
+"4 Players / 2 Coin Slots" = "4P/2 Coins"
+"3 Coins/1 Credit" = "3C/1C"
+"2 Coins/1 Credit" = "2C/1C"
+"1 Coin/1 Credit" = "1C/1C"
+"Same as Start" = "Same"
+"Both Teams' Games Over" = "Both Teams Over"
+"10k and every 80k" = "10k+80k"
+"20k and every 80k" = "20k+80k"
+"30k and every 80k" = "30k+80k"
+"60k and every 80k" = "60k+80k"
+"80k and every 160k" = "80k+160k"
+"70k and every 150k" = "70k+150k"
+"100k and every 200k" = "100k+200k"
+"50k and every 120k" = "50k+120k"
+"Simultaneous" = "Simultaneous"
+"Alternate, Single" = "Alt Single"
+"Alternate, Dual" = "Alt Dual"
+"Not Allowed" = "Not Allowed"
+
 [metadata]
 default.mameversion = 274
 

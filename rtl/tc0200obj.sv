@@ -4,6 +4,9 @@ module TC0200OBJ #(parameter SS_IDX=-1) (
     input ce_13m,
     input ce_pixel,
 
+    input pause,
+    output reg paused,
+
     output [14:0] RA,
     input [15:0] Din,
     output reg [15:0] Dout,
@@ -48,10 +51,6 @@ ddr_mux ddr_mux(
     .a(ddr_obj),
     .b(ddr_fb)
 );
-
-// TODO
-// FB alignment
-
 
 
 // 256 cycles per sprite (13mhz)
@@ -117,6 +116,8 @@ assign RA = zero_bank ? { 2'b00, obj_addr } : {ctrl_a14, ctrl_a13, obj_addr};
 typedef enum
 {
     ST_IDLE = 0,
+    ST_PAUSE_INIT,
+    ST_PAUSE,
     ST_DMA_INIT,
     ST_PRE_DMA,
     ST_DMA,
@@ -269,6 +270,8 @@ always @(posedge clk) begin
     code_modify_req <= 0;
     row_calc_start <= 0;
     col_calc_start <= 0;
+    
+    paused <= 0;
 
     prev_vbl_n <= VBLn;
     if (prev_vbl_n & ~VBLn) begin
@@ -292,9 +295,29 @@ always @(posedge clk) begin
 
             if (vbl_edge) begin
                 vbl_edge <= 0;
-                obj_state <= ST_DMA_INIT;
+                if (pause)
+                    obj_state <= ST_PAUSE_INIT;
+                else
+                    obj_state <= ST_DMA_INIT;
             end
         end
+
+        ST_PAUSE_INIT: begin
+            scanout_buffer <= ~scanout_buffer;
+            obj_state <= ST_PAUSE;
+        end
+
+        ST_PAUSE: begin
+            paused <= 1;
+            if (vbl_edge) begin
+                vbl_edge <= 0;
+                if (~pause) begin
+                    scanout_buffer <= ~scanout_buffer;
+                    obj_state <= ST_DMA_INIT;
+                end
+            end
+        end
+
 
         ST_DMA_INIT: if (ce_13m) begin
             EBUSY <= 1;
@@ -692,7 +715,7 @@ always_ff @(posedge clk) begin
             ddr_fb.acquire <= 0;
             ddr_fb.read <= 0;
             fb_dirty_scan_addr <= { fb_dirty_scan_addr[15:7], hcnt[6:0] };
-            fb_dirty_scan_clear <= scanout_active;
+            fb_dirty_scan_clear <= scanout_active & ~paused;
 
             if (scanout_newline) begin
                 scan_state <= SCAN_START_READ;

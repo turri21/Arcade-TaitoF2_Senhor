@@ -76,7 +76,9 @@ module F2(
     input       [7:0] bram_data,
     input             bram_wr,
 
-    input             sync_fix
+    input             sync_fix,
+
+    input             pause
 );
 
 wire cfg_260dar, cfg_110pcr, cfg_360pri, cfg_360pri_high, cfg_io_swap, cfg_tmp82c265, cfg_190fmc, cfg_te7750;
@@ -182,130 +184,195 @@ always_ff @(posedge clk) begin
     end
 end
 
-
-logic [15:0] save_handler[13] = '{
-    16'h48e7,
-    16'hfffe,
-    16'h4e6e,
-    16'h2f0e,
+logic [15:0] ss_irq_handler[16] = '{
+    16'h48e7, 16'hfffe,            // movem.l %d0-%d7/%a0-%a6,%a7@-
+    16'h4e6e,                      // move.l %usp, %a6
+    16'h2f0e,                      // move.l %a6, %a7@-
 
     // 0x8 - stop/restart pos
-    16'h4df9,
-    16'h00ff,
-    16'h0000,
-    16'h2c8f,
+    16'h4df9, 16'h00ff, 16'h0000,  // lea 0xff0000, %a6
 
-    16'h2c5f,
-    16'h4e66,
-    16'h4cdf,
-    16'h7fff,
-    16'h4e73
+    16'h2c8f,                      // move.l %a7, %a6@
+
+    16'h2c5f,                      // move.l %a7@+, %a6
+    16'h4e66,                      // move.l %a6, %usp
+    16'h4cdf, 16'h7fff,            // movem.l %a7@+, %d0-%d7/%a0-%a6
+    16'h4e73,                      // rte
+
+    16'h0000,
+    16'h0000,
+    16'h0000
 };
 
 
 typedef enum bit [3:0] {
     SST_IDLE,
-    SST_START_SAVE,
-    SST_WAIT_SAVE,
-    SST_SAVE_PAUSED_SETTLE,
-    SST_SAVE_PAUSED,
-    SST_WAIT_SAVE_HANDLER,
-    SST_RESTORE_SETTLE,
-    SST_WAIT_RESTORE,
-    SST_HOLD_RESET,
-    SST_WAIT_RESET
+
+    SST_SAVE_WAIT_PAUSE,
+    SST_SAVE_WAIT_IRQ,
+    SST_SAVE_WAIT_WRITE,
+    SST_SAVE_WAIT_IRQ_EXIT,
+    SST_SAVE_WAIT_SSP_SAVE,
+
+    SST_RESTORE_WAIT_PAUSE,
+    SST_RESTORE_WAIT_READ,
+    SST_RESTORE_HOLD_RESET,
+    SST_RESTORE_WAIT_RESET
 } ss_state_t;
 
 ss_state_t ss_state = SST_IDLE;
-reg [15:0] ss_counter;
-reg [15:0] reset_vector[4];
+reg [4:0] ss_reset_counter;
+reg [15:0] ss_reset_vector[4];
 
-wire ss_pause = (ss_state == SST_SAVE_PAUSED) || (ss_state == SST_WAIT_RESTORE) || (ss_state == SST_SAVE_PAUSED_SETTLE);
-wire ss_reset = (ss_state == SST_HOLD_RESET) || (ss_state == SST_RESTORE_SETTLE);
-wire ss_restart = (ss_state == SST_WAIT_RESET);
-wire ss_override = ss_state != SST_IDLE;
+logic ss_pause;
+logic ss_irq;
+logic ss_override;
+logic ss_cpu_execute;
+logic ss_reset;
 
 assign ss_state_out = ss_state;
 
+always_comb begin
+    ss_pause = 1;
+    ss_cpu_execute = 0;
+    ss_override = 0;
+    ss_irq = 0;
+    ss_reset = 0;
+
+    case(ss_state)
+        SST_IDLE: begin
+            ss_pause = 0;
+        end
+
+        SST_SAVE_WAIT_PAUSE: begin
+        end
+
+        SST_SAVE_WAIT_IRQ: begin
+            ss_cpu_execute = 1;
+            ss_irq = 1;
+        end
+
+
+        SST_SAVE_WAIT_SSP_SAVE: begin
+            ss_override = 1;
+            ss_cpu_execute = 1;
+        end
+
+        SST_SAVE_WAIT_WRITE: begin
+        end
+
+        SST_SAVE_WAIT_IRQ_EXIT: begin
+            ss_cpu_execute = 1;
+            ss_override = 1;
+        end
+
+        SST_RESTORE_WAIT_PAUSE: begin
+        end
+
+        SST_RESTORE_WAIT_READ: begin
+        end
+
+        SST_RESTORE_HOLD_RESET: begin
+            ss_override = 1;
+            ss_cpu_execute = 1;
+            ss_reset = 1;
+        end
+
+        SST_RESTORE_WAIT_RESET: begin
+            ss_override = 1;
+            ss_cpu_execute = 1;
+        end
+
+        default: begin
+        end
+    endcase
+end
+
+
 always_ff @(posedge clk) begin
-    ss_counter <= ss_counter + 1;
     case(ss_state)
         SST_IDLE: begin
             if (ss_do_save) begin
-                ss_state <= SST_START_SAVE;
+                ss_state <= SST_SAVE_WAIT_PAUSE;
             end
 
             if (ss_do_restore) begin
-                ss_state <= SST_RESTORE_SETTLE;
+                ss_state <= SST_RESTORE_WAIT_PAUSE;
             end
         end
 
-        SST_START_SAVE: begin
+        SST_SAVE_WAIT_PAUSE: begin
+            if (obj_paused) begin
+                ss_state <= SST_SAVE_WAIT_IRQ;
+            end
+        end
+
+        SST_SAVE_WAIT_IRQ: begin
+            // Interrupt acknowledged
+            if (~IACKn & (cpu_addr[2:0] == 3'b111) & ~cpu_ds_n[0]) begin
+                ss_state <= SST_SAVE_WAIT_SSP_SAVE;
+            end
+        end
+
+
+        SST_SAVE_WAIT_SSP_SAVE: begin
             if (cpu_ds_n == 2'b00 && !cpu_rw & cpu_word_addr == 24'hff0000) begin
                 ss_saved_ssp[31:16] <= cpu_data_out;
-                ss_state <= SST_WAIT_SAVE;
             end
-        end
 
-        SST_WAIT_SAVE: begin
             if (cpu_ds_n == 2'b00 && !cpu_rw && cpu_word_addr == 24'hff0002) begin
                 ss_saved_ssp[15:0] <= cpu_data_out;
-                ss_state <= SST_SAVE_PAUSED_SETTLE;
-                ss_counter <= 0;
-            end
-        end
-
-
-        SST_SAVE_PAUSED_SETTLE: begin
-            if (ss_counter == 64) begin
                 ss_write <= 1;
-                ss_state <= SST_SAVE_PAUSED;
+                ss_state <= SST_SAVE_WAIT_WRITE;
             end
         end
 
-        SST_SAVE_PAUSED: begin
+        SST_SAVE_WAIT_WRITE: begin
             if (ss_busy & ss_write) begin
                 ss_write <= 0;
             end else if (~ss_busy & ~ss_write) begin
-                ss_state <= SST_WAIT_SAVE_HANDLER;
+                ss_state <= SST_SAVE_WAIT_IRQ_EXIT;
             end
         end
 
-        SST_WAIT_SAVE_HANDLER: begin
+        SST_SAVE_WAIT_IRQ_EXIT: begin
             if (cpu_ds_n == 2'b00 && cpu_rw && cpu_fc == 3'b110 && SS_SAVEn) begin
                 ss_state <= SST_IDLE;
             end
         end
 
-        SST_RESTORE_SETTLE: begin
-            if (ss_counter == 64) begin
+        SST_RESTORE_WAIT_PAUSE: begin
+            if (obj_paused) begin
                 ss_read <= 1;
-                ss_state <= SST_WAIT_RESTORE;
+                ss_state <= SST_RESTORE_WAIT_READ;
             end
         end
 
-        SST_WAIT_RESTORE: begin
+        SST_RESTORE_WAIT_READ: begin
             if (ss_busy & ss_read) begin
                 ss_read <= 0;
             end else if (~ss_busy & ~ss_read) begin
-                reset_vector[0] <= ss_restore_ssp[31:16];
-                reset_vector[1] <= ss_restore_ssp[15:0];
-                reset_vector[2] <= 16'h00ff;
-                reset_vector[3] <= 16'h0008;
+                ss_reset_vector[0] <= ss_restore_ssp[31:16];
+                ss_reset_vector[1] <= ss_restore_ssp[15:0];
+                ss_reset_vector[2] <= 16'h00ff;
+                ss_reset_vector[3] <= 16'h0008;
 
-                ss_state <= SST_HOLD_RESET;
-                ss_counter <= 0;
+                ss_state <= SST_RESTORE_HOLD_RESET;
+                ss_reset_counter <= 0;
             end
         end
 
 
-        SST_HOLD_RESET: begin
-            if (ss_counter == 1000) begin
-                ss_state <= SST_WAIT_RESET;
+        SST_RESTORE_HOLD_RESET: begin
+            if (ce_12m) begin
+                ss_reset_counter <= ss_reset_counter + 1;
+                if (&ss_reset_counter) begin
+                    ss_state <= SST_RESTORE_WAIT_RESET;
+                end
             end
         end
 
-        SST_WAIT_RESET: begin
+        SST_RESTORE_WAIT_RESET: begin
             if (cpu_ds_n == 2'b00 && cpu_rw && cpu_fc == 3'b110 && SS_SAVEn && SS_RESETn) begin
                 ss_state <= SST_IDLE;
             end
@@ -361,7 +428,7 @@ wire ce_12m, ce_dummy_6m;
 jtframe_frac_cen #(2) cen_steady
 (
     .clk(clk),
-    .cen_in(~ss_pause),
+    .cen_in(~obj_paused | ss_cpu_execute),
     .n(10'd172),
     .m(10'd765),
     .cen({ce_dummy_6m, ce_12m}),
@@ -380,7 +447,7 @@ always_ff @(posedge clk) begin
     ce_cpu <= 0;
     ce_cpu_180 <= 0;
 
-    if (sdr_cpu_req == sdr_cpu_ack && ~ss_pause) begin
+    if (sdr_cpu_req == sdr_cpu_ack && (~obj_paused | ss_cpu_execute)) begin
         if (ce_cpu_count[10:1] != ce_steady_count) begin
             ce_cpu <= ~ce_cpu_count[0];
             ce_cpu_180 <= ce_cpu_count[0];
@@ -393,7 +460,7 @@ wire ce_8m, ce_4m;
 jtframe_frac_cen #(2) audio_cen
 (
     .clk(clk),
-    .cen_in(~ss_pause),
+    .cen_in(~obj_paused | ss_cpu_execute),
     .n(10'd137),
     .m(10'd914),
     .cen({ce_4m, ce_8m}),
@@ -547,6 +614,7 @@ m68k_ram_ss_adaptor #(.WIDTHAD(15), .SS_IDX(SSIDX_OBJ_RAM)) objram_ss(
     .ssbus(ssb[2])
 );
 
+wire obj_paused;
 wire obj_code_modify_req;
 wire [12:0] obj_code_original;
 wire [18:0] obj_code_modified_ext;
@@ -557,6 +625,9 @@ TC0200OBJ tc0200obj(
 
     .ce_13m,
     .ce_pixel,
+
+    .pause(pause | ss_pause),
+    .paused(obj_paused),
 
     .RA(obj_ram_addr),
     .Din(objram_data_out),
@@ -964,13 +1035,11 @@ TC0260DAR tc0260dar(
 //// Interrupt Processing
 wire ICLR1n = ~(~IACKn & (cpu_addr[2:0] == 3'b101) & ~cpu_ds_n[0]);
 wire ICLR2n = ~(~IACKn & (cpu_addr[2:0] == 3'b110) & ~cpu_ds_n[0]);
-wire clear_save_n = ~(~IACKn & (cpu_addr[2:0] == 3'b111) & ~cpu_ds_n[0]);
 
 reg int_req1, int_req2;
 reg vbl_prev, dma_prev;
 
-reg save_req, save_prev;
-assign IPLn = save_req ? ~3'b111 :
+assign IPLn = ss_irq ? ~3'b111 :
               int_req2 ? ~3'b110 :
               int_req1 ? ~3'b101 :
               ~3'b000;
@@ -978,7 +1047,6 @@ assign IPLn = save_req ? ~3'b111 :
 always_ff @(posedge clk) begin
     vbl_prev <= VBLOn;
     dma_prev <= DMAn;
-    save_prev <= ss_do_save;
 
     if (reset) begin
         int_req2 <= 0;
@@ -991,20 +1059,12 @@ always_ff @(posedge clk) begin
             int_req2 <= 1;
         end
 
-        if (~save_prev & ss_do_save) begin
-            save_req <= 1;
-        end
-
         if (~ICLR1n) begin
             int_req1 <= 0;
         end
 
         if (~ICLR2n) begin
             int_req2 <= 0;
-        end
-
-        if (~clear_save_n) begin
-            save_req <= 0;
         end
     end
 end
@@ -1051,8 +1111,8 @@ address_translator address_translator(
     .SS_VECn
 );
 
-assign cpu_data_in = ~SS_SAVEn ? save_handler[cpu_addr[3:0]] :
-                     ~SS_RESETn ? reset_vector[cpu_addr[1:0]] :
+assign cpu_data_in = ~SS_SAVEn ? ss_irq_handler[cpu_addr[3:0]] :
+                     ~SS_RESETn ? ss_reset_vector[cpu_addr[1:0]] :
                      ~SS_VECn ? ( cpu_addr[0] ? 16'h0000 : 16'h00ff ) :
                      ~ROMn ? rom_q :
                      ~WORKn ? workram_q :

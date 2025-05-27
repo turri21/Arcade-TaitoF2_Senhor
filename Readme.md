@@ -1,3 +1,8 @@
+-=(TaitoF2_Senhor notes)=-
+
+Tested: Working Video 720p, 1080p & sound.
+
+___
 # TaitoF2 Alpha
 
 Author: [wickerwaka](https://github.com/wickerwaka)

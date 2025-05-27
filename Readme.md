@@ -2,7 +2,9 @@
 
 Author: [wickerwaka](https://github.com/wickerwaka)
 
+Supported games: Cameltry, Dino Rex, Don Doko Don, Drift Out, Final Blow, Growl, Gun & Frontier, Liquid Kids, Majestic Twelve, Mega Blast, Runark, Solitary Fighter, Super Space Invaders '91
 
+____
 HARDWARE DESCRIPTION
 
 Main CPU : MC68000 @ 12MHz

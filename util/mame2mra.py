@@ -364,6 +364,37 @@ class MRAGenerator:
         abbreviations = self.config.get("abbreviations", {})
         return abbreviations.get(text, text)
     
+    def _get_pretty_name(self, machine_name):
+        """Get pretty name for a machine from TOML config.
+        For child machines, looks up the parent's pretty name.
+        """
+        pretty_names = self.config.get("pretty_names", {})
+        
+        # First try direct lookup
+        if machine_name in pretty_names:
+            return pretty_names[machine_name]
+        
+        # If not found and this is for the current machine, check if it's a child
+        if machine_name == self.machine.name and self.machine.romof:
+            # This is a child machine, use the parent's pretty name
+            parent_name = self.machine.romof
+            if parent_name in pretty_names:
+                return pretty_names[parent_name]
+        
+        # Fallback to title case
+        return machine_name.title()
+    
+    def _get_output_directory(self):
+        """Determine the appropriate output directory for this machine."""
+        if self.machine.romof:
+            # This is a child machine, put it in alternatives subdirectory
+            parent_pretty_name = self._get_pretty_name(self.machine.romof)
+            alt_dir = os.path.join(self.output_dir, "_alternatives", f"_{parent_pretty_name}")
+            return alt_dir
+        else:
+            # This is a parent machine, put it in root directory
+            return self.output_dir
+    
     def _validate_dipswitch_length(self, dipswitch_name, value_names):
         """Validate that dipswitch name and all value names are within 24 character limit."""
         if len(dipswitch_name) > 24:
@@ -538,8 +569,14 @@ class MRAGenerator:
         # Add prefix to filename if provided
         filename = f"{self.filename_prefix}{safe_description}.mra"
         
+        # Determine the appropriate output directory
+        target_output_dir = self._get_output_directory()
+        
+        # Create the target directory if it doesn't exist
+        os.makedirs(target_output_dir, exist_ok=True)
+        
         # Write to file
-        output_file = os.path.join(self.output_dir, filename)
+        output_file = os.path.join(target_output_dir, filename)
         with open(output_file, 'w') as f:
             f.write(mra_string)
             

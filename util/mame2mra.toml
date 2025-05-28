@@ -14,46 +14,62 @@ tc0430scp = 7
 finalb = "00 00"
 dondokod = "01 00"
 megablst = "02 00"
-thundfox = "03 00"
+#thundfox = "03 00"
 cameltry = "04 00"
-qtorimon = "05 00"
+#qtorimon = "05 00"
 liquidk = "06 00"
-quizhq = "07 00"
+#quizhq = "07 00"
 ssi = "08 00"
 gunfront = "09 00"
 growl = "0a 00"
-mjnquest = "0b 00"
-footchmp = "0d 00"
-koshien = "0d 00"
-yuyugogo = "0e 00"
-ninjak = "0f 00"
+#mjnquest = "0b 00"
+#footchmp = "0d 00"
+#koshien = "0d 00"
+#yuyugogo = "0e 00"
+#ninjak = "0f 00"
 solfigtr = "10 00"
-qzquest = "11 00"
-pulirula = "12 00"
-metalb = "13 00"
-qzchikyu = "14 00"
-yesnoj = "15 00"
-deadconx = "16 00"
+#qzquest = "11 00"
+#pulirula = "12 00"
+#metalb = "13 00"
+#qzchikyu = "14 00"
+#yesnoj = "15 00"
+#deadconx = "16 00"
 dinorex = "17 00"
-qjinsei = "18 00"
-qcrayon = "19 00"
-qcrayon2 = "1a 00"
+#qjinsei = "18 00"
+#qcrayon = "19 00"
+#qcrayon2 = "1a 00"
 driftout = "1b 00"
 
 [buttons]
 default.snes = "B,A,X,Y,Start,Select"
-default.game = "Btn1,Btn2,Btn3,Btn4,Start,Coin"
-finalb = { snes = "B,A,X,Start,Select", game = "Punch A,Punch B,Duck,-,Start,Coin" }
-dondokod = { snes = "B,A,Start,Select", game = "Attack,Jump,-,-,Start,Coin" }
-cameltry = { snes = "B,Start,Select", game = "Shake,-,-,-,Start,Coin" }
-liquidk = { snes = "B,A,Start,Select", game = "Attack,Jump,-,-,Start,Coin" }
-ssi = { snes = "B,A,Start,Select", game = "Shoot,Use Item,-,-,Start,Coin" }
-gunfront = { snes = "B,A,Start,Select", game = "Shoot,Bomb,-,-,Start,Coin" }
-growl = { snes = "B,A,Start,Select", game = "Attack,Jump,-,-,Start,Coin" }
-dinorex = { snes = "B,A,Start,Select", game = "Bite/Punch,Kick,-,-,Start,Coin" }
-solfigtr = { snes = "B,A,X,Start,Select", game = "Punch,Kick,Jump,-,Start,Coin" }
-driftout = { snes = "B,A,Start,Select", game = "Accelerator,Brake,-,-,Start,Coin" }
+default.game = "Btn1,Btn2,Btn3,Btn4,-,-,Start,Coin,Pause,SS"
+finalb = { snes = "B,A,X,Start,Select", game = "Punch A,Punch B,Duck,-,-,-,Start,Coin,Pause,SS" }
+dondokod = { snes = "B,A,Start,Select", game = "Attack,Jump,-,-,-,-,Start,Coin,Pause,SS" }
+cameltry = { snes = "B,Start,Select", game = "Shake,-,-,-,-,-,Start,Coin,Pause,SS" }
+liquidk = { snes = "B,A,Start,Select", game = "Attack,Jump,-,-,-,-,Start,Coin,Pause,SS" }
+ssi = { snes = "B,A,Start,Select", game = "Shoot,Use Item,-,-,-,-,Start,Coin,Pause,SS" }
+gunfront = { snes = "B,A,Start,Select", game = "Shoot,Bomb,-,-,-,-,Start,Coin,Pause,SS" }
+growl = { snes = "B,A,Start,Select", game = "Attack,Jump,-,-,-,-,Start,Coin,Pause,SS" }
+dinorex = { snes = "B,A,Start,Select", game = "Bite/Punch,Kick,-,-,-,-,Start,Coin,Pause,SS" }
+solfigtr = { snes = "B,A,X,Start,Select", game = "Punch,Kick,Jump,-,-,-,Start,Coin,Pause,SS" }
+driftout = { snes = "B,A,Start,Select", game = "Accelerator,Brake,-,-,-,-,Start,Coin,Pause,SS" }
 
+
+[pretty_names]
+# Pretty machine names for directory organization
+# Used for _alternatives/_<PRETTY_NAME>/ subdirectories
+# Only parent machines need to be defined here
+cameltry = "Cameltry"
+dinorex = "Dino Rex"
+dondokod = "Don Doko Don"
+driftout = "Drift Out"
+finalb = "Final Blow"
+growl = "Growl"
+gunfront = "Gun Frontier"
+liquidk = "Liquid Kids"
+megablst = "Mega Blast"
+solfigtr = "Solitary Fighter"
+ssi = "Super Space Invaders '91"
 
 [abbreviations]
 # Dip switch name abbreviations (24 character limit)
@@ -89,5 +105,5 @@ driftout = { snes = "B,A,Start,Select", game = "Accelerator,Brake,-,-,Start,Coin
 "Not Allowed" = "Not Allowed"
 
 [metadata]
-default.mameversion = 274
+default.mameversion = 277
 

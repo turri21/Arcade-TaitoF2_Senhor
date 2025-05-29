@@ -74,7 +74,7 @@ static bool load_audio(const char *name)
         return false;
     }
 
-    memcpy(top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, data.data(), data.size());
+    memcpy(top->rootp->F2__DOT__sound_rom__DOT__ram.m_storage, data.data(), data.size());
 
     return true;
 }
@@ -268,6 +268,29 @@ static void load_driftout_test()
     sdram.load_data("c74-01.ic34", SCN0_ROM_SDR_BASE, 1);
 }
 
+static void load_pulirula()
+{
+    g_fs.addSearchPath("../roms/pulirula.zip");
+
+    load_audio("c98-14.rom");
+
+    sdram.load_data("c98-12.rom", CPU_ROM_SDR_BASE + 1, 2);
+    sdram.load_data("c98-16.rom", CPU_ROM_SDR_BASE + 0, 2);
+    sdram.load_data("c98-06.rom", CPU_ROM_SDR_BASE + 0x80001, 2);
+    sdram.load_data("c98-07.rom", CPU_ROM_SDR_BASE + 0x80000, 2);
+		
+    sdram.load_data("c98-04.rom",  SCN0_ROM_SDR_BASE, 1);
+
+    sdram.load_data("c98-05.rom", PIVOT_ROM_SDR_BASE, 1);
+
+    sdram.load_data("c98-01.rom",  ADPCMA_ROM_SDR_BASE, 1);
+
+    ddr_memory.load_data("c98-02.rom", OBJ_DATA_DDR_BASE, 1);
+    ddr_memory.load_data("c98-03.rom", OBJ_DATA_DDR_BASE + 0x100000, 1);
+
+    top->game = GAME_PULIRULA;
+}
+
 
 bool game_init(game_t game)
 {
@@ -286,6 +309,7 @@ bool game_init(game_t game)
         case GAME_DRIFTOUT: load_driftout(); break;
         case GAME_DRIFTOUT_TEST: load_driftout_test(); break;
         case GAME_CAMELTRY: load_cameltry(); break;
+        case GAME_PULIRULA: load_pulirula(); break;
         default: return false;
     }
 

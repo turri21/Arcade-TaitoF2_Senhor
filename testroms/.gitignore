@@ -1,3 +1,4 @@
 build/
 mame/
+.cache/
 compile_commands.json

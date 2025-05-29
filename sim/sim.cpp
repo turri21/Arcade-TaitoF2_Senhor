@@ -444,7 +444,7 @@ int main(int argc, char **argv)
 
                 if (ImGui::BeginTabItem("Sound ROM"))
                 {
-                    sound_rom.DrawContents(top->rootp->F2__DOT__sound_rom0__DOT__ram.m_storage, 64 * 1024);
+                    sound_rom.DrawContents(top->rootp->F2__DOT__sound_rom__DOT__ram.m_storage, 128 * 1024);
                     ImGui::EndTabItem();
                 }
 

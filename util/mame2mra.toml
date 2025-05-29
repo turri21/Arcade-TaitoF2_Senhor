@@ -29,7 +29,7 @@ growl = "0a 00"
 #ninjak = "0f 00"
 solfigtr = "10 00"
 #qzquest = "11 00"
-#pulirula = "12 00"
+pulirula = "12 00"
 #metalb = "13 00"
 #qzchikyu = "14 00"
 #yesnoj = "15 00"
@@ -53,6 +53,7 @@ growl = { snes = "B,A,Start,Select", game = "Attack,Jump,-,-,-,-,Start,Coin,Paus
 dinorex = { snes = "B,A,Start,Select", game = "Bite/Punch,Kick,-,-,-,-,Start,Coin,Pause,SS" }
 solfigtr = { snes = "B,A,X,Start,Select", game = "Punch,Kick,Jump,-,-,-,Start,Coin,Pause,SS" }
 driftout = { snes = "B,A,Start,Select", game = "Accelerator,Brake,-,-,-,-,Start,Coin,Pause,SS" }
+pulirula = { snes = "B,A,Start,Select", game = "Magic,Jump,-,-,-,-,Start,Coin,Pause,SS" }
 
 
 [pretty_names]
@@ -70,6 +71,7 @@ liquidk = "Liquid Kids"
 megablst = "Mega Blast"
 solfigtr = "Solitary Fighter"
 ssi = "Super Space Invaders '91"
+pulirula = "PuLiRuLa"
 
 [abbreviations]
 # Dip switch name abbreviations (24 character limit)

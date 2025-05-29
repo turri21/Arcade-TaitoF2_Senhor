@@ -68,6 +68,10 @@ sim/driftout:
 sim/cameltry:
 	$(MAKE) -j8 -C sim run GAME=cameltry
 
+sim/pulirula:
+	$(MAKE) -j8 -C sim run GAME=pulirula
+
+
 sim/qjinsei_test:
 	$(MAKE) -j8 -C testroms TARGET=qjinsei_test
 	$(MAKE) -j8 -C sim run GAME=qjinsei_test

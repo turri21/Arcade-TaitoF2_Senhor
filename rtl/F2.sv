@@ -1241,7 +1241,7 @@ wire [23:0] YAA, YBA;
 wire [7:0] YAD, YBD;
 wire AOEn, BOEn;
 
-wire [7:0] z80_din = ~ROMCS0n ? sound_rom0_q :
+wire [7:0] z80_din = (~ROMCS0n | ~ROMCS1n) ? sound_rom0_q :
                         ~SRAMn ? sound_ram_q :
                         ~OP_Tn ? ym_dout :
                         { 4'd0, syt_z80_dout};
@@ -1273,10 +1273,10 @@ singleport_ram #(.WIDTH(8), .WIDTHAD(13)) sound_ram(
 
 wire sound_rom0_wr = bram_wr & |(bram_addr[23:0] & AUDIO_ROM_BLOCK_BASE[23:0]);
 
-singleport_ram #(.WIDTH(8), .WIDTHAD(16)) sound_rom0(
+singleport_ram #(.WIDTH(8), .WIDTHAD(17)) sound_rom(
     .clock(clk),
     .wren(sound_rom0_wr),
-    .address(sound_rom0_wr ? bram_addr[15:0] : {ROMA15, ROMA14, SND_ADD[13:0]}),
+    .address(sound_rom0_wr ? bram_addr[16:0] : {ROMCS0n, ROMA15, ROMA14, SND_ADD[13:0]}),
     .data(bram_data),
     .q(sound_rom0_q)
 );
@@ -1399,7 +1399,7 @@ TC0140SYT tc0140syt(
 
     .ROUTn(SNRESn),
     .ROMCS0n(ROMCS0n),
-    .ROMCS1n(),
+    .ROMCS1n(ROMCS1n),
     .RAMCSn(SRAMn),
     .ROMA14(ROMA14),
     .ROMA15(ROMA15),

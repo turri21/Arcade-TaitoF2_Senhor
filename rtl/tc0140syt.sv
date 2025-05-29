@@ -63,8 +63,8 @@ reg [15:0] slave_data;
 reg [15:0] master_data;
 
 wire bank_req = A[15:14] == 2'b01; // 0x4000-0x7fff
-assign ROMCS0n = A[15]; // 0x0000 - 0x7fff
-assign ROMCS1n = ~(bank_req & rom_bank[1]); // FIXME - guessing
+assign ROMCS0n = bank_req ? rom_bank[2] : A[15] | A[14]; // 0x0000 - 0x7fff
+assign ROMCS1n = ~(bank_req & rom_bank[2]); // FIXME - guessing
 assign RAMCSn = ~A[15] | ~A[14] | A[13];
 
 assign ROMA14 = bank_req ? rom_bank[0] : 1'b0;

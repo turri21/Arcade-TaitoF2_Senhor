@@ -46,6 +46,7 @@ bool simulation_step = false;
 int simulation_step_size = 100000;
 bool simulation_step_vblank = false;
 uint64_t simulation_reset_until = 100;
+bool system_pause = false;
 
 bool simulation_wp_set = false;
 int simulation_wp_addr = 0;
@@ -223,6 +224,7 @@ int main(int argc, char **argv)
 
         top->dswa = dipswitch_a & 0xff;
         top->dswb = dipswitch_b & 0xff;
+        top->pause = system_pause;
 
         if (simulation_run || simulation_step)
         {
@@ -259,6 +261,10 @@ int main(int argc, char **argv)
             {
                 simulation_reset_until = total_ticks + 100;
             }
+
+            ImGui::SameLine();
+            ImGui::Checkbox("Pause", &system_pause);
+
 
             ImGui::Separator();
             

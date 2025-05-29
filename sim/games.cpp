@@ -236,6 +236,7 @@ static void load_driftout()
     sdram.load_data("do_snd.rom",  ADPCMA_ROM_SDR_BASE, 1);
 
     ddr_memory.load_data("do_obj.rom", OBJ_DATA_DDR_BASE, 1);
+    
 
     top->game = GAME_DRIFTOUT;
 }
@@ -262,6 +263,9 @@ static void load_driftout_test()
 {
     g_fs.addSearchPath("../testroms/build/driftout_test/driftout/");
     load_driftout();
+    
+    g_fs.addSearchPath("../roms/growl.zip");
+    sdram.load_data("c74-01.ic34", SCN0_ROM_SDR_BASE, 1);
 }
 
 

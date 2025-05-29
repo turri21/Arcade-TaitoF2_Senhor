@@ -62,6 +62,10 @@ static void print_string(const char *str)
                     SCN->fg0[ofs].attr = cur_color & 0x3f;
                     SCN->fg0[ofs].code = *str;
                     break;
+
+                case ROZ:
+                    TC0430GRW[ofs] = (cur_color << 14) | *str;
+                    break;
                 default:
                     break;
             }
@@ -120,6 +124,11 @@ void sym_at(int x, int y, uint16_t sym)
             SCN->fg0[ofs].attr = cur_color & 0x3f;
             SCN->fg0[ofs].code = sym;
             break;
+        
+        case ROZ:
+            TC0430GRW[ofs] = (cur_color << 14) | sym;
+            break;
+
         default:
             break;
     }

@@ -8,6 +8,7 @@ typedef enum
     BG0 = 0,
     BG1,
     FG0,
+    ROZ,
 } Layer;
 
 void on_layer(Layer layer);

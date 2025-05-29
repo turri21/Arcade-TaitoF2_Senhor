@@ -29,11 +29,6 @@ void set_colors(uint16_t offset, uint16_t count, uint16_t *colors)
     {
         TC0260DAR[offset + i] = colors[i];
     }
-
-    *(uint16_t *)0xa00008 = 0xe0e0;
-    *(uint16_t *)0xa0000a = 0x8484;
-    *(uint16_t *)0xa0000c = 0x6262;
-    *(uint16_t *)0xa0000e = 0xaaaa;
 #endif
 }
 
@@ -43,8 +38,8 @@ volatile uint32_t dma_count = 0;
 void level5_handler()
 {
     vblank_count++;
-#if HAS_TC0260DAR
-    *(uint16_t *)0xa00000 = 0;
+#if HAS_TC0360PRI
+    tc0360pri_set_blendmode(0);
 #endif
     TC0220IOC->watchdog = 0;
 }
@@ -139,44 +134,80 @@ void reset_screen()
         system_flags = 0;
     }
 
+
     TC0100SCN_Ctrl->bg1_y = base_y;
     TC0100SCN_Ctrl->bg1_x = base_x;
     TC0100SCN_Ctrl->fg0_y = base_y;
     TC0100SCN_Ctrl->fg0_x = base_x;
     TC0100SCN_Ctrl->system_flags = system_flags;
+#if 0 //GAME_DRIFTOUT
+    TC0100SCN_Ctrl->layer_flags = TC0100SCN_LAYER_BG0_DISABLE | TC0100SCN_LAYER_BG1_DISABLE;
+#else
     TC0100SCN_Ctrl->layer_flags = 0;
+#endif    
     TC0100SCN_Ctrl->bg0_y = base_y;
     TC0100SCN_Ctrl->bg0_x = base_x;
     memcpy(TC0100SCN->fg0_gfx + ( 0x20 * 8 ), _binary_font_chr_start, _binary_font_chr_end - _binary_font_chr_start);
-    
+
+    for( int i = 0; i < 8; i++ )
+    {
+        TC0100SCN->fg0_gfx[8 + i] = 0xffff;
+    }
+
     memsetw(TC0200OBJ, 0, 0x8000);
 
     set_colors(0, sizeof(finalb_palette) / 2, finalb_palette);
+
+#if HAS_TC0360PRI
+    tc0360pri_set_obj_prio(3, 5, 7, 9);
+    tc0360pri_set_tile_prio(15, 8, 6);
+    tc0360pri_set_roz_prio(1, 1, 1, 1);
+    tc0360pri_set_roz(0, 0);
+#endif
+
+#if HAS_TC0430GRW
+    memsetw(TC0430GRW, 0, 64 * 64);
+#endif
 }
+
+#if GAME_DRIFTOUT
+#define SYM_BOX 0x20
+#define SYM_SQUARE 0x20
+#else
+#define SYM_BOX 0x1
+#define SYM_SQUARE 0x1b
+#endif
 
 void init_scn_general()
 {
     reset_screen();
 
+    TC0430GRW_Ctrl->origin_x = 0 << 12;
+    TC0430GRW_Ctrl->origin_y = 8 << 12;
+    TC0430GRW_Ctrl->dxx = 1 << 12;
+    TC0430GRW_Ctrl->dxy = 0;
+    TC0430GRW_Ctrl->dyx = 0;
+    TC0430GRW_Ctrl->dyy = 1 << 12;
+
     frame_count = 0;
 
     // Max extent corner boundaries
     on_layer(BG0); pen_color(0);
-    sym_at(1, 1, 1);
-    sym_at(1, 28, 1);
-    sym_at(40, 1, 1);
-    sym_at(40, 28, 1);
+    sym_at(1, 1, SYM_BOX);
+    sym_at(1, 28, SYM_BOX);
+    sym_at(40, 1, SYM_BOX);
+    sym_at(40, 28, SYM_BOX);
 
     // Should not be visible
     pen_color(1);
-    sym_at(0, 1, 0x1b);
-    sym_at(1, 0, 0x1b);
-    sym_at(0, 28, 0x1b);
-    sym_at(1, 29, 0x1b);
-    sym_at(40, 0, 0x1b);
-    sym_at(41, 1, 0x1b);
-    sym_at(40, 29, 0x1b);
-    sym_at(41, 28, 0x1b);
+    sym_at(0, 1, SYM_SQUARE);
+    sym_at(1, 0, SYM_SQUARE);
+    sym_at(0, 28, SYM_SQUARE);
+    sym_at(1, 29, SYM_SQUARE);
+    sym_at(40, 0, SYM_SQUARE);
+    sym_at(41, 1, SYM_SQUARE);
+    sym_at(40, 29, SYM_SQUARE);
+    sym_at(41, 28, SYM_SQUARE);
 
     pen_color(6);
     print_at(4, 5, "LAYER BG0");
@@ -200,11 +231,19 @@ void init_scn_general()
     on_layer(BG1);
     pen_color(2);
     print_at(19, 14, " COLSCROLL\n1222222222\n9012345678\n\n\nROWCOL\nSCROLL");
+
+    on_layer(ROZ);
+    pen_color(0);
+    sym_at(2, 1, 0x67);
+    sym_at(1, 2, 0x67);
+    sym_at(40, 27, 0x67);
+    sym_at(39, 28, 0x67);
 }
 
 void update_scn_general()
 {
     wait_vblank();
+
 
     for( int y = 0; y < 24; y++ )
     {
@@ -213,7 +252,7 @@ void update_scn_general()
 
     for( int y = 0; y < 32; y++ )
     {
-        TC0100SCN->bg0_rowscroll[18 * 8 + y] = y + 1;
+        //TC0100SCN->bg0_rowscroll[18 * 8 + y] = y + 1;
     }
         
 /*    for( int x = 0; x < 6; x++ )
@@ -225,11 +264,21 @@ void update_scn_general()
 //        TC0100SCN->bg1_rowscroll[20 * 8 + y] = sine_wave[(frame_count*2+(y*4)) & 0xff] >> 4;
     }
 
-
     on_layer(FG0);
     pen_color(0);
-    move_to(3, 3);
+    move_to(3, 2);
     print("VBL: %05X  FRAME: %05X\n", vblank_count, frame_count);
+    print("%02X %02X %02X %02X\n",
+          TC0220IOC->unk4,
+          TC0220IOC->unk5,
+          TC0220IOC->unk6,
+          TC0220IOC->unk7
+          );
+    
+
+    //TC0220IOC->coin_count |= 0xC0;
+    if (frame_count % 100 == 0)
+        TC0220IOC->coin_count ^= 0xC0;
 
     frame_count++;
 }
@@ -292,7 +341,7 @@ void update_scn_align()
 {
     wait_vblank();
 
-    bool flip = (input_dsw() & 0x02) == 0;
+    bool flip = 0; //(input_dsw() & 0x02) == 0;
 
     int16_t base_x;
     int16_t base_y;
@@ -977,10 +1026,12 @@ void update_basic_timing()
     uint32_t scn_write = 0;
     uint32_t obj_write = 0;
     uint32_t dar_write = 0;
+    uint32_t roz_write = 0;
 
     volatile uint16_t *scn_addr = &TC0100SCN->bg0[0].code;
     volatile uint16_t *obj_addr = &TC0200OBJ[64].pos0;
     volatile uint8_t *dar_addr = (uint8_t *)&TC0260DAR[128];
+    volatile uint16_t *roz_addr = &TC0430GRW[128];
 
     uint32_t vb = vblank_count;
     while( vb == vblank_count ) {}
@@ -1013,6 +1064,13 @@ void update_basic_timing()
     }
     vb = vblank_count;
 
+    while( vb == vblank_count )
+    {
+        *roz_addr = 0x0000;
+        roz_write++;
+    }
+    vb = vblank_count;
+
     pen_color(0);
     on_layer(FG0);
     move_to(4, 4);
@@ -1020,6 +1078,7 @@ void update_basic_timing()
     print("SCN_WRITE: %08X\n", scn_write);
     print("OBJ_WRITE: %08X\n", obj_write);
     print("DAR_WRITE: %08X\n", dar_write);
+    print("ROZ_WRITE: %08X\n", roz_write);
 }
 
 void init_screen(int screen)
@@ -1076,10 +1135,7 @@ int main(int argc, char *argv[])
     
     while(1)
     {
-        uint16_t foo = 0;
         input_update();
-
-        TC0260DAR[0] = foo++;
 
         // 0x0200 // ACC MODE
         // 0x0100 // Brightness? 

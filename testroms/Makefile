@@ -8,16 +8,18 @@ VASM = ../util/vasmz80_oldstyle
 MISTER_HOSTNAME=mister-dev
 
 
-TARGET = finalb_test
+TARGET = driftout_test
 SRCS = init.c main.c interrupts_default.c comms.c tilemap.c input.c printf/printf.c
-SRCS += obj_test.c audio_240p.c
+SRCS += obj_test.c audio_240p.c tc0360pri.c
 CHR = font.chr 
-ASM = 
+ASM = savestate.s
 
 BUILD_DIR = build/$(TARGET)
 ROM_DIR = ../roms
 
-OBJS = $(addprefix $(BUILD_DIR)/, $(SRCS:c=o)) $(addprefix $(BUILD_DIR)/, $(CHR:chr=o)) $(addprefix $(BUILD_DIR)/, $(ASM:s=o))
+OBJS = $(addprefix $(BUILD_DIR)/, $(SRCS:c=o)) \
+	   $(addprefix $(BUILD_DIR)/, $(CHR:chr=o)) \
+	   $(addprefix $(BUILD_DIR)/, $(ASM:s=o))
 BUILD_DIRS = $(sort $(dir $(OBJS))) 
 GLOBAL_DEPS = Makefile
 

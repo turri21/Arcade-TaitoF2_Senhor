@@ -66,7 +66,10 @@ wire [11:0] color0 = color_in0[11:0];
 wire [11:0] color1 = color_in1[11:0];
 wire [11:0] color2 = { ctrl[1][5:0], color_in2 };
 
+wire blend = ctrl[0][7];
 wire bm1 = ctrl[0][7] & ctrl[0][6];
+wire bm2 = ctrl[0][7] & ~ctrl[0][6];
+
 reg [11:0] color_final;
 
 assign color_out = { 2'b0, color_final };
@@ -74,10 +77,18 @@ assign color_out = { 2'b0, color_final };
 always_ff @(posedge clk) begin
     if (ce_pixel) begin
         color_final <= color0;
-        if (bm1 && (prio1 == (prio0 - 4'd1))) begin
-            color_final <= { color1[11:4], color0[3:0] };
-        end else if (bm1 && (prio1 == (prio0 + 4'd1))) begin
-            color_final <= { color0[11:4], color1[3:0] };
+        if (blend && (prio1 == (prio0 - 4'd1))) begin
+            if (bm1) begin
+                color_final <= { color1[11:4], color0[3:0] };
+            end else begin
+                color_final <= { color0[11:5], 1'b0, color0[3:0] };
+            end
+        end else if (blend && (prio1 == (prio0 + 4'd1))) begin
+            if (bm1) begin
+                color_final <= { color0[11:4], color1[3:0] };
+            end else begin
+                color_final <= { color1[11:5], 1'b0, color1[3:0] };
+            end
         end else if (prio1 > prio0) begin
             if (prio2 > prio1) begin
                 color_final <= color2;

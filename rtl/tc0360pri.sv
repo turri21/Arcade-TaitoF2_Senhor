@@ -89,6 +89,18 @@ always_ff @(posedge clk) begin
             end else begin
                 color_final <= { color1[11:5], 1'b0, color1[3:0] };
             end
+        end else if (blend && (prio1 == (prio2 - 4'd1))) begin
+            if (bm1) begin
+                color_final <= { color1[11:4], color2[3:0] };
+            end else begin
+                color_final <= { color2[11:5], 1'b0, color2[3:0] };
+            end
+        end else if (blend && (prio1 == (prio2 + 4'd1))) begin
+            if (bm1) begin
+                color_final <= { color2[11:4], color1[3:0] };
+            end else begin
+                color_final <= { color1[11:5], 1'b0, color1[3:0] };
+            end
         end else if (prio1 > prio0) begin
             if (prio2 > prio1) begin
                 color_final <= color2;

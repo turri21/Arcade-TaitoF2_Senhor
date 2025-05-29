@@ -1,5 +1,5 @@
 - [x] Dip switches
-- [ ] Dip switch naming
+- [x] Dip switch naming
 - [ ] Cheats
 - [x] MRA generation
 
@@ -7,11 +7,11 @@
 
 - [x] CPU SDR cache
 - [x] Clock enable catchup for CPU
-- [ ] Clean up 68k savestate code
+- [x] Clean up 68k savestate code
 - [ ] Clocked auto_ss
 
 - [ ] MAME keyboard inputs
-- [ ] Savestate mapping
+- [x] Savestate mapping
 - [ ] High score saving
 - [ ] Service and tilt buttons
 
@@ -38,6 +38,7 @@
 - [ ] TC0480SCP
 - [ ] TE7750
 - [x] Move testbed into main repo
+
 - [x] Audio ROM support in testbed
 - [x] Port z80 asm for mdfourier
 - [x] Match filters

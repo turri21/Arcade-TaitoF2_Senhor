@@ -15,10 +15,10 @@ module F2(
     output      [7:0] green,
     output      [7:0] blue,
 
-    input       [7:0] joystick_p1,
-    input       [7:0] joystick_p2,
-    input       [7:0] joystick_p3,
-    input       [7:0] joystick_p4,
+    input       [9:0] joystick_p1,
+    input       [9:0] joystick_p2,
+    input       [9:0] joystick_p3,
+    input       [9:0] joystick_p4,
     input       [3:0] start,
     input       [3:0] coin,
 
@@ -1045,14 +1045,14 @@ assign IPLn = ss_irq ? ~3'b111 :
               ~3'b000;
 
 always_ff @(posedge clk) begin
-    vbl_prev <= VBLOn;
+    vbl_prev <= VBLn;
     dma_prev <= DMAn;
 
     if (reset) begin
         int_req2 <= 0;
         int_req1 <= 0;
     end else begin
-        if (vbl_prev & ~VBLOn) begin
+        if (vbl_prev & ~VBLn) begin
             int_req1 <= 1;
         end
         if (~dma_prev & DMAn) begin

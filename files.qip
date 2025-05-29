@@ -5,6 +5,8 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/fx68k/hdl/fx68k.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/fx68k/hdl/fx68kAlu.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/fx68k/hdl/uaddrPla.sv
 
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/pause.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/savestate_ui.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/sdram.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/system_consts.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/F2.sv

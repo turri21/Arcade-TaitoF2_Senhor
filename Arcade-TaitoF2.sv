@@ -210,29 +210,44 @@ localparam CONF_STR = {
     "P1O[13:9],Analog Video H-Pos,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
     "P1O[18:14],Analog Video V-Pos,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
     "-;",
-    "O[33:32],Analog Input,Joystick,Paddle,Spinner,D-Pad;",
-    "O[35:34],Analog Sensitivity,High,Medium,Low,Very Low;",
-    "O[36],Analog Invert,No,Yes;",
+    "O[33:32],Rotary Input,Joystick,Paddle,Spinner,D-Pad;",
+    "O[36:34],Rotary Sensitivity,100%,50%,25%,12%;6%,200%,150%,125%",
+    "O[37],Rotary Invert,No,Yes;",
     "-;",
-    "R[64],Save State 1;",
-    "R[65],Save State 2;",
-    "R[66],Save State 3;",
-    "R[67],Save State 4;",
-    "R[68],Load State 1;",
-    "R[69],Load State 2;",
-    "R[70],Load State 3;",
-    "R[71],Load State 4;",
+    "O[38],OSD Pause,No,Yes;",
+    "O[39],Pause Dim,Yes,No;",
+    "O[40],Autoincrement Slot,Off,On;",
+    "O[42:41],Savestate Slot,1,2,3,4;",
+    "R[43],Save state (Alt-F1);",
+    "R[44],Restore state (F1);",
     "-;",
     "DIP;",
     "-;",
     "T[0],Reset;",
     "R[0],Reset and close OSD;",
+    "I,",
+    "Load=DPAD Up|Save=Down|Slot=L+R,",
+    "Active Slot 1,",
+    "Active Slot 2,",
+    "Active Slot 3,",
+    "Active Slot 4,",
+    "Save to state 1,",
+    "Restore state 1,",
+    "Save to state 2,",
+    "Restore state 2,",
+    "Save to state 3,",
+    "Restore state 3,",
+    "Save to state 4,",
+    "Restore state 4;",
     "DEFMRA,/_Development/F2.mra;",
-    "v,0;", // [optional] config version 0-99.
-            // If CONF_STR options are changed in incompatible way, then change version number too,
-              // so all options will get default values on first start.
+    "v,1;",
     "V,v",`BUILD_DATE
 };
+
+localparam BTN_START = 10;
+localparam BTN_COIN = 11;
+localparam BTN_PAUSE = 12;
+localparam BTN_SS = 13;
 
 wire forced_scandoubler;
 wire   [1:0] buttons;
@@ -262,11 +277,18 @@ wire [7:0] analog_x_p1, analog_y_p1, analog_x_p2, analog_y_p2;
 wire [7:0] paddle_p1, paddle_p2;
 wire [8:0] spinner_p1, spinner_p2;
 
+wire [15:0] joy_combined = joystick_p1 | joystick_p2 | joystick_p3 | joystick_p4;
+
 wire [21:0] gamma_bus;
 wire        direct_video;
 wire        video_rotated;
 
 wire        autosave = 0; //status[8];
+
+wire        info_req;
+wire [7:0]  info_index;
+
+wire [127:0] status_in = { status[127:43], ss_slot, status[40:0] };
 
 hps_io #(.CONF_STR(CONF_STR)) hps_io
 (
@@ -283,6 +305,8 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
     .buttons(buttons),
     .status(status),
     .status_menumask({direct_video}),
+    .status_in(status_in),
+    .status_set(ss_status_set),
 
     .ioctl_download(ioctl_download),
     .ioctl_upload(ioctl_upload),
@@ -295,6 +319,9 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
     .ioctl_din(ioctl_din),
     .ioctl_index(ioctl_index),
     .ioctl_wait(ioctl_wait),
+
+    .info_req,
+    .info(info_index),
 
     .joystick_0(joystick_p1),
     .joystick_1(joystick_p2),
@@ -484,31 +511,6 @@ always @(posedge clk_sys) begin
 end
 
 
-wire [3:0] save_state_status = status[67:64];
-wire [3:0] load_state_status = status[71:68];
-reg save_state_req = 0;
-reg load_state_req = 0;
-reg [1:0] save_state_index;
-
-always_ff @(posedge clk_sys) begin
-    if (save_state_status | load_state_status) begin
-        case (save_state_status|load_state_status)
-            4'b0001: save_state_index <= 0;
-            4'b0010: save_state_index <= 1;
-            4'b0100: save_state_index <= 2;
-            4'b1000: save_state_index <= 3;
-            default: save_state_index <= 0;
-        endcase
-
-        save_state_req <= |save_state_status;
-        load_state_req <= |load_state_status;
-    end else begin
-        save_state_req <= 0;
-        load_state_req <= 0;
-    end
-end
-
-
 wire [7:0] core_r, core_g, core_b;
 wire core_hb, core_vb, core_hs, core_vs;
 wire core_ce_pix;
@@ -532,16 +534,20 @@ reg [7:0] analog_p1, analog_p2;
 reg [1:0] prev_spinner;
 reg analog_inc, analog_abs;
 wire [1:0] analog_mode = status[33:32];
-wire [1:0] analog_sens = status[35:34];
-wire analog_invert = status[36];
+wire [2:0] analog_sens = status[36:34];
+wire analog_invert = status[37];
 
 function bit [7:0] sens(input [7:0] d);
     bit [7:0] r;
     unique case (analog_sens)
-        2'b00: r = d;
-        2'b01: r = {d[7], d[7:1]};
-        2'b10: r = {d[7], d[7], d[7:2]};
-        2'b11: r = {d[7], d[7], d[7], d[7:3]};
+        3'b000: r = d;
+        3'b001: r = {d[7], d[7:1]};
+        3'b010: r = {d[7], d[7], d[7:2]};
+        3'b011: r = {d[7], d[7], d[7], d[7:3]};
+        3'b100: r = {d[7], d[7], d[7], d[7], d[7:4]};
+        3'b101: r = d + d;
+        3'b110: r = d + { d[7], d[7:1] };
+        3'b111: r = d + { d[7], d[7], d[7:2] };
     endcase
     return analog_invert ? (r ? ~r : r) : r;
 endfunction
@@ -585,6 +591,8 @@ F2 F2(
     .clk(clk_sys),
     .reset(reset),
 
+    .pause(system_pause),
+
     .game(board_cfg.game),
 
     .ce_pixel(core_ce_pix),
@@ -599,18 +607,18 @@ F2 F2(
     .dswa(~dip_sw[0]),
     .dswb(~dip_sw[1]),
 
-    .joystick_p1(joystick_p1[7:0]),
-    .joystick_p2(joystick_p2[7:0]),
-    .joystick_p3(joystick_p3[7:0]),
-    .joystick_p4(joystick_p4[7:0]),
+    .joystick_p1(joystick_p1[9:0]),
+    .joystick_p2(joystick_p2[9:0]),
+    .joystick_p3(joystick_p3[9:0]),
+    .joystick_p4(joystick_p4[9:0]),
 
     .analog_abs(analog_abs),
     .analog_inc(analog_inc),
     .analog_p1(analog_p1),
     .analog_p2(analog_p2),
 
-    .start({joystick_p4[8], joystick_p3[8], joystick_p2[8], joystick_p1[8]}),
-    .coin({joystick_p4[9], joystick_p3[9], joystick_p2[9], joystick_p1[9]}),
+    .start({joystick_p4[BTN_START], joystick_p3[BTN_START], joystick_p2[BTN_START], joystick_p1[BTN_START]}),
+    .coin({joystick_p4[BTN_COIN], joystick_p3[BTN_COIN], joystick_p2[BTN_COIN], joystick_p1[BTN_COIN]}),
 
     .audio_out(AUDIO_L),
 
@@ -649,9 +657,9 @@ F2 F2(
 
     .obj_debug_idx(13'h1fff),
 
-    .ss_index(save_state_index),
-    .ss_do_save(save_state_req),
-    .ss_do_restore(load_state_req),
+    .ss_index(ss_slot),
+    .ss_do_save(ss_save),
+    .ss_do_restore(ss_load),
     .ss_state_out(),
 
     .bram_addr,
@@ -660,7 +668,6 @@ F2 F2(
 
     .sync_fix
 );
-
 
 assign CLK_VIDEO = clk_sys;
 assign DDRAM_CLK = clk_sys;
@@ -671,6 +678,29 @@ wire [1:0] scale          = status[7:6];
 wire       rotate         = status[8];
 wire [4:0] hoffset        = status[13:9];
 wire [4:0] voffset        = status[18:14];
+
+wire       osd_pause      = status[38];
+wire       pause_dim      = ~status[39];
+
+wire [7:0] pause_r, pause_g, pause_b;
+wire system_pause;
+
+pause #(.CLKSPD(53)) pause(
+    .clk_sys,
+    .reset,
+    .user_button(joy_combined[BTN_PAUSE]),
+    .pause_request(0),
+    .options({pause_dim, osd_pause}),
+
+    .OSD_STATUS,
+    .r(core_r), .g(core_g), .b(core_b),
+
+    .pause_cpu(system_pause),
+
+    .r_out(pause_r),
+    .g_out(pause_g),
+    .b_out(pause_b)
+);
 
 video_path video_path(
     .CLK_VIDEO,
@@ -685,7 +715,7 @@ video_path video_path(
 
     .core_ce_pix,
     .core_hs, .core_vs, .core_hb, .core_vb,
-    .core_r, .core_g, .core_b,
+    .core_r(pause_r), .core_g(pause_g), .core_b(pause_b),
 
     .HDMI_WIDTH, .HDMI_HEIGHT,
     .VIDEO_ARX, .VIDEO_ARY,
@@ -705,5 +735,31 @@ video_path video_path(
     .VGA_SL
 );
 
+wire ss_load, ss_save;
+wire [1:0] ss_slot;
+wire ss_status_set;
+
+savestate_ui #(.INFO_TIMEOUT_BITS(25)) savestate_ui
+(
+    .clk            (clk_sys),
+    .ps2_key        (ps2_key[10:0]),
+    .allow_ss       (1),
+    .joySS          (joy_combined[BTN_SS]),
+    .joyRight       (joy_combined[0]),
+    .joyLeft        (joy_combined[1]),
+    .joyDown        (joy_combined[2]),
+    .joyUp          (joy_combined[3]),
+    .joyRewind      (0),
+    .rewindEnable   (0),
+    .status_slot    (status[42:41]),
+    .autoincslot    (status[40]),
+    .OSD_saveload   (status[44:43]),
+    .ss_save        (ss_save),
+    .ss_load        (ss_load),
+    .ss_info_req    (info_req),
+    .ss_info        (info_index),
+    .statusUpdate   (ss_status_set),
+    .selected_slot  (ss_slot)
+);
 
 endmodule

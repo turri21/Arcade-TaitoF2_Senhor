@@ -3,3 +3,7 @@ roms/
 build_id.v
 **/.DS_Store
 *.bak
+db/
+incremental_db/
+deploy.done
+

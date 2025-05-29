@@ -239,18 +239,20 @@ always @(posedge clk) begin
             write_line_data <= vcnt > vcnt_begin;
             read_line_data <= write_line_data;
             hcnt <= 0;
+
             if( do_v_increments ) begin
                 row_x <= row_x + dxy;
                 row_y <= row_y + dyy;
                 cur_x <= row_x + dxy;
                 cur_y <= row_y + dyy;
+            end else begin
+                row_x <= origin_x;
+                row_y <= origin_y;
+                cur_x <= origin_x;
+                cur_y <= origin_y;
             end
         end else if (~VBLANKn & prev_vblank_n) begin
             vcnt <= 0;
-            row_x <= origin_x;
-            row_y <= origin_y;
-            cur_x <= origin_x;
-            cur_y <= origin_y;
         end else if (do_h_increments) begin
             cur_x <= cur_x + dxx;
             cur_y <= cur_y + dyx;

@@ -7,6 +7,25 @@ from sympy import simplify
 
 from typing import List, Optional, Dict
 
+
+"""
+// inputs
+auto_ss_rd
+auto_ss_wr
+auto_ss_inst_idx[7:0]
+auto_ss_reg_idx[7:0]
+auto_ss_data_in[31:0]
+
+// constant
+auto_ss_base_idx[7:0]
+
+// outputs
+auto_ss_ack
+auto_ss_data_out[31:0]
+
+
+"""
+
 PREFIX = 'auto_ss'
 RESET_SIGNALS = set(["rst", "nrst", "rstn", "n_rst", "rst_n", "reset", "nreset", "resetn", "n_reset", "reset_n"])
 
@@ -206,6 +225,13 @@ class Register:
         else:
             return "1"
 
+    def known_size(self) -> bool:
+        try:
+            int(self.size())
+            return True
+        except (ValueError, TypeError):
+            return False
+
     def __eq__(self, o) -> bool:
         return self.name == o.name and self.packed == o.packed and self.unpacked == o.unpacked
 
@@ -238,6 +264,9 @@ class ModuleInstance:
         self.params = []
         self.named_params = {}
         self.allocated = None
+        self.reg_size = None
+        self.sub_size = None
+        self.base_idx = None
 
     def add_param(self, name, value):
         if name is None:
@@ -249,6 +278,10 @@ class ModuleInstance:
                 raise Exception("Adding named parameter when positional parameters already exist")
             self.named_params[name] = value
 
+    def assign_base_idx(self, cur: int) -> int:
+        self.base_idx = cur
+        count = 1
+
     def allocate(self, offset):
         module_dim = self.module.allocate()
         if module_dim is None:
@@ -256,10 +289,18 @@ class ModuleInstance:
 
         params = self.module.eval_params(self.params, self.named_params)
         end = str(module_dim.end)
+        reg_size = str(self.module.reg_dim.size)
+        sub_size = str(self.module.sub_dim.size)
+
         for k, v in params.items():
             end = end.replace(k, f"({v})")
+            reg_size = reg_size.replace(k, f"({v})")
+            sub_size = sub_size.replace(k, f"({v})")
 
         self.allocated = Dimension(f"({end})+({offset})", offset)
+        self.sub_size = simplify(sub_size)
+        self.reg_size = simplify(reg_size)
+
         return f"({offset})+({self.size()})"
     
     def size(self):
@@ -290,6 +331,9 @@ class Module:
         self.assignments = []
         self.parameters = []
         self.state_dim = None
+        self.reg_dim = None
+        self.sub_dim = None
+        self._ancestor_count = None
 
         self.allocated = False
         self.predefined = False
@@ -302,6 +346,18 @@ class Module:
     def __repr__(self) -> str:
         return f"{self.name}\nParameters: {self.parameters}\nInstances: {self.instances}\nRegisters: {self.registers}\nAssignments: {self.assignments}"
 
+    def ancestor_count(self) -> int:
+        if self._ancestor_count is not None:
+            return self._ancestor_count
+
+        count = 0
+        for inst in self.instances:
+            if inst.module.state_dim:
+                count += 1 + inst.module.ancestor_count()
+
+        self._ancestor_count = count;
+        return count
+
     def eval_params(self, positional: List[str], named: Dict[str,str]) -> Dict[str,str]:
         r = {}
         for idx, x in enumerate(self.parameters):
@@ -312,7 +368,6 @@ class Module:
             else:
                 r[x[0]] = x[1]
         return r
-
 
     def extract_module_instances(self):
         for decl in self.node.iter_find_all({"tag": "kDataDeclaration"}):
@@ -413,6 +468,8 @@ class Module:
                 reg.allocate("0")
                 self.state_dim = reg.allocated
                 self.allocated = True
+                self.reg_dim = reg.allocated
+                self.sub_dim = Dimension("0", "0")
                 return self.state_dim
                 
         assigned = {}
@@ -432,12 +489,16 @@ class Module:
             for sym in a.syms:
                 a.registers.append(allocated[sym])
 
+        reg_offset = offset;
+
         for inst in self.instances:
             offset = inst.allocate(offset)
         
         self.allocated = True
         if offset != "0":
             self.state_dim = Dimension(f"({offset})-1", "0")
+            self.reg_dim = Dimension(f"({reg_offset})-1", "0")
+            self.sub_dim = Dimension(f"({offset})-1", reg_offset)
             return self.state_dim
         else:
             return None
@@ -447,8 +508,12 @@ class Module:
     def print_allocation(self):
         if not self.state_dim:
             return
+        
+        print(f"{self.name} {self.ancestor_count()}")
+        for i in self.instances:
+            print(f"    {i.module_name} {i.name} {i.module.ancestor_count()}")
+        return
 
-        print(self.name)
         print(f"  input [{self.state_dim.end}:{self.state_dim.begin}] state_in,")
         print("  input state_wr,")
         print(f"  output [{self.state_dim.end}:{self.state_dim.begin}] state_out,")
@@ -580,7 +645,7 @@ def main():
         if module in visited:
             continue
         module.modify_tree()
-        #module.print_allocation()
+        module.print_allocation()
         module.output_module(out_fp)
         visited.add(module)
 

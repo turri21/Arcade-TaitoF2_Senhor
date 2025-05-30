@@ -53,7 +53,7 @@ growl = { snes = "B,A,Start,Select,L,R", game = "Attack,Jump,-,-,-,-,Start,Coin,
 dinorex = { snes = "B,A,Start,Select,L,R", game = "Bite/Punch,Kick,-,-,-,-,Start,Coin,Pause,SS" }
 solfigtr = { snes = "B,A,X,Start,Select,L,R", game = "Punch,Kick,Jump,-,-,-,Start,Coin,Pause,SS" }
 driftout = { snes = "B,A,Start,Select,L,R", game = "Accelerator,Brake,-,-,-,-,Start,Coin,Pause,SS" }
-pulirula = { snes = "B,A,X,Start,Select,L,R", game = "Magic,Jump,Btn3,-,-,-,Start,Coin,Pause,SS" }
+pulirula = { snes = "B,A,X,Start,Select,L,R", game = "Attack,Jump,Magic,-,-,-,Start,Coin,Pause,SS" }
 ninjak = { snes = "B,A,Start,Select,L,R", game = "Attack,Jump,-,-,-,-,Start,Coin,Pause,SS" }
 
 

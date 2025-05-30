@@ -29,6 +29,7 @@
 - [x] Sprite disable flag
 - [ ] Unk1 usage in dinorex
 - [ ] Sprite position latch behavior
+- [ ] Liquid Kids intro alignment
 - [x] Screen edge behavior
 - [x] CRT adjust
 - [ ] Verify sprite zoom
@@ -36,8 +37,9 @@
 - [ ] TC0100SCN Colscroll
 - [x] TC0100SCN Ordering
 - [ ] TC0480SCP
-- [ ] TE7750
+- [x] TE7750
 - [x] Move testbed into main repo
+- [ ] Save state support for IO chips
 
 - [x] Audio ROM support in testbed
 - [x] Port z80 asm for mdfourier

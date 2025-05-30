@@ -500,8 +500,10 @@ fx68k m68000(
     .eab(cpu_addr)
 );
 
-wire [7:0] io_tc0220ioc_data_out, io_tmp82c265_data_out;
-wire [7:0] io_data_out = cfg_tmp82c265 ? io_tmp82c265_data_out : io_tc0220ioc_data_out;
+wire [7:0] io_tc0220ioc_data_out, io_tmp82c265_data_out, io_te7750_data_out;
+wire [7:0] io_data_out = cfg_tmp82c265 ? io_tmp82c265_data_out
+                                       : cfg_te7750 ? io_te7750_data_out
+                                       : io_tc0220ioc_data_out;
 
 TC0220IOC tc0220ioc(
     .clk,
@@ -555,6 +557,32 @@ TMP82C265 tmp82c265(
     .PBin(~{ start[1], joystick_p2[6:4], joystick_p2[0], joystick_p2[1], joystick_p2[2], joystick_p2[3], dswb }),
     .PCin(~{ 4'd0, coin[1:0], 2'd0, 8'h00})
 );
+
+TE7750 te7750(
+    .clk,
+    .RESETn(~reset),
+
+    .CSn(IO0n),
+    .A(cpu_addr[3:0]),
+    .RWn(cfg_io_swap ? (cpu_rw | cpu_ds_n[1]) : (cpu_rw | cpu_ds_n[0])),
+    .Din(cfg_io_swap ? cpu_data_out[15:8] : cpu_data_out[7:0]),
+    .Dout(io_te7750_data_out),
+
+
+    .P1in(~dswa),
+    .P2in(~dswb),
+    .P3in(~{start[0], joystick_p1[6:4], joystick_p1[0], joystick_p1[1], joystick_p1[2], joystick_p1[3]}),
+    .P4in(~{start[1], joystick_p2[6:4], joystick_p2[0], joystick_p2[1], joystick_p2[2], joystick_p2[3]}),
+    .P5in(~{start[2], joystick_p3[6:4], joystick_p3[0], joystick_p3[1], joystick_p3[2], joystick_p3[3]}),
+    .P6in(~{start[3], joystick_p4[6:4], joystick_p4[0], joystick_p4[1], joystick_p4[2], joystick_p4[3]}),
+    .P7in(~{coin[3:0], 4'd0}),
+    .P8in(0),
+    .P9in(0),
+
+    .P1out(), .P2out(), .P3out(), .P4out(), .P5out(),
+    .P6out(), .P7out(), .P8out(), .P9out()
+);
+
 
 reg [15:0] growl_hack_data;
 always_ff @(posedge clk) begin
@@ -1120,7 +1148,7 @@ assign cpu_data_in = ~SS_SAVEn ? ss_irq_handler[cpu_addr[3:0]] :
                      ~OBJECTn ? objram_data_out :
                      ~PRIORITYn ? { pri360_data_out, pri360_data_out } :
                      ~COLORn ? (cfg_260dar ? dar_data_out : pri_data_out) :
-                     (~IO0n | ~IO1n) ? { 8'b0, io_data_out } :
+                     (~IO0n | ~IO1n) ? { io_data_out, io_data_out } :
                      ~SOUNDn ? { 4'd0, syt_cpu_dout, 8'd0 } :
                      ~EXTENSIONn ? extension_data :
                      ~GROWL_HACKn ? growl_hack_data :

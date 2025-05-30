@@ -58,9 +58,9 @@ wire [15:0] prio_vals0 = { ctrl[5], ctrl[4] };
 wire [15:0] prio_vals1 = { ctrl[7], ctrl[6] };
 wire [15:0] prio_vals2 = { ctrl[9], ctrl[8] };
 
-wire [3:0] prio0 = |color_in0[3:0] ? prio_vals0[ 4 * sel0 +: 4 ] : 4'b0;
-wire [3:0] prio1 = |color_in1[3:0] ? prio_vals1[ 4 * sel1 +: 4 ] : 4'b0;
-wire [3:0] prio2 = |color_in2[3:0] ? prio_vals2[ 4 * sel2 +: 4 ] : 4'b0;
+wire [4:0] prio0 = |color_in0[3:0] ? { 1'b0, prio_vals0[ 4 * sel0 +: 4 ] } : 5'b0;
+wire [4:0] prio1 = |color_in1[3:0] ? { 1'b0, prio_vals1[ 4 * sel1 +: 4 ] } : 5'b0;
+wire [4:0] prio2 = |color_in2[3:0] ? { 1'b0, prio_vals2[ 4 * sel2 +: 4 ] } : 5'b0;
 
 wire [11:0] color0 = color_in0[11:0];
 wire [11:0] color1 = color_in1[11:0];
@@ -77,25 +77,25 @@ assign color_out = { 2'b0, color_final };
 always_ff @(posedge clk) begin
     if (ce_pixel) begin
         color_final <= color0;
-        if (blend && (prio1 == (prio0 - 4'd1))) begin
+        if (blend && (prio1 == (prio0 - 5'd1))) begin
             if (bm1) begin
                 color_final <= { color1[11:4], color0[3:0] };
             end else begin
                 color_final <= { color0[11:5], 1'b0, color0[3:0] };
             end
-        end else if (blend && (prio1 == (prio0 + 4'd1))) begin
+        end else if (blend && (prio1 == (prio0 + 5'd1))) begin
             if (bm1) begin
                 color_final <= { color0[11:4], color1[3:0] };
             end else begin
                 color_final <= { color1[11:5], 1'b0, color1[3:0] };
             end
-        end else if (blend && (prio1 == (prio2 - 4'd1))) begin
+        end else if (blend && (prio1 == (prio2 - 5'd1))) begin
             if (bm1) begin
                 color_final <= { color1[11:4], color2[3:0] };
             end else begin
                 color_final <= { color2[11:5], 1'b0, color2[3:0] };
             end
-        end else if (blend && (prio1 == (prio2 + 4'd1))) begin
+        end else if (blend && (prio1 == (prio2 + 5'd1))) begin
             if (bm1) begin
                 color_final <= { color2[11:4], color1[3:0] };
             end else begin

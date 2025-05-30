@@ -291,6 +291,27 @@ static void load_pulirula()
     top->game = GAME_PULIRULA;
 }
 
+static void load_ninjak()
+{
+    g_fs.addSearchPath("../roms/ninjak.zip");
+
+    load_audio("c85-14.ic54");
+
+    sdram.load_data("c85-10x.ic50", CPU_ROM_SDR_BASE + 1, 2);
+    sdram.load_data("c85-13x.ic49", CPU_ROM_SDR_BASE + 0, 2);
+    sdram.load_data("c85-07.ic48", CPU_ROM_SDR_BASE + 0x40001, 2);
+    sdram.load_data("c85-06.ic47", CPU_ROM_SDR_BASE + 0x40000, 2);
+		
+    sdram.load_data("c85-03.ic65",  SCN0_ROM_SDR_BASE, 1);
+
+    sdram.load_data("c85-04.ic31",  ADPCMA_ROM_SDR_BASE, 1);
+    sdram.load_data("c85-05.ic33",  ADPCMB_ROM_SDR_BASE, 1);
+
+    ddr_memory.load_data("c85-01.ic19", OBJ_DATA_DDR_BASE, 1);
+    ddr_memory.load_data("c85-02.ic17", OBJ_DATA_DDR_BASE + 0x100000, 1);
+
+    top->game = GAME_NINJAK;
+}
 
 bool game_init(game_t game)
 {
@@ -310,6 +331,7 @@ bool game_init(game_t game)
         case GAME_DRIFTOUT_TEST: load_driftout_test(); break;
         case GAME_CAMELTRY: load_cameltry(); break;
         case GAME_PULIRULA: load_pulirula(); break;
+        case GAME_NINJAK: load_ninjak(); break;
         default: return false;
     }
 

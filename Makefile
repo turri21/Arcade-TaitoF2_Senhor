@@ -62,6 +62,9 @@ sim/dinorex:
 sim/megab:
 	$(MAKE) -j8 -C sim run GAME=megab
 
+sim/liquidk:
+	$(MAKE) -j8 -C sim run GAME=liquidk
+
 sim/driftout:
 	$(MAKE) -j8 -C sim run GAME=driftout
 
@@ -70,6 +73,9 @@ sim/cameltry:
 
 sim/pulirula:
 	$(MAKE) -j8 -C sim run GAME=pulirula
+
+sim/ninjak:
+	$(MAKE) -j8 -C sim run GAME=ninjak
 
 
 sim/qjinsei_test:

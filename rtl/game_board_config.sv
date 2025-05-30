@@ -59,6 +59,7 @@ always @(posedge clk) begin
         GAME_DONDOKOD: c = 16'b01_1_0_0_00_0_0_0_1_0_0_0_0_0;
         GAME_CAMELTRY: c = 16'b01_1_0_0_00_0_0_0_1_0_0_0_0_0;
         GAME_PULIRULA: c = 16'b11_1_0_0_10_0_0_0_0_1_0_0_1_0;
+        GAME_NINJAK:   c = 16'b01_1_0_1_00_0_1_1_0_0_0_0_0_0;
         GAME_QTORIMON: c = 16'b00_0_1_0_00_0_0_0_0_0_0_0_1_1;
         GAME_QUIZHQ:   c = 16'b00_0_1_0_00_0_0_0_0_0_0_0_1_1;
         GAME_QJINSEI:  c = 16'b01_1_0_0_01_0_0_0_0_0_0_0_1_1;
@@ -287,7 +288,7 @@ always_ff @(posedge clk) begin
         cfg_addr_io0       <= {8'h30, 8'hF7}; // 0x30xxxx TE7750, 0x38xxxx Watchdog
         //cfg_addr_watchdog      <= {8'h38, 8'hFF}; // 0x380000 - 0x380001 (Watchdog) - Note: Overlaps IO chip general range
         cfg_addr_sound    <= {8'h40, 8'hFF}; // 0x400000, 0x400002 (TC0140SYT)
-        //cfg_addr_spritebank_sel<= {8'h60, 8'hFF}; // 0x600000 - 0x60000F
+        cfg_addr_extension <= {8'h60, 8'hFF}; // 0x600000 - 0x60000F
         cfg_addr_screen  <= {8'h80, 8'hF0}; // 0x800000 - 0x80FFFF (TC0100SCN RAM)
         cfg_addr_obj    <= {8'h90, 8'hFF}; // 0x900000 - 0x90FFFF
         cfg_addr_priority <= {8'hB0, 8'hFF}; // 0xB00000 - 0xB0001F (TC0360PRI)

@@ -1,4 +1,0 @@
-[submodule "rtl/jt12"]
-	path = rtl/jt12
-	url = https://github.com/wickerwaka/jt12.git
-	branch = auto-ss

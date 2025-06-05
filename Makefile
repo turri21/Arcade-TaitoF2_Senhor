@@ -1,5 +1,5 @@
 MAKEFLAGS+=w
-PYTHON=uv --project util/ -q run
+PYTHON=uv run
 QUARTUS_DIR = C:/intelFPGA_lite/17.0/quartus/bin64
 PROJECT = Arcade-TaitoF2
 CONFIG = Arcade-TaitoF2

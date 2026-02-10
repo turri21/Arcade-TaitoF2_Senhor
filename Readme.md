@@ -1,3 +1,8 @@
+-=(TaitoF2_Senhor notes)=-
+
+Tested: Working Video 720p, 1080p & sound.
+
+___
 # Taito F2 System MiSTer Core
 
 This is an FPGA implementation of the Taito F2 arcade system for the MiSTer platform. The Taito F2 system was used for arcade games from the late 1980s to early 1990s and featured advanced graphics capabilities including sprite scaling, multiple scroll layers, rotation, zoom and ADPCM sample playback.
@@ -52,4 +57,5 @@ Many people, knowingly or not, contributed to this work.
 - @jotego, for the YM2610 implementation, various utility modules and lots of examples of 68000 usage.
 - @ArtemioUrbina, for their support building MDfourier tests.
 - The MiSTer FPGA discord server for support, advice and testing.
+
 
